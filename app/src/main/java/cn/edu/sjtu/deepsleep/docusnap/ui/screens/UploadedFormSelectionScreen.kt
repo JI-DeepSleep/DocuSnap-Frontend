@@ -19,7 +19,7 @@ fun UploadedFormSelectionScreen(
     onNavigate: (String) -> Unit,
     onBackClick: () -> Unit
 ) {
-    var selectedForm by remember { mutableStateOf<cn.edu.sjtu.deepsleep.docusnap.data.Form?>(null) }
+    var selectedFormId by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -37,32 +37,32 @@ fun UploadedFormSelectionScreen(
         // Form Gallery
         LazyColumn(
             modifier = Modifier
-                .fillMaxSize()
+                .weight(1f)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(MockData.mockForms) { form ->
                 FormCard(
                     form = form,
-                    onClick = { selectedForm = form },
+                    selected = selectedFormId == form.id,
+                    onClick = { selectedFormId = form.id },
                     modifier = Modifier.fillMaxWidth()
                 )
             }
         }
 
         // Bottom Button
-        if (selectedForm != null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+        ) {
+            Button(
+                onClick = { if (selectedFormId != null) onNavigate("fill_form") },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = selectedFormId != null
             ) {
-                Button(
-                    onClick = { onNavigate("fill_form") },
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Fill This Form")
-                }
+                Text("Fill This Form")
             }
         }
     }
