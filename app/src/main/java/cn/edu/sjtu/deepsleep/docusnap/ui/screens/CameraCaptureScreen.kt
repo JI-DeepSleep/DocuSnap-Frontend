@@ -1,5 +1,18 @@
 package cn.edu.sjtu.deepsleep.docusnap.ui.screens
 
+import android.Manifest
+import android.content.Context
+import android.net.Uri
+import android.util.Log
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ImageCapture
+import androidx.camera.core.ImageCaptureException
+import androidx.camera.core.Preview
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -13,85 +26,77 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.launch
+import java.io.File
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import androidx.compose.ui.viewinterop.AndroidView
 
 @Composable
 fun CameraCaptureScreen(
     onNavigate: (String) -> Unit,
     onBackClick: () -> Unit
 ) {
+    val context = LocalContext.current
+    var hasCameraPermission by remember { mutableStateOf(false) }
+    val cameraPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { granted -> hasCameraPermission = granted }
+    )
+    LaunchedEffect(Unit) {
+        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
+    }
+    if (!hasCameraPermission) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            Text("Camera permission required.")
+        }
+        return
+    }
+
+    var zoomRatio by remember { mutableStateOf(1f) }
+    var exposureCompensation by remember { mutableStateOf(0f) }
     var isCapturing by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
+    val imageCapture = remember { ImageCapture.Builder().build() }
+    val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
+    var cameraControl by remember { mutableStateOf<androidx.camera.core.CameraControl?>(null) }
+    var cameraInfo by remember { mutableStateOf<androidx.camera.core.CameraInfo?>(null) }
+    val outputDirectory = remember { getOutputDirectory(context) }
+    val executor = remember { Executors.newSingleThreadExecutor() }
 
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
-        // Camera Preview Area (simulated)
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black)
-        ) {
-            // Camera preview placeholder
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(32.dp)
-                    .background(
-                        color = Color.DarkGray,
-                        shape = MaterialTheme.shapes.medium
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.CameraAlt,
-                        contentDescription = null,
-                        modifier = Modifier.size(64.dp),
-                        tint = Color.White
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        text = "Camera Preview",
-                        color = Color.White,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "Position your document within the frame",
-                        color = Color.White.copy(alpha = 0.7f),
-                        fontSize = 14.sp
-                    )
-                }
-            }
-
-            // Document frame overlay
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(64.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            color = Color.Transparent,
-                            shape = MaterialTheme.shapes.medium
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Camera Preview
+        AndroidView(
+            factory = { ctx ->
+                val previewView = PreviewView(ctx)
+                val preview = Preview.Builder().build()
+                val cameraSelector = CameraSelector.DEFAULT_BACK_CAMERA
+                cameraProviderFuture.addListener({
+                    val cameraProvider = cameraProviderFuture.get()
+                    try {
+                        cameraProvider.unbindAll()
+                        val camera = cameraProvider.bindToLifecycle(
+                            ctx as androidx.lifecycle.LifecycleOwner,
+                            cameraSelector,
+                            preview,
+                            imageCapture
                         )
-                        .border(
-                            width = 2.dp,
-                            color = Color.White,
-                            shape = MaterialTheme.shapes.medium
-                        )
-                )
-            }
-        }
+                        cameraControl = camera.cameraControl
+                        cameraInfo = camera.cameraInfo
+                        preview.setSurfaceProvider(previewView.surfaceProvider)
+                    } catch (exc: Exception) {
+                        Log.e("CameraCapture", "Camera binding failed", exc)
+                    }
+                }, ContextCompat.getMainExecutor(ctx))
+                previewView
+            },
+            modifier = Modifier.fillMaxSize()
+        )
 
         // Top Bar
         TopAppBar(
@@ -102,9 +107,7 @@ fun CameraCaptureScreen(
                 }
             },
             actions = {
-                IconButton(onClick = { /* Flash toggle */ }) {
-                    Icon(Icons.Default.FlashOn, contentDescription = "Flash")
-                }
+                // Flash toggle can be added here if needed
             },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = Color.Transparent
@@ -142,12 +145,28 @@ fun CameraCaptureScreen(
                 Button(
                     onClick = {
                         isCapturing = true
-                        // Simulate capture delay
-                        scope.launch {
-                            kotlinx.coroutines.delay(1000)
-                            isCapturing = false
-                            onNavigate("image_processing")
-                        }
+                        val photoFile = File(
+                            outputDirectory,
+                            "IMG_${System.currentTimeMillis()}.jpg"
+                        )
+                        val outputOptions = ImageCapture.OutputFileOptions.Builder(photoFile).build()
+                        imageCapture.takePicture(
+                            outputOptions,
+                            executor,
+                            object : ImageCapture.OnImageSavedCallback {
+                                override fun onImageSaved(output: ImageCapture.OutputFileResults) {
+                                    isCapturing = false
+                                    // Navigate to image processing with the photo URI on the main thread
+                                    scope.launch {
+                                        onNavigate("image_processing?photoUri=${Uri.fromFile(photoFile)}")
+                                    }
+                                }
+                                override fun onError(exception: ImageCaptureException) {
+                                    isCapturing = false
+                                    Toast.makeText(context, "Capture failed: ${exception.message}", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        )
                     },
                     modifier = Modifier
                         .size(80.dp)
@@ -172,7 +191,7 @@ fun CameraCaptureScreen(
                     }
                 }
 
-                // Settings button
+                // Settings button (optional)
                 IconButton(
                     onClick = { /* Settings */ },
                     modifier = Modifier
@@ -189,31 +208,38 @@ fun CameraCaptureScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Mode indicator
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = Color.White.copy(alpha = 0.9f)
-                )
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    Text(
-                        text = "Document Mode",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Text(
-                        text = "Auto-detect edges",
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
+            // Zoom control
+            Text("Zoom", color = Color.White)
+            Slider(
+                value = zoomRatio,
+                onValueChange = {
+                    zoomRatio = it
+                    cameraControl?.setZoomRatio(it)
+                },
+                valueRange = 1f..(cameraInfo?.zoomState?.value?.maxZoomRatio ?: 4f),
+                steps = 10,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            // Exposure control
+            Text("Exposure", color = Color.White)
+            Slider(
+                value = exposureCompensation,
+                onValueChange = {
+                    exposureCompensation = it
+                    cameraControl?.setExposureCompensationIndex(it.toInt())
+                },
+                valueRange = (cameraInfo?.exposureState?.exposureCompensationRange?.lower?.toFloat() ?: -2f)..(cameraInfo?.exposureState?.exposureCompensationRange?.upper?.toFloat() ?: 2f),
+                steps = 4,
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
+}
+
+fun getOutputDirectory(context: Context): File {
+    val mediaDir = context.externalMediaDirs.firstOrNull()?.let {
+        File(it, context.packageName).apply { mkdirs() }
+    }
+    return if (mediaDir != null && mediaDir.exists()) mediaDir else context.filesDir
 } 

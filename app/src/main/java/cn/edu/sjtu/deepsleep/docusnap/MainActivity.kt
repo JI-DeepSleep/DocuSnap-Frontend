@@ -1,5 +1,6 @@
 package cn.edu.sjtu.deepsleep.docusnap
 
+import android.R.attr.type
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -10,9 +11,11 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import cn.edu.sjtu.deepsleep.docusnap.navigation.Screen
 import cn.edu.sjtu.deepsleep.docusnap.ui.screens.*
 import cn.edu.sjtu.deepsleep.docusnap.ui.theme.DocuSnapTheme
@@ -66,10 +69,15 @@ fun DocuSnapApp() {
                 )
             }
             
-            composable(Screen.ImageProcessing.route) {
+            composable(
+                route = "image_processing?photoUri={photoUri}",
+                arguments = listOf(navArgument("photoUri") { type = NavType.StringType; nullable = true })
+            ) { backStackEntry ->
+                val photoUri = backStackEntry.arguments?.getString("photoUri")
                 ImageProcessingScreen(
                     onNavigate = { route -> navController.navigate(route) },
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = { navController.popBackStack() },
+                    photoUri = photoUri
                 )
             }
             
