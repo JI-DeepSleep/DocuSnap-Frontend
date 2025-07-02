@@ -55,6 +55,7 @@ fun AccessFormScreen(
                 items(MockData.mockForms) { form ->
                     FormCard(
                         form = form,
+                        selected = false,
                         onClick = { onNavigate("form_display") }
                     )
                 }

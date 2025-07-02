@@ -19,7 +19,7 @@ fun SearchBar(
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
     modifier: Modifier = Modifier,
-    placeholder: String = "Search documents or information..."
+    placeholder: String = "Search for information..."
 ) {
     OutlinedTextField(
         value = query,
@@ -133,6 +133,7 @@ fun DocumentCard(
 @Composable
 fun FormCard(
     form: cn.edu.sjtu.deepsleep.docusnap.data.Form,
+    selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -141,25 +142,34 @@ fun FormCard(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = form.name,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "${form.formFields.size} fields",
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "Uploaded: ${form.uploadDate}",
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = form.name,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "${form.formFields.size} fields",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Uploaded: ${form.uploadDate}",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Checkbox(
+                checked = selected,
+                onCheckedChange = { onClick() }
             )
         }
     }

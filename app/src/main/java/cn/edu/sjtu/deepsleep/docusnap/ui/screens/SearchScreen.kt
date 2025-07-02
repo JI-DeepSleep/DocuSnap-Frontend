@@ -94,6 +94,7 @@ fun SearchScreen(
                     items(searchResults.forms) { form ->
                         FormCard(
                             form = form,
+                            selected = false,
                             onClick = { onNavigate("form_display") }
                         )
                     }

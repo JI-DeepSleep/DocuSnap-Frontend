@@ -50,7 +50,7 @@ fun HomeScreen(
 
         // Document Upload Section
         Text(
-            text = "Document Upload",
+            text = "Upload Document",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 12.dp)
@@ -89,7 +89,7 @@ fun HomeScreen(
 
         // Form Upload Section
         Text(
-            text = "Form Upload",
+            text = "Upload Form",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 12.dp)
@@ -147,7 +147,7 @@ fun HomeScreen(
             ) {
                 Icon(Icons.Default.Description, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Uploaded Forms")
+                Text("Library")
             }
             Button(
                 onClick = { /* Not supported in demo */ },
@@ -160,7 +160,7 @@ fun HomeScreen(
             ) {
                 Icon(Icons.Default.Add, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("New Form")
+                Text("Online Form")
             }
         }
 

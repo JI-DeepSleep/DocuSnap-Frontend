@@ -26,6 +26,7 @@ fun FillFormScreen(
     onBackClick: () -> Unit
 ) {
     var isAutoFilling by remember { mutableStateOf(false) }
+    var isEditing by remember { mutableStateOf(false) }
     val form = remember { MockData.mockForms.first() }
     val scope = rememberCoroutineScope()
 
@@ -83,12 +84,23 @@ fun FillFormScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Form Extracted Information
-            Text(
-                text = "Form Extracted Information",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(bottom = 12.dp)
-            )
+            ) {
+                Text(
+                    text = "Form Extracted Information",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+                IconButton(onClick = { isEditing = !isEditing }) {
+                    Icon(
+                        imageVector = if (isEditing) Icons.Default.Check else Icons.Default.Edit,
+                        contentDescription = if (isEditing) "Save" else "Edit"
+                    )
+                }
+            }
 
             Card(
                 modifier = Modifier
@@ -102,7 +114,7 @@ fun FillFormScreen(
                         .verticalScroll(rememberScrollState())
                 ) {
                     form.formFields.forEach { field ->
-                        FormFieldItem(field = field)
+                        FormFieldItem(field = field, isEditing = isEditing)
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
@@ -142,8 +154,10 @@ fun FillFormScreen(
 
 @Composable
 private fun FormFieldItem(
-    field: cn.edu.sjtu.deepsleep.docusnap.data.FormField
+    field: cn.edu.sjtu.deepsleep.docusnap.data.FormField,
+    isEditing: Boolean
 ) {
+    var value by remember { mutableStateOf(field.value ?: "") }
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -168,7 +182,14 @@ private fun FormFieldItem(
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium
                 )
-                if (field.value != null) {
+                if (isEditing) {
+                    TextField(
+                        value = value,
+                        onValueChange = { value = it },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                } else if (field.value != null) {
                     Text(
                         text = field.value,
                         fontSize = 12.sp,
