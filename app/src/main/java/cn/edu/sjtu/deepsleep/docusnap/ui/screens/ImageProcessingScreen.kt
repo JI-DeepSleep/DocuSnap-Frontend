@@ -1,5 +1,14 @@
 package cn.edu.sjtu.deepsleep.docusnap.ui.screens
 
+import android.content.ContentValues
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
+import android.os.Build
+import android.os.Environment
+import android.provider.MediaStore
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -16,12 +25,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
+import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
+import java.io.OutputStream
 
 @Composable
 fun ImageProcessingScreen(
@@ -30,8 +44,10 @@ fun ImageProcessingScreen(
     photoUri: String? = null
 ) {
     var isProcessing by remember { mutableStateOf(false) }
+    var isSaving by remember { mutableStateOf(false) }
     var selectedFilter by remember { mutableStateOf("Original") }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -75,7 +91,7 @@ fun ImageProcessingScreen(
                         .clip(RoundedCornerShape(8.dp)),
                     contentAlignment = Alignment.Center
                 ) {
-                    if (isProcessing) {
+                    if (isProcessing || isSaving) {
                         CircularProgressIndicator()
                     } else if (photoUri != null) {
                         AsyncImage(
@@ -113,6 +129,12 @@ fun ImageProcessingScreen(
                 if (isProcessing) {
                     Text(
                         text = "Processing image...",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                } else if (isSaving) {
+                    Text(
+                        text = "Saving to gallery...",
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.primary
                     )
@@ -203,8 +225,19 @@ fun ImageProcessingScreen(
                         Text("Reset")
                     }
                     Button(
-                        onClick = { onNavigate("home") },
-                        modifier = Modifier.weight(1f)
+                        onClick = {
+                            if (photoUri != null) {
+                                scope.launch {
+                                    isSaving = true
+                                    saveImageToGallery(context, photoUri, selectedFilter)
+                                    isSaving = false
+                                }
+                            } else {
+                                Toast.makeText(context, "No image to save", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        enabled = !isSaving && photoUri != null
                     ) {
                         Icon(Icons.Default.Check, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
@@ -241,4 +274,144 @@ private fun FilterButton(
         Spacer(modifier = Modifier.width(4.dp))
         Text(text, fontSize = 12.sp)
     }
-} 
+}
+
+private suspend fun saveImageToGallery(context: Context, imageUri: String, filter: String) {
+    try {
+        val uri = Uri.parse(imageUri)
+        val inputStream = context.contentResolver.openInputStream(uri)
+        val bitmap = BitmapFactory.decodeStream(inputStream)
+        inputStream?.close()
+
+        if (bitmap != null) {
+            // Apply filter effect (simplified - in real app you'd apply actual image processing)
+            val processedBitmap = applyFilter(bitmap, filter)
+            
+            // Save to gallery
+            val savedUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                saveImageToGalleryAPI29Plus(context, processedBitmap, filter)
+            } else {
+                saveImageToGalleryLegacy(context, processedBitmap, filter)
+            }
+            
+            if (savedUri != null) {
+                Toast.makeText(context, "Image saved to gallery successfully!", Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(context, "Failed to save image", Toast.LENGTH_SHORT).show()
+            }
+        } else {
+            Toast.makeText(context, "Failed to load image", Toast.LENGTH_SHORT).show()
+        }
+    } catch (e: Exception) {
+        Toast.makeText(context, "Error saving image: ${e.message}", Toast.LENGTH_SHORT).show()
+    }
+}
+
+private fun applyFilter(bitmap: Bitmap, filter: String): Bitmap {
+    // This is a simplified filter application
+    // In a real app, you would apply actual image processing algorithms
+    return when (filter) {
+        "Grayscale" -> {
+            // Convert to grayscale
+            val width = bitmap.width
+            val height = bitmap.height
+            val grayBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            
+            for (x in 0 until width) {
+                for (y in 0 until height) {
+                    val pixel = bitmap.getPixel(x, y)
+                    val gray = (android.graphics.Color.red(pixel) * 0.299 + 
+                               android.graphics.Color.green(pixel) * 0.587 + 
+                               android.graphics.Color.blue(pixel) * 0.114).toInt()
+                    grayBitmap.setPixel(x, y, android.graphics.Color.rgb(gray, gray, gray))
+                }
+            }
+            grayBitmap
+        }
+        "High Contrast" -> {
+            // Apply high contrast effect
+            val width = bitmap.width
+            val height = bitmap.height
+            val contrastBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            
+            for (x in 0 until width) {
+                for (y in 0 until height) {
+                    val pixel = bitmap.getPixel(x, y)
+                    val factor = 1.5f // Contrast factor
+                    val red = ((android.graphics.Color.red(pixel) - 128) * factor + 128).toInt().coerceIn(0, 255)
+                    val green = ((android.graphics.Color.green(pixel) - 128) * factor + 128).toInt().coerceIn(0, 255)
+                    val blue = ((android.graphics.Color.blue(pixel) - 128) * factor + 128).toInt().coerceIn(0, 255)
+                    contrastBitmap.setPixel(x, y, android.graphics.Color.rgb(red, green, blue))
+                }
+            }
+            contrastBitmap
+        }
+        "Processed" -> {
+            // Apply auto-processing effect (enhanced brightness and contrast)
+            val width = bitmap.width
+            val height = bitmap.height
+            val processedBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            
+            for (x in 0 until width) {
+                for (y in 0 until height) {
+                    val pixel = bitmap.getPixel(x, y)
+                    val factor = 1.3f // Enhancement factor
+                    val red = ((android.graphics.Color.red(pixel) - 128) * factor + 128).toInt().coerceIn(0, 255)
+                    val green = ((android.graphics.Color.green(pixel) - 128) * factor + 128).toInt().coerceIn(0, 255)
+                    val blue = ((android.graphics.Color.blue(pixel) - 128) * factor + 128).toInt().coerceIn(0, 255)
+                    processedBitmap.setPixel(x, y, android.graphics.Color.rgb(red, green, blue))
+                }
+            }
+            processedBitmap
+        }
+        else -> bitmap // Return original for other filters
+    }
+}
+
+private fun saveImageToGalleryAPI29Plus(context: Context, bitmap: Bitmap, filter: String): Uri? {
+    val filename = "DocuSnap_${filter}_${System.currentTimeMillis()}.jpg"
+    val contentValues = ContentValues().apply {
+        put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+        put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/DocuSnap")
+    }
+
+    val contentResolver = context.contentResolver
+    val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+
+    uri?.let { imageUri ->
+        contentResolver.openOutputStream(imageUri)?.use { outputStream ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, outputStream)
+        }
+    }
+
+    return uri
+}
+
+private fun saveImageToGalleryLegacy(context: Context, bitmap: Bitmap, filter: String): Uri? {
+    val filename = "DocuSnap_${filter}_${System.currentTimeMillis()}.jpg"
+    val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
+    val docuSnapDir = File(picturesDir, "DocuSnap")
+    
+    if (!docuSnapDir.exists()) {
+        docuSnapDir.mkdirs()
+    }
+    
+    val imageFile = File(docuSnapDir, filename)
+    
+    return try {
+        FileOutputStream(imageFile).use { outputStream ->
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, outputStream)
+        }
+        
+        // Notify gallery about the new image
+        val contentValues = ContentValues().apply {
+            put(MediaStore.Images.Media.DATA, imageFile.absolutePath)
+            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+        }
+        
+        context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
+    } catch (e: IOException) {
+        null
+    }
+}
