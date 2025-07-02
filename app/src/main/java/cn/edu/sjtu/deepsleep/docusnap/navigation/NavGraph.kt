@@ -14,4 +14,4 @@ sealed class Screen(val route: String) {
     object DocumentDisplay : Screen("document_display")
     object AccessForm : Screen("access_form")
     object FormDisplay : Screen("form_display")
-} 
+}

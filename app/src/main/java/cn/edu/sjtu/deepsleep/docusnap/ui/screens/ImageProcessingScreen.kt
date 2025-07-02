@@ -20,11 +20,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
+import androidx.compose.ui.layout.ContentScale
+import coil.compose.AsyncImage
 
 @Composable
 fun ImageProcessingScreen(
     onNavigate: (String) -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    photoUri: String? = null
 ) {
     var isProcessing by remember { mutableStateOf(false) }
     var selectedFilter by remember { mutableStateOf("Original") }
@@ -35,7 +38,7 @@ fun ImageProcessingScreen(
     ) {
         // Top Bar
         TopAppBar(
-            title = { Text("Auto Processing") },
+            title = { Text("Image Processing") },
             navigationIcon = {
                 IconButton(onClick = onBackClick) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -65,23 +68,22 @@ fun ImageProcessingScreen(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Image placeholder
+                // Image placeholder or loaded image
                 Box(
                     modifier = Modifier
                         .size(300.dp)
-                        .background(
-                            when (selectedFilter) {
-                                "Grayscale" -> Color.Gray
-                                "High Contrast" -> Color.Black
-                                else -> Color.White
-                            },
-                            RoundedCornerShape(8.dp)
-                        )
                         .clip(RoundedCornerShape(8.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     if (isProcessing) {
                         CircularProgressIndicator()
+                    } else if (photoUri != null) {
+                        AsyncImage(
+                            model = photoUri,
+                            contentDescription = "Captured Image",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
                     } else {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
@@ -140,6 +142,21 @@ fun ImageProcessingScreen(
                 ) {
                     item {
                         FilterButton(
+                            text = "Auto Process",
+                            icon = Icons.Default.AutoFixHigh,
+                            onClick = {
+                                isProcessing = true
+                                // Simulate processing
+                                scope.launch {
+                                    kotlinx.coroutines.delay(2000)
+                                    isProcessing = false
+                                    selectedFilter = "Processed"
+                                }
+                            }
+                        )
+                    }
+                    item {
+                        FilterButton(
                             text = "Crop",
                             icon = Icons.Default.Crop,
                             onClick = { /* Crop functionality */ }
@@ -166,21 +183,6 @@ fun ImageProcessingScreen(
                             icon = Icons.Default.Contrast,
                             onClick = { selectedFilter = "High Contrast" },
                             isSelected = selectedFilter == "High Contrast"
-                        )
-                    }
-                    item {
-                        FilterButton(
-                            text = "Auto Process",
-                            icon = Icons.Default.AutoFixHigh,
-                            onClick = {
-                                isProcessing = true
-                                                            // Simulate processing
-                            scope.launch {
-                                kotlinx.coroutines.delay(2000)
-                                isProcessing = false
-                                selectedFilter = "Processed"
-                            }
-                            }
                         )
                     }
                 }
