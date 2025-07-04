@@ -19,24 +19,37 @@ fun SearchBar(
     onQueryChange: (String) -> Unit,
     onSearch: () -> Unit,
     modifier: Modifier = Modifier,
-    placeholder: String = "Search for information..."
+    placeholder: String = "Search..."
 ) {
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
+    Row(
         modifier = modifier.fillMaxWidth(),
-        placeholder = { Text(placeholder) },
-        leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
-        trailingIcon = {
-            if (query.isNotEmpty()) {
-                IconButton(onClick = { onQueryChange("") }) {
-                    Icon(Icons.Default.Clear, contentDescription = "Clear")
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier.weight(1f),
+            placeholder = { Text(placeholder) },
+            leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+            trailingIcon = {
+                if (query.isNotEmpty()) {
+                    IconButton(onClick = { onQueryChange("") }) {
+                        Icon(Icons.Default.Clear, contentDescription = "Clear")
+                    }
                 }
-            }
-        },
-        singleLine = true,
-        shape = RoundedCornerShape(12.dp)
-    )
+            },
+            singleLine = true,
+            shape = RoundedCornerShape(12.dp)
+        )
+        Button(
+            onClick = onSearch,
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier.height(56.dp)
+        ) {
+            Icon(Icons.Default.Search, contentDescription = "Search")
+        }
+    }
 }
 
 @Composable
