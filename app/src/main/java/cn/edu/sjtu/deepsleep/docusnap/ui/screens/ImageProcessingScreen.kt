@@ -59,13 +59,6 @@ fun ImageProcessingScreen(
                 IconButton(onClick = onBackClick) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                 }
-            },
-            actions = {
-                TextButton(
-                    onClick = { onNavigate("home") }
-                ) {
-                    Text("Done Editing")
-                }
             }
         )
 
@@ -226,22 +219,23 @@ fun ImageProcessingScreen(
                     }
                     Button(
                         onClick = {
-                            if (photoUri != null) {
-                                scope.launch {
-                                    isSaving = true
-                                    saveImageToGallery(context, photoUri, selectedFilter)
-                                    isSaving = false
-                                }
-                            } else {
-                                Toast.makeText(context, "No image to save", Toast.LENGTH_SHORT).show()
-                            }
+                            onNavigate("home")
+//                            if (photoUri != null) {
+//                                scope.launch {
+//                                    isSaving = true
+//                                    saveImageToGallery(context, photoUri, selectedFilter)
+//                                    isSaving = false
+//                                }
+//                            } else {
+//                                Toast.makeText(context, "No image to save", Toast.LENGTH_SHORT).show()
+//                            }
                         },
                         modifier = Modifier.weight(1f),
                         enabled = !isSaving && photoUri != null
                     ) {
                         Icon(Icons.Default.Check, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Save")
+                        Text("Done Editing")
                     }
                 }
             }
