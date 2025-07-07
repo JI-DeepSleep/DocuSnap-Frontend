@@ -60,7 +60,7 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Button(
-                onClick = { onNavigate("camera_capture") },
+                onClick = { onNavigate("camera_capture?source=document") },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -72,7 +72,7 @@ fun HomeScreen(
                 Text("Camera")
             }
             Button(
-                onClick = { onNavigate("local_media") },
+                onClick = { onNavigate("local_media?source=document") },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -99,7 +99,7 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Button(
-                onClick = { onNavigate("camera_capture") },
+                onClick = { onNavigate("camera_capture?source=form") },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -111,7 +111,7 @@ fun HomeScreen(
                 Text("Camera")
             }
             Button(
-                onClick = { onNavigate("local_media") },
+                onClick = { onNavigate("local_media?source=form") },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,

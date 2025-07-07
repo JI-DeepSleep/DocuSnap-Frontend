@@ -25,7 +25,8 @@ import androidx.compose.ui.unit.sp
 @Composable
 fun LocalMediaScreen(
     onNavigate: (String) -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    source: String = "document"
 ) {
     var selectedImage by remember { mutableStateOf<String?>(null) }
     
@@ -50,7 +51,7 @@ fun LocalMediaScreen(
             actions = {
                 if (selectedImage != null) {
                     TextButton(
-                        onClick = { onNavigate("image_processing") }
+                        onClick = { onNavigate("image_processing?photoUri=$selectedImage&source=$source") }
                     ) {
                         Text("Select")
                     }

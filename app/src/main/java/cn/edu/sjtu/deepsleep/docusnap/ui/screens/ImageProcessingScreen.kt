@@ -41,7 +41,8 @@ import java.io.OutputStream
 fun ImageProcessingScreen(
     onNavigate: (String) -> Unit,
     onBackClick: () -> Unit,
-    photoUri: String? = null
+    photoUri: String? = null,
+    source: String = "document"
 ) {
     var isProcessing by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
@@ -219,7 +220,13 @@ fun ImageProcessingScreen(
                     }
                     Button(
                         onClick = {
-                            onNavigate("home")
+                            // Navigate based on source
+                            val destination = when (source) {
+                                "document" -> "document_image"
+                                "form" -> "access_form"
+                                else -> "home"
+                            }
+                            onNavigate(destination)
 //                            if (photoUri != null) {
 //                                scope.launch {
 //                                    isSaving = true

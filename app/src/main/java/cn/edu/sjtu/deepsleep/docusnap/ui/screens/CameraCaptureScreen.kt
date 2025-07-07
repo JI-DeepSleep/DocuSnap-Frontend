@@ -40,7 +40,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 @Composable
 fun CameraCaptureScreen(
     onNavigate: (String) -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    source: String = "document"
 ) {
     val context = LocalContext.current
     var hasCameraPermission by remember { mutableStateOf(false) }
@@ -129,7 +130,7 @@ fun CameraCaptureScreen(
             ) {
                 // Gallery button
                 IconButton(
-                    onClick = { onNavigate("local_media") },
+                    onClick = { onNavigate("local_media?source=$source") },
                     modifier = Modifier
                         .size(48.dp)
                         .background(Color.White.copy(alpha = 0.2f), CircleShape)
@@ -158,7 +159,7 @@ fun CameraCaptureScreen(
                                     isCapturing = false
                                     // Navigate to image processing with the photo URI on the main thread
                                     scope.launch {
-                                        onNavigate("image_processing?photoUri=${Uri.fromFile(photoFile)}")
+                                        onNavigate("image_processing?photoUri=${Uri.fromFile(photoFile)}&source=$source")
                                     }
                                 }
                                 override fun onError(exception: ImageCaptureException) {
