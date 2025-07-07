@@ -17,6 +17,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import cn.edu.sjtu.deepsleep.docusnap.navigation.Screen
+import cn.edu.sjtu.deepsleep.docusnap.ui.components.BottomNavigation
 import cn.edu.sjtu.deepsleep.docusnap.ui.screens.*
 import cn.edu.sjtu.deepsleep.docusnap.ui.theme.DocuSnapTheme
 
@@ -36,7 +37,10 @@ class MainActivity : ComponentActivity() {
 fun DocuSnapApp() {
     val navController = rememberNavController()
     
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+    Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        bottomBar = { BottomNavigation(navController = navController) }
+    ) { innerPadding ->
         NavHost(
             navController = navController,
             startDestination = Screen.Home.route,
@@ -131,7 +135,7 @@ fun DocuSnapApp() {
             composable(Screen.DocumentImage.route) {
                 DocumentImageScreen(
                     onNavigate = { route -> navController.navigate(route) },
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = { }
                 )
             }
             
@@ -145,7 +149,7 @@ fun DocuSnapApp() {
             composable(Screen.AccessForm.route) {
                 AccessFormScreen(
                     onNavigate = { route -> navController.navigate(route) },
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = { }
                 )
             }
             

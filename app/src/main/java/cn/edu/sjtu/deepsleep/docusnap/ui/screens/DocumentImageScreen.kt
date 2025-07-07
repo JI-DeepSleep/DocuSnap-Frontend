@@ -33,12 +33,7 @@ fun DocumentImageScreen(
     ) {
         // Top Bar
         TopAppBar(
-            title = { Text("Document Images") },
-            navigationIcon = {
-                IconButton(onClick = onBackClick) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                }
-            }
+            title = { Text("Document Images") }
         )
 
         Column(

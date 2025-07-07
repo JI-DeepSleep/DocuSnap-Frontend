@@ -27,12 +27,7 @@ fun AccessFormScreen(
     ) {
         // Top Bar
         TopAppBar(
-            title = { Text("Forms") },
-            navigationIcon = {
-                IconButton(onClick = onBackClick) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                }
-            }
+            title = { Text("Forms") }
         )
 
         Column(
