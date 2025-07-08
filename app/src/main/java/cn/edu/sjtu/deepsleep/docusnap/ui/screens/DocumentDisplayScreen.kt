@@ -19,6 +19,8 @@ import androidx.compose.ui.unit.sp
 import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
 
 @Composable
 fun DocumentDisplayScreen(
@@ -27,10 +29,14 @@ fun DocumentDisplayScreen(
 ) {
     val document = remember { MockData.mockDocuments.first() }
     var isEditing by remember { mutableStateOf(false) }
-    var extractedInfo by remember { mutableStateOf(document.extractedInfo.toMap()) }
+    val originalExtractedInfo = remember { document.extractedInfo.toMap() }
+    var extractedInfo by remember { mutableStateOf(originalExtractedInfo) }
+    val context = LocalContext.current
+    var showDeleteDialog by remember { mutableStateOf(false) }
     // Placeholder for export and delete actions
     fun exportDocument() {
         // TODO: Implement export logic (save image(s) to gallery)
+        Toast.makeText(context, "Document saved to local media", Toast.LENGTH_SHORT).show()
     }
     fun deleteDocument() {
         // TODO: Implement delete logic (remove from local storage)
@@ -129,13 +135,28 @@ fun DocumentDisplayScreen(
                     .padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Button(onClick = { /* TODO: Implement Parse Again (OCR) */ }, modifier = Modifier.weight(1f)) {
+                Button(
+                    onClick = {
+                        if (extractedInfo.isEmpty()) {
+                            extractedInfo = originalExtractedInfo
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                ) {
                     Text("Parse")
                 }
-                Button(onClick = { isEditing = !isEditing }, modifier = Modifier.weight(1f)) {
+                Button(
+                    onClick = { isEditing = !isEditing },
+                    enabled = extractedInfo.isNotEmpty(),
+                    modifier = Modifier.weight(1f)
+                ) {
                     Text(if (isEditing) "Save" else "Edit")
                 }
-                Button(onClick = { extractedInfo = emptyMap() }, modifier = Modifier.weight(1f)) {
+                Button(
+                    onClick = { extractedInfo = emptyMap() },
+                    enabled = extractedInfo.isNotEmpty(),
+                    modifier = Modifier.weight(1f)
+                ) {
                     Text("Clear")
                 }
             }
@@ -217,7 +238,7 @@ fun DocumentDisplayScreen(
             // Red delete button at the bottom
             Spacer(modifier = Modifier.height(8.dp))
             Button(
-                onClick = { deleteDocument() },
+                onClick = { showDeleteDialog = true },
                 colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
                 modifier = Modifier
                     .fillMaxWidth()
@@ -226,6 +247,26 @@ fun DocumentDisplayScreen(
                 Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.White)
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Delete Document", color = Color.White)
+            }
+            if (showDeleteDialog) {
+                AlertDialog(
+                    onDismissRequest = { showDeleteDialog = false },
+                    title = { Text("Confirm Deletion") },
+                    text = { Text("Are you sure you want to permanently delete this document?") },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            deleteDocument()
+                            showDeleteDialog = false
+                        }) {
+                            Text("Delete", color = Color.Red)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showDeleteDialog = false }) {
+                            Text("Cancel")
+                        }
+                    }
+                )
             }
         }
     }
