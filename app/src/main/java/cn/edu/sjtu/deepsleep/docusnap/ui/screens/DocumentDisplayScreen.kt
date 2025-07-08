@@ -17,6 +17,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.edu.sjtu.deepsleep.docusnap.data.MockData
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Delete
 
 @Composable
 fun DocumentDisplayScreen(
@@ -25,6 +27,14 @@ fun DocumentDisplayScreen(
 ) {
     val document = remember { MockData.mockDocuments.first() }
     var isEditing by remember { mutableStateOf(false) }
+    var extractedInfo by remember { mutableStateOf(document.extractedInfo.toMap()) }
+    // Placeholder for export and delete actions
+    fun exportDocument() {
+        // TODO: Implement export logic (save image(s) to gallery)
+    }
+    fun deleteDocument() {
+        // TODO: Implement delete logic (remove from local storage)
+    }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -38,11 +48,8 @@ fun DocumentDisplayScreen(
                 }
             },
             actions = {
-                IconButton(onClick = { isEditing = !isEditing }) {
-                    Icon(
-                        if (isEditing) Icons.Default.Check else Icons.Default.Edit,
-                        contentDescription = if (isEditing) "Save" else "Edit"
-                    )
+                IconButton(onClick = { exportDocument() }) {
+                    Icon(Icons.Default.Download, contentDescription = "Export/Download")
                 }
             }
         )
@@ -115,51 +122,71 @@ fun DocumentDisplayScreen(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 12.dp)
             )
-
-            Card(
-                modifier = Modifier.fillMaxWidth()
+            // Row of action buttons
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
+                Button(onClick = { /* TODO: Implement Parse Again (OCR) */ }, modifier = Modifier.weight(1f)) {
+                    Text("Parse")
+                }
+                Button(onClick = { isEditing = !isEditing }, modifier = Modifier.weight(1f)) {
+                    Text(if (isEditing) "Save" else "Edit")
+                }
+                Button(onClick = { extractedInfo = emptyMap() }, modifier = Modifier.weight(1f)) {
+                    Text("Clear")
+                }
+            }
+            // Only show info list if not cleared
+            if (extractedInfo.isNotEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth()
                 ) {
-                    document.extractedInfo.forEach { (key, value) ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = key,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Medium,
-                                modifier = Modifier.weight(1f)
-                            )
-                            if (isEditing) {
-                                OutlinedTextField(
-                                    value = value,
-                                    onValueChange = { /* Edit functionality would be implemented */ },
-                                    modifier = Modifier.weight(1f),
-                                    singleLine = true
-                                )
-                            } else {
+                    Column(
+                        modifier = Modifier.padding(8.dp)
+                    ) {
+                        extractedInfo.forEach { (key, value) ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Text(
-                                    text = value,
+                                    text = key,
                                     fontSize = 14.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    fontWeight = FontWeight.Medium,
                                     modifier = Modifier.weight(1f)
                                 )
+                                if (isEditing) {
+                                    OutlinedTextField(
+                                        value = value,
+                                        onValueChange = { /* Edit functionality would be implemented */ },
+                                        modifier = Modifier.weight(1f),
+                                        singleLine = true
+                                    )
+                                } else {
+                                    Text(
+                                        text = value,
+                                        fontSize = 14.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                }
                             }
-                        }
-                        if (key != document.extractedInfo.keys.last()) {
-                            Divider(modifier = Modifier.padding(vertical = 4.dp))
+                            if (key != extractedInfo.keys.last()) {
+                                Divider(modifier = Modifier.padding(vertical = 4.dp))
+                            }
                         }
                     }
                 }
+                Spacer(modifier = Modifier.height(8.dp))
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
             // Document Metadata
             Card(
@@ -185,6 +212,20 @@ fun DocumentDisplayScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
+            }
+
+            // Red delete button at the bottom
+            Spacer(modifier = Modifier.height(8.dp))
+            Button(
+                onClick = { deleteDocument() },
+                colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.White)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Delete Document", color = Color.White)
             }
         }
     }
