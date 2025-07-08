@@ -71,6 +71,11 @@ fun BottomNavigation(navController: NavController) {
                             // Restore state when reselecting a previously selected item
                             restoreState = true
                         }
+                    } else {
+                        // If we're already on the home screen, pop back to it to refresh
+                        if (item.route == Screen.Home.route) {
+                            navController.popBackStack(Screen.Home.route, false)
+                        }
                     }
                 }
             )
