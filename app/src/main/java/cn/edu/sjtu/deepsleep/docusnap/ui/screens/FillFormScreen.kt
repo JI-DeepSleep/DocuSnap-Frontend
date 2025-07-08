@@ -114,7 +114,7 @@ fun FillFormScreen(
                         .verticalScroll(rememberScrollState())
                 ) {
                     form.formFields.forEach { field ->
-                        FormFieldItem(field = field, isEditing = isEditing)
+                        FormFieldItem(field = field, isEditing = isEditing, onNavigate = onNavigate)
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
@@ -155,7 +155,8 @@ fun FillFormScreen(
 @Composable
 private fun FormFieldItem(
     field: cn.edu.sjtu.deepsleep.docusnap.data.FormField,
-    isEditing: Boolean
+    isEditing: Boolean,
+    onNavigate: (String) -> Unit
 ) {
     var value by remember { mutableStateOf(field.value ?: "") }
     Card(
@@ -190,11 +191,18 @@ private fun FormFieldItem(
                         modifier = Modifier.fillMaxWidth()
                     )
                 } else if (field.value != null) {
-                    Text(
-                        text = field.value,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = field.value,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        if (field.isRetrieved) {
+                            IconButton(onClick = { onNavigate("document_display") }) {
+                                Icon(Icons.Default.Link, contentDescription = "Go to source document")
+                            }
+                        }
+                    }
                 }
             }
             

@@ -16,6 +16,8 @@ import cn.edu.sjtu.deepsleep.docusnap.ui.components.DocumentCard
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.FormCard
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SectionHeader
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.ui.Alignment
 
 @Composable
 fun SearchScreen(
@@ -64,11 +66,19 @@ fun SearchScreen(
                         Card(
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
-                                text = info,
+                            Row(
                                 modifier = Modifier.padding(16.dp),
-                                fontSize = 14.sp
-                            )
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = info,
+                                    fontSize = 14.sp,
+                                    modifier = Modifier.weight(1f)
+                                )
+                                IconButton(onClick = { onNavigate("document_display") }) {
+                                    Icon(Icons.Default.Link, contentDescription = "Go to source document")
+                                }
+                            }
                         }
                     }
                 }

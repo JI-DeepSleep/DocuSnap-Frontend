@@ -15,6 +15,9 @@ import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.DocumentCard
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SectionHeader
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.ui.Alignment
 
 @Composable
 fun AccessDocumentScreen(
@@ -75,16 +78,26 @@ fun AccessDocumentScreen(
                                 fontWeight = FontWeight.Medium
                             )
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "• Starbucks receipt: $12.50 on 2024-01-15",
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Text(
-                                text = "• Office supplies: $1,245.50 due 2024-02-10",
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "• Starbucks receipt: $12.50 on 2024-01-15",
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                IconButton(onClick = { onNavigate("document_display") }) {
+                                    Icon(Icons.Default.Link, contentDescription = "Go to source document")
+                                }
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "• Office supplies: $1,245.50 due 2024-02-10",
+                                    fontSize = 14.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                IconButton(onClick = { onNavigate("document_display") }) {
+                                    Icon(Icons.Default.Link, contentDescription = "Go to source document")
+                                }
+                            }
                         }
                     }
                 }
