@@ -14,6 +14,4 @@ sealed class Screen(val route: String) {
 
     object FormOverview : Screen("form_overview")
     object FormDetail : Screen("form_detail")
-    object FormSelection2Fill : Screen("form_selection2fill")
-    object FormAutoFill : Screen("form_autofill")
 }

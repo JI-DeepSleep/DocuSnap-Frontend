@@ -222,20 +222,12 @@ fun ImageProcessingScreen(
                         onClick = {
                             // Navigate based on source
                             val destination = when (source) {
-                                "document" -> "document_gallery"
-                                "form" -> "form_overview"
+                                "document" -> "document_detail"
+                                "form" -> "form_detail"
                                 else -> "home"
                             }
                             onNavigate(destination)
-//                            if (photoUri != null) {
-//                                scope.launch {
-//                                    isSaving = true
-//                                    saveImageToGallery(context, photoUri, selectedFilter)
-//                                    isSaving = false
-//                                }
-//                            } else {
-//                                Toast.makeText(context, "No image to save", Toast.LENGTH_SHORT).show()
-//                            }
+                            // TODO: background parsing document or form
                         },
                         modifier = Modifier.weight(1f),
                         enabled = !isSaving && photoUri != null

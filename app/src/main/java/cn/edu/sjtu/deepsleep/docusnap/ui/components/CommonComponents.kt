@@ -146,9 +146,10 @@ fun DocumentCard(
 @Composable
 fun FormCard(
     form: cn.edu.sjtu.deepsleep.docusnap.data.Form,
-    selected: Boolean,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    showCheckbox: Boolean = false,
+    selected: Boolean = false
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
@@ -180,10 +181,12 @@ fun FormCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            Checkbox(
-                checked = selected,
-                onCheckedChange = { onClick() }
-            )
+            if (showCheckbox) {
+                Checkbox(
+                    checked = selected,
+                    onCheckedChange = { onClick() }
+                )
+            }
         }
     }
 }

@@ -102,20 +102,6 @@ fun DocuSnapApp() {
                 )
             }
             
-            composable(Screen.FormSelection2Fill.route) {
-                FormSelectionScreen(
-                    onNavigate = { route -> navController.navigate(route) },
-                    onBackClick = { navController.popBackStack() }
-                )
-            }
-            
-            composable(Screen.FormAutoFill.route) {
-                FormFillScreen(
-                    onNavigate = { route -> navController.navigate(route) },
-                    onBackClick = { navController.popBackStack() }
-                )
-            }
-            
             composable(Screen.DocumentOverview.route) {
                 DocumentOverviewScreen(
                     onNavigate = { route -> navController.navigate(route) },

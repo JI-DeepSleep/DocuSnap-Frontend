@@ -46,7 +46,6 @@ fun FormOverviewScreen(
                 items(MockData.mockForms) { form ->
                     FormCard(
                         form = form,
-                        selected = false,
                         onClick = { onNavigate("form_detail") }
                     )
                 }
