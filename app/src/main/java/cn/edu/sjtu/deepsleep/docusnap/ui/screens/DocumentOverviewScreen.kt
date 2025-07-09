@@ -15,12 +15,11 @@ import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.DocumentCard
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SectionHeader
-import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.Link
 import androidx.compose.ui.Alignment
 
 @Composable
-fun AccessDocumentScreen(
+fun DocumentOverviewScreen(
     onNavigate: (String) -> Unit,
     onBackClick: () -> Unit
 ) {
@@ -107,7 +106,7 @@ fun AccessDocumentScreen(
                     SectionHeader(
                         title = "Recommended Images",
                         actionText = "See All",
-                        onActionClick = { onNavigate("document_image") }
+                        onActionClick = { onNavigate("document_gallery") }
                     )
                 }
 

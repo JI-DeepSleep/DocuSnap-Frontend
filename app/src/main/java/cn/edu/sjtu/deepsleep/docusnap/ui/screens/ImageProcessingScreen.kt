@@ -222,8 +222,8 @@ fun ImageProcessingScreen(
                         onClick = {
                             // Navigate based on source
                             val destination = when (source) {
-                                "document" -> "document_image"
-                                "form" -> "access_form"
+                                "document" -> "document_gallery"
+                                "form" -> "form_overview"
                                 else -> "home"
                             }
                             onNavigate(destination)

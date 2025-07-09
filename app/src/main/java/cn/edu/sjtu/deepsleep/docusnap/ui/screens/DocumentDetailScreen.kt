@@ -45,7 +45,7 @@ fun DocumentDetailScreen(
     }
     fun deleteDocument() {
         // TODO: Erase this file from the local file system
-        onNavigate("access_document")
+        onNavigate("document_overview")
     }
 
     Column(

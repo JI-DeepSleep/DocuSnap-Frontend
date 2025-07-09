@@ -8,14 +8,12 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.FormCard
 
 @Composable
-fun UploadedFormSelectionScreen(
+fun FormSelectionScreen(
     onNavigate: (String) -> Unit,
     onBackClick: () -> Unit
 ) {
@@ -58,7 +56,7 @@ fun UploadedFormSelectionScreen(
                 .padding(16.dp)
         ) {
             Button(
-                onClick = { if (selectedFormId != null) onNavigate("fill_form") },
+                onClick = { if (selectedFormId != null) onNavigate("form_autofill") },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = selectedFormId != null
             ) {

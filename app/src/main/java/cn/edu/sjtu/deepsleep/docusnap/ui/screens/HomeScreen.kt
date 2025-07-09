@@ -138,7 +138,7 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Button(
-                onClick = { onNavigate("uploaded_form_selection") },
+                onClick = { onNavigate("form_selection2fill") },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.tertiaryContainer,
@@ -178,7 +178,7 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Button(
-                onClick = { onNavigate("access_document") },
+                onClick = { onNavigate("document_overview") },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
@@ -190,7 +190,7 @@ fun HomeScreen(
                 Text("Documents")
             }
             Button(
-                onClick = { onNavigate("access_form") },
+                onClick = { onNavigate("form_overview") },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,

@@ -21,7 +21,7 @@ sealed class BottomNavItem(
     val icon: ImageVector
 ) {
     object AccessForm : BottomNavItem(
-        route = Screen.AccessForm.route,
+        route = Screen.FormOverview.route,
         title = "Forms",
         icon = Icons.AutoMirrored.Filled.List
     )
@@ -33,7 +33,7 @@ sealed class BottomNavItem(
     )
     
     object DocumentImage : BottomNavItem(
-        route = Screen.DocumentImage.route,
+        route = Screen.DocumentGallery.route,
         title = "Documents",
         icon = Icons.Default.Image
     )
