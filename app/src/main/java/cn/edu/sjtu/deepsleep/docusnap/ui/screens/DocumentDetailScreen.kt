@@ -19,6 +19,9 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun DocumentDisplayScreen(
@@ -31,6 +34,10 @@ fun DocumentDisplayScreen(
     var extractedInfo by remember { mutableStateOf(originalExtractedInfo) }
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var parsing by remember { mutableStateOf(false) }
+    var parsingJob by remember { mutableStateOf<Job?>(null) }
+    var previousExtractedInfo by remember { mutableStateOf(originalExtractedInfo) }
+    val scope = rememberCoroutineScope()
     // Placeholder for export and delete actions
     fun exportDocument() {
         // TODO: Implement export logic (save image(s) to gallery)
@@ -133,33 +140,68 @@ fun DocumentDisplayScreen(
                     .padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Button(
-                    onClick = {
-                        if (extractedInfo.isEmpty()) {
-                            extractedInfo = originalExtractedInfo
-                        }
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Parse")
+                if (!parsing) {
+                    Button(
+                        onClick = {
+                            // Save current info for possible restoration
+                            previousExtractedInfo = extractedInfo
+                            parsing = true
+                            // Hide info list
+                            extractedInfo = emptyMap()
+                            // Start mock parsing job
+                            // TODO: call doc parsing API
+                            parsingJob = scope.launch {
+                                delay(2000)
+                                // After delay, show parsed info
+                                extractedInfo = originalExtractedInfo
+                                parsing = false
+                                parsingJob = null
+                            }
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Parse")
+                    }
+                } else {
+                    Button(
+                        onClick = {
+                            // Stop parsing, restore previous info
+                            parsingJob?.cancel()
+                            extractedInfo = previousExtractedInfo
+                            parsing = false
+                            parsingJob = null
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text("Stop")
+                    }
                 }
                 Button(
                     onClick = { isEditing = !isEditing },
-                    enabled = extractedInfo.isNotEmpty(),
+                    enabled = extractedInfo.isNotEmpty() && !parsing,
                     modifier = Modifier.weight(1f)
                 ) {
                     Text(if (isEditing) "Save" else "Edit")
                 }
                 Button(
                     onClick = { extractedInfo = emptyMap() },
-                    enabled = extractedInfo.isNotEmpty(),
+                    enabled = extractedInfo.isNotEmpty() && !parsing,
                     modifier = Modifier.weight(1f)
                 ) {
                     Text("Clear")
                 }
             }
-            // Only show info list if not cleared
-            if (extractedInfo.isNotEmpty()) {
+            // Show parsing message or info list
+            if (parsing) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("parsing document...", fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
+                }
+            } else if (extractedInfo.isNotEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth()
                 ) {
