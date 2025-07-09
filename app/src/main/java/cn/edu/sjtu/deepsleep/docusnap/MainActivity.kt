@@ -1,6 +1,5 @@
 package cn.edu.sjtu.deepsleep.docusnap
 
-import android.R.attr.type
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -10,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -139,8 +137,8 @@ fun DocuSnapApp() {
                 )
             }
             
-            composable(Screen.DocumentDisplay.route) {
-                DocumentDisplayScreen(
+            composable(Screen.DocumentDetail.route) {
+                DocumentDetailScreen(
                     onNavigate = { route -> navController.navigate(route) },
                     onBackClick = { navController.popBackStack() }
                 )
@@ -153,7 +151,7 @@ fun DocuSnapApp() {
                 )
             }
             
-            composable(Screen.FormDisplay.route) {
+            composable(Screen.FormDetail.route) {
                 FormDisplayScreen(
                     onNavigate = { route -> navController.navigate(route) },
                     onBackClick = { navController.popBackStack() }

@@ -198,7 +198,7 @@ private fun FormFieldItem(
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         if (field.isRetrieved) {
-                            IconButton(onClick = { onNavigate("document_display") }) {
+                            IconButton(onClick = { onNavigate("document_detail") }) {
                                 Icon(Icons.Default.Link, contentDescription = "Go to source document")
                             }
                         }

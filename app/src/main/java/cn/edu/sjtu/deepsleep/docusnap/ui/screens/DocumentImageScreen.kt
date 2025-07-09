@@ -58,7 +58,7 @@ fun DocumentImageScreen(
                 items(MockData.mockDocuments) { document ->
                     DocumentImageCard(
                         document = document,
-                        onClick = { onNavigate("document_display") }
+                        onClick = { onNavigate("document_detail") }
                     )
                 }
             }

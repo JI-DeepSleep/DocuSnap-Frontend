@@ -11,7 +11,7 @@ sealed class Screen(val route: String) {
     object AccessDocument : Screen("access_document")
     object DocumentTextualInfo : Screen("document_textual_info")
     object DocumentImage : Screen("document_image")
-    object DocumentDisplay : Screen("document_display")
+    object DocumentDetail : Screen("document_detail")
     object AccessForm : Screen("access_form")
-    object FormDisplay : Screen("form_display")
+    object FormDetail : Screen("form_detail")
 }

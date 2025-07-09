@@ -24,7 +24,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-fun DocumentDisplayScreen(
+fun DocumentDetailScreen(
     onNavigate: (String) -> Unit,
     onBackClick: () -> Unit
 ) {
@@ -44,7 +44,8 @@ fun DocumentDisplayScreen(
         Toast.makeText(context, "Document saved to local media", Toast.LENGTH_SHORT).show()
     }
     fun deleteDocument() {
-        // TODO: Implement delete logic (remove from local storage)
+        // TODO: Erase this file from the local file system
+        onNavigate("access_document")
     }
 
     Column(

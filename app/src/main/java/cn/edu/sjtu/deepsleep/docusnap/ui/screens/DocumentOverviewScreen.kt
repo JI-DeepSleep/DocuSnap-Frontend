@@ -84,7 +84,7 @@ fun AccessDocumentScreen(
                                     fontSize = 14.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                IconButton(onClick = { onNavigate("document_display") }) {
+                                IconButton(onClick = { onNavigate("document_detail") }) {
                                     Icon(Icons.Default.Link, contentDescription = "Go to source document")
                                 }
                             }
@@ -94,7 +94,7 @@ fun AccessDocumentScreen(
                                     fontSize = 14.sp,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                                IconButton(onClick = { onNavigate("document_display") }) {
+                                IconButton(onClick = { onNavigate("document_detail") }) {
                                     Icon(Icons.Default.Link, contentDescription = "Go to source document")
                                 }
                             }
@@ -115,7 +115,7 @@ fun AccessDocumentScreen(
                 items(MockData.mockDocuments.take(3)) { document ->
                     DocumentCard(
                         document = document,
-                        onClick = { onNavigate("document_display") }
+                        onClick = { onNavigate("document_detail") }
                     )
                 }
             }

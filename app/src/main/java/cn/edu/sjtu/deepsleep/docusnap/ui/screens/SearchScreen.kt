@@ -75,7 +75,7 @@ fun SearchScreen(
                                     fontSize = 14.sp,
                                     modifier = Modifier.weight(1f)
                                 )
-                                IconButton(onClick = { onNavigate("document_display") }) {
+                                IconButton(onClick = { onNavigate("document_detail") }) {
                                     Icon(Icons.Default.Link, contentDescription = "Go to source document")
                                 }
                             }
@@ -91,7 +91,7 @@ fun SearchScreen(
                     items(searchResults.documents) { document ->
                         DocumentCard(
                             document = document,
-                            onClick = { onNavigate("document_display") }
+                            onClick = { onNavigate("document_detail") }
                         )
                     }
                 }
@@ -105,7 +105,7 @@ fun SearchScreen(
                         FormCard(
                             form = form,
                             selected = false,
-                            onClick = { onNavigate("form_display") }
+                            onClick = { onNavigate("form_detail") }
                         )
                     }
                 }

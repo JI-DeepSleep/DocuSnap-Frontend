@@ -51,7 +51,7 @@ fun AccessFormScreen(
                     FormCard(
                         form = form,
                         selected = false,
-                        onClick = { onNavigate("form_display") }
+                        onClick = { onNavigate("form_detail") }
                     )
                 }
             }
