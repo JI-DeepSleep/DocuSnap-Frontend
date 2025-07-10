@@ -34,14 +34,26 @@ fun FormDisplayScreen(
     var parsingJob by remember { mutableStateOf<Job?>(null) }
     var autoFillingJob by remember { mutableStateOf<Job?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showHelpDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     
     // Store original form fields for restoration during parsing
     val originalFormFields = remember { form.formFields }
     
-    // Create mutable state for form fields
-    var formFields by remember { mutableStateOf(form.formFields) }
+    // Create mutable state for form fields with proper initial highlighting
+    var formFields by remember { 
+        mutableStateOf(
+            form.formFields.map { field ->
+                // If field is not retrieved and has empty value, set value to null for proper highlighting
+                if (!field.isRetrieved && (field.value.isNullOrEmpty() || field.value == "")) {
+                    field.copy(value = null)
+                } else {
+                    field
+                }
+            }
+        )
+    }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -106,21 +118,36 @@ fun FormDisplayScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Form Fields Section
-            Text(
-                text = "Form Fields",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(bottom = 12.dp)
-            )
+            // Form Fields Section with Help Icon
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Form Fields",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                IconButton(
+                    onClick = { showHelpDialog = true }
+                ) {
+                    Icon(
+                        Icons.Default.Help,
+                        contentDescription = "Help",
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
 
             // Action buttons row: Parse, Edit, Clear, Auto-fill, Clear Values
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp),
+                    .padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // Parse button
@@ -129,7 +156,8 @@ fun FormDisplayScreen(
                         onClick = {
                             parsing = true
                             parsingJob = scope.launch {
-                                delay(2000) // Simulate parsing
+                                // TODO： form parsing API
+                                delay(1000) // Simulate parsing
                                 // Parse restores the original field structure with empty values
                                 formFields = originalFormFields.map { field ->
                                     field.copy(value = null, isRetrieved = false)
@@ -155,36 +183,13 @@ fun FormDisplayScreen(
                     }
                 }
                 
-                // Edit button
-                IconButton(
-                    onClick = { isEditing = !isEditing },
-                    enabled = formFields.isNotEmpty() && !parsing,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(
-                        if (isEditing) Icons.Default.Check else Icons.Default.Edit,
-                        contentDescription = if (isEditing) "Save" else "Edit"
-                    )
-                }
-                
-                // Clear button (clears everything)
-                IconButton(
-                    onClick = { 
-                        formFields = emptyList()
-                    },
-                    enabled = formFields.isNotEmpty() && !parsing,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Clear, contentDescription = "Clear All")
-                }
-                
                 // Auto-fill button
                 if (!autoFilling) {
                     IconButton(
                         onClick = {
                             autoFilling = true
                             autoFillingJob = scope.launch {
-                                delay(1500) // Simulate auto-fill
+                                delay(1000) // Simulate auto-fill
                                 // Get mock documents for auto-filling
                                 val mockDocs = MockData.mockDocuments
                                 
@@ -262,6 +267,18 @@ fun FormDisplayScreen(
                         Icon(Icons.Default.Stop, contentDescription = "Stop")
                     }
                 }
+
+                // Edit button
+                IconButton(
+                    onClick = { isEditing = !isEditing },
+                    enabled = formFields.isNotEmpty() && !parsing,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(
+                        if (isEditing) Icons.Default.Check else Icons.Default.Edit,
+                        contentDescription = if (isEditing) "Save" else "Edit"
+                    )
+                }
                 
                 // Clear Values button
                 IconButton(
@@ -274,6 +291,17 @@ fun FormDisplayScreen(
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.ClearAll, contentDescription = "Clear Values")
+                }
+
+                // Clear button (clears everything)
+                IconButton(
+                    onClick = {
+                        formFields = emptyList()
+                    },
+                    enabled = formFields.isNotEmpty() && !parsing,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Clear, contentDescription = "Clear All")
                 }
             }
 
@@ -310,7 +338,7 @@ fun FormDisplayScreen(
                                 onNavigate = onNavigate
                             )
                             if (field != formFields.last()) {
-                                HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
+                                HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                             }
                         }
                     }
@@ -385,6 +413,48 @@ fun FormDisplayScreen(
         }
     }
 
+    // Help dialog
+    if (showHelpDialog) {
+        AlertDialog(
+            onDismissRequest = { showHelpDialog = false },
+            title = { Text("Form Field Actions") },
+            text = {
+                Column {
+                    HelpItem(
+                        icon = Icons.Default.Search,
+                        title = "Parse",
+                        description = "Extract field names from the form image. This identifies what fields need to be filled without adding values."
+                    )
+                    HelpItem(
+                        icon = Icons.Default.AutoFixHigh,
+                        title = "Auto-fill",
+                        description = "Automatically fill form fields with data extracted from your document database."
+                    )
+                    HelpItem(
+                        icon = Icons.Default.Edit,
+                        title = "Edit",
+                        description = "Toggle edit mode to manually modify field values."
+                    )
+                    HelpItem(
+                        icon = Icons.Default.ClearAll,
+                        title = "Clear Values",
+                        description = "Clear all field values while keeping the field names intact."
+                    )
+                    HelpItem(
+                        icon = Icons.Default.Clear,
+                        title = "Clear All",
+                        description = "Remove all form fields completely. Use Parse to restore them."
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showHelpDialog = false }) {
+                    Text("Got it")
+                }
+            }
+        )
+    }
+
     // Delete confirmation dialog
     if (showDeleteDialog) {
         AlertDialog(
@@ -418,6 +488,7 @@ private fun FormFieldDisplayItem(
     onNavigate: (String) -> Unit
 ) {
     var value by remember { mutableStateOf(field.value ?: "") }
+    val context = LocalContext.current
     
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -427,12 +498,49 @@ private fun FormFieldDisplayItem(
         Column(
             modifier = Modifier.weight(1f)
         ) {
-            Text(
-                text = field.name,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.Medium,
-                color = if (field.value == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = field.name,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = if (field.value == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
+                )
+                
+                // Link and Copy icons for retrieved fields
+                if (field.isRetrieved && field.value != null) {
+                    IconButton(
+                        onClick = { onNavigate("document_detail") },
+                        modifier = Modifier.size(20.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.Link,
+                            contentDescription = "Go to source document",
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            val clip = android.content.ClipData.newPlainText("Field Value", field.value)
+                            clipboard.setPrimaryClip(clip)
+                            Toast.makeText(context, "Value copied to clipboard", Toast.LENGTH_SHORT).show()
+                        },
+                        modifier = Modifier.size(20.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.ContentCopy,
+                            contentDescription = "Copy value",
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+            
             if (isEditing) {
                 OutlinedTextField(
                     value = value,
@@ -441,18 +549,11 @@ private fun FormFieldDisplayItem(
                     singleLine = true
                 )
             } else if (field.value != null) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = field.value,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    if (field.isRetrieved) {
-                        IconButton(onClick = { onNavigate("document_detail") }) {
-                            Icon(Icons.Default.Link, contentDescription = "Go to source document")
-                        }
-                    }
-                }
+                Text(
+                    text = field.value,
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             } else {
                 Text(
                     text = "No value available",
@@ -460,6 +561,42 @@ private fun FormFieldDisplayItem(
                     color = MaterialTheme.colorScheme.error
                 )
             }
+        }
+    }
+} 
+
+@Composable
+private fun HelpItem(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    description: String
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.Top
+    ) {
+        Icon(
+            icon,
+            contentDescription = null,
+            modifier = Modifier
+                .size(20.dp)
+                .padding(top = 2.dp),
+            tint = MaterialTheme.colorScheme.primary
+        )
+        Spacer(modifier = Modifier.width(12.dp))
+        Column {
+            Text(
+                text = title,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = description,
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 } 
