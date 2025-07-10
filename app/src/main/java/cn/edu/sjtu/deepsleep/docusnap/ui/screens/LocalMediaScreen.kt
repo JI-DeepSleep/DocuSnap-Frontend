@@ -42,7 +42,7 @@ fun LocalMediaScreen(
     ) {
         // Top Bar
         TopAppBar(
-            title = { Text("Select Image") },
+            title = { Text("Local Gallery") },
             navigationIcon = {
                 IconButton(onClick = onBackClick) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -51,9 +51,9 @@ fun LocalMediaScreen(
             actions = {
                 if (selectedImage != null) {
                     TextButton(
-                        onClick = { onNavigate("image_processing?photoUri=$selectedImage&source=$source") }
+                        onClick = { onNavigate("image_processing?originalImageUri=$selectedImage&source=$source") }
                     ) {
-                        Text("Select")
+                        Text("Import")
                     }
                 }
             }

@@ -1,21 +1,9 @@
 package cn.edu.sjtu.deepsleep.docusnap.ui.screens
 
-import android.content.ContentValues
-import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.net.Uri
-import android.os.Build
-import android.os.Environment
-import android.provider.MediaStore
-import android.widget.Toast
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -23,7 +11,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -32,33 +19,48 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
-import java.io.File
-import java.io.FileOutputStream
-import java.io.IOException
-import java.io.OutputStream
 
 @Composable
 fun ImageProcessingScreen(
     onNavigate: (String) -> Unit,
     onBackClick: () -> Unit,
-    photoUri: String? = null,
+    originalImageUri: String? = null,
     source: String = "document"
 ) {
     var isProcessing by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     var selectedFilter by remember { mutableStateOf("Original") }
+    var showFilterToolbar by remember { mutableStateOf(false) }
+    var currentImageUri by remember { mutableStateOf(originalImageUri) }
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
 
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Top Bar
+        // Top Bar with Done button
         TopAppBar(
             title = { Text("Image Processing") },
             navigationIcon = {
                 IconButton(onClick = onBackClick) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                }
+            },
+            actions = {
+                Button(
+                    onClick = {
+                        // Navigate based on source
+                        val destination = when (source) {
+                            "document" -> "document_detail"
+                            "form" -> "form_detail"
+                            else -> "home"
+                        }
+                        onNavigate(destination)
+                        // TODO: background parsing document or form
+                    }
+                ) {
+                    Icon(Icons.Default.Check, contentDescription = null)
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Done")
                 }
             }
         )
@@ -81,16 +83,29 @@ fun ImageProcessingScreen(
                 // Image placeholder or loaded image
                 Box(
                     modifier = Modifier
-                        .size(300.dp)
-                        .clip(RoundedCornerShape(8.dp)),
+                        .size(300.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     if (isProcessing || isSaving) {
                         CircularProgressIndicator()
-                    } else if (photoUri != null) {
+                        // Processing status
+                        if (isProcessing) {
+                            Text(
+                                text = "Processing image...",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        } else if (isSaving) {
+                            Text(
+                                text = "Saving to gallery...",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    } else if (currentImageUri != null) {
                         AsyncImage(
-                            model = photoUri,
-                            contentDescription = "Captured Image",
+                            model = currentImageUri,
+                            contentDescription = "Processed Image",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
@@ -116,131 +131,181 @@ fun ImageProcessingScreen(
                         }
                     }
                 }
+            }
+        }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Processing status
-                if (isProcessing) {
-                    Text(
-                        text = "Processing image...",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                } else if (isSaving) {
-                    Text(
-                        text = "Saving to gallery...",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.primary
-                    )
+        // Secondary Filter Toolbar (appears when Filter button is clicked)
+        if (showFilterToolbar) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 4.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(8.dp)
+                ) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        item {
+                            FilterButton(
+                                text = "Original",
+                                icon = Icons.Default.Refresh,
+                                onClick = {
+                                    selectedFilter = "Original"
+                                    // TODO: Apply original filter
+                                    // currentImageUri = applyOriginalFilter(currentImageUri)
+                                },
+                                isSelected = selectedFilter == "Original"
+                            )
+                        }
+                        item {
+                            FilterButton(
+                                text = "Black & White",
+                                icon = Icons.Default.Tonality,
+                                onClick = {
+                                    selectedFilter = "Black & White"
+                                    // TODO: Apply black and white filter
+                                    // currentImageUri = applyBlackAndWhiteFilter(currentImageUri)
+                                },
+                                isSelected = selectedFilter == "Black & White"
+                            )
+                        }
+                        item {
+                            FilterButton(
+                                text = "B&W High Contrast",
+                                icon = Icons.Default.Contrast,
+                                onClick = {
+                                    selectedFilter = "B&W High Contrast"
+                                    // TODO: Apply binary thresholding filter
+                                    // currentImageUri = applyBinaryThresholdingFilter(currentImageUri)
+                                },
+                                isSelected = selectedFilter == "B&W High Contrast"
+                            )
+                        }
+                        item {
+                            FilterButton(
+                                text = "Color Enhancement",
+                                icon = Icons.Default.AutoFixHigh,
+                                onClick = {
+                                    selectedFilter = "Color Enhancement"
+                                    // TODO: Apply color enhancement filter
+                                    // currentImageUri = applyColorEnhancementFilter(currentImageUri)
+                                },
+                                isSelected = selectedFilter == "Color Enhancement"
+                            )
+                        }
+                    }
                 }
             }
         }
 
-        // Bottom Tool Bar
-        Card(
+        // Primary Bottom Tool Bar
+        Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 4.dp
         ) {
             Column(
-                modifier = Modifier.padding(16.dp)
+                modifier = Modifier.padding(8.dp)
             ) {
-                Text(
-                    text = "Editing Tools",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-
-                // Tool buttons
+                // Primary tool buttons
                 LazyRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     item {
                         FilterButton(
-                            text = "Auto Process",
+                            text = "Auto",
                             icon = Icons.Default.AutoFixHigh,
                             onClick = {
+                                showFilterToolbar = false
                                 isProcessing = true
-                                // Simulate processing
                                 scope.launch {
-                                    kotlinx.coroutines.delay(2000)
+                                    // TODO: Implement auto-processing with binary thresholding + 4 point perspective correction
+                                    // currentImageUri = performAutoProcessing(currentImageUri)
+                                    kotlinx.coroutines.delay(1000)
                                     isProcessing = false
-                                    selectedFilter = "Processed"
+                                    selectedFilter = "Auto Processed"
                                 }
                             }
                         )
                     }
                     item {
                         FilterButton(
-                            text = "Crop",
-                            icon = Icons.Default.Crop,
-                            onClick = { /* Crop functionality */ }
-                        )
-                    }
-                    item {
-                        FilterButton(
-                            text = "Grayscale",
-                            icon = Icons.Default.Tonality,
-                            onClick = { selectedFilter = "Grayscale" },
-                            isSelected = selectedFilter == "Grayscale"
+                            text = "Filter",
+                            icon = Icons.Default.FilterAlt,
+                            onClick = { showFilterToolbar = !showFilterToolbar },
+                            isSelected = showFilterToolbar
                         )
                     }
                     item {
                         FilterButton(
                             text = "Perspective",
                             icon = Icons.Default.Transform,
-                            onClick = { /* Perspective correction */ }
+                            onClick = {
+                                showFilterToolbar = false
+                                isProcessing = true
+                                scope.launch {
+                                    // TODO: Implement 4 point perspective correction
+                                    // currentImageUri = performPerspectiveCorrection(currentImageUri)
+                                    kotlinx.coroutines.delay(1000)
+                                    isProcessing = false
+                                    selectedFilter = "Perspective Corrected"
+                                }
+                            }
                         )
                     }
                     item {
                         FilterButton(
-                            text = "High Contrast",
-                            icon = Icons.Default.Contrast,
-                            onClick = { selectedFilter = "High Contrast" },
-                            isSelected = selectedFilter == "High Contrast"
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Action buttons
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = { selectedFilter = "Original" },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Refresh, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Reset")
-                    }
-                    Button(
-                        onClick = {
-                            // Navigate based on source
-                            val destination = when (source) {
-                                "document" -> "document_detail"
-                                "form" -> "form_detail"
-                                else -> "home"
+                            text = "Reset",
+                            icon = Icons.Default.Refresh,
+                            onClick = {
+                                selectedFilter = "Original"
+                                currentImageUri = originalImageUri
+                                showFilterToolbar = false
                             }
-                            onNavigate(destination)
-                            // TODO: background parsing document or form
-                        },
-                        modifier = Modifier.weight(1f),
-                        enabled = !isSaving && photoUri != null
-                    ) {
-                        Icon(Icons.Default.Check, contentDescription = null)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Done Editing")
+                        )
                     }
                 }
             }
         }
     }
 }
+
+// Placeholder functions for image processing (to be implemented later)
+/*
+private fun performAutoProcessing(imageUri: String?): String? {
+    // TODO: Implement binary thresholding + 4 point perspective correction
+    return imageUri
+}
+
+private fun performPerspectiveCorrection(imageUri: String?): String? {
+    // TODO: Implement 4 point perspective correction
+    return imageUri
+}
+
+private fun applyOriginalFilter(imageUri: String?): String? {
+    // TODO: Apply original filter
+    return imageUri
+}
+
+private fun applyBlackAndWhiteFilter(imageUri: String?): String? {
+    // TODO: Apply black and white filter
+    return imageUri
+}
+
+private fun applyBinaryThresholdingFilter(imageUri: String?): String? {
+    // TODO: Apply binary thresholding filter
+    return imageUri
+}
+
+private fun applyColorEnhancementFilter(imageUri: String?): String? {
+    // TODO: Apply color enhancement filter
+    return imageUri
+}
+*/
 
 @Composable
 private fun FilterButton(
@@ -264,147 +329,7 @@ private fun FilterButton(
             contentDescription = null,
             modifier = Modifier.size(16.dp)
         )
-        Spacer(modifier = Modifier.width(4.dp))
+        Spacer(modifier = Modifier.width(2.dp))
         Text(text, fontSize = 12.sp)
-    }
-}
-
-private suspend fun saveImageToGallery(context: Context, imageUri: String, filter: String) {
-    try {
-        val uri = Uri.parse(imageUri)
-        val inputStream = context.contentResolver.openInputStream(uri)
-        val bitmap = BitmapFactory.decodeStream(inputStream)
-        inputStream?.close()
-
-        if (bitmap != null) {
-            // Apply filter effect (simplified - in real app you'd apply actual image processing)
-            val processedBitmap = applyFilter(bitmap, filter)
-            
-            // Save to gallery
-            val savedUri = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                saveImageToGalleryAPI29Plus(context, processedBitmap, filter)
-            } else {
-                saveImageToGalleryLegacy(context, processedBitmap, filter)
-            }
-            
-            if (savedUri != null) {
-                Toast.makeText(context, "Image saved to gallery successfully!", Toast.LENGTH_LONG).show()
-            } else {
-                Toast.makeText(context, "Failed to save image", Toast.LENGTH_SHORT).show()
-            }
-        } else {
-            Toast.makeText(context, "Failed to load image", Toast.LENGTH_SHORT).show()
-        }
-    } catch (e: Exception) {
-        Toast.makeText(context, "Error saving image: ${e.message}", Toast.LENGTH_SHORT).show()
-    }
-}
-
-private fun applyFilter(bitmap: Bitmap, filter: String): Bitmap {
-    // This is a simplified filter application
-    // In a real app, you would apply actual image processing algorithms
-    return when (filter) {
-        "Grayscale" -> {
-            // Convert to grayscale
-            val width = bitmap.width
-            val height = bitmap.height
-            val grayBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-            
-            for (x in 0 until width) {
-                for (y in 0 until height) {
-                    val pixel = bitmap.getPixel(x, y)
-                    val gray = (android.graphics.Color.red(pixel) * 0.299 + 
-                               android.graphics.Color.green(pixel) * 0.587 + 
-                               android.graphics.Color.blue(pixel) * 0.114).toInt()
-                    grayBitmap.setPixel(x, y, android.graphics.Color.rgb(gray, gray, gray))
-                }
-            }
-            grayBitmap
-        }
-        "High Contrast" -> {
-            // Apply high contrast effect
-            val width = bitmap.width
-            val height = bitmap.height
-            val contrastBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-            
-            for (x in 0 until width) {
-                for (y in 0 until height) {
-                    val pixel = bitmap.getPixel(x, y)
-                    val factor = 1.5f // Contrast factor
-                    val red = ((android.graphics.Color.red(pixel) - 128) * factor + 128).toInt().coerceIn(0, 255)
-                    val green = ((android.graphics.Color.green(pixel) - 128) * factor + 128).toInt().coerceIn(0, 255)
-                    val blue = ((android.graphics.Color.blue(pixel) - 128) * factor + 128).toInt().coerceIn(0, 255)
-                    contrastBitmap.setPixel(x, y, android.graphics.Color.rgb(red, green, blue))
-                }
-            }
-            contrastBitmap
-        }
-        "Processed" -> {
-            // Apply auto-processing effect (enhanced brightness and contrast)
-            val width = bitmap.width
-            val height = bitmap.height
-            val processedBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-            
-            for (x in 0 until width) {
-                for (y in 0 until height) {
-                    val pixel = bitmap.getPixel(x, y)
-                    val factor = 1.3f // Enhancement factor
-                    val red = ((android.graphics.Color.red(pixel) - 128) * factor + 128).toInt().coerceIn(0, 255)
-                    val green = ((android.graphics.Color.green(pixel) - 128) * factor + 128).toInt().coerceIn(0, 255)
-                    val blue = ((android.graphics.Color.blue(pixel) - 128) * factor + 128).toInt().coerceIn(0, 255)
-                    processedBitmap.setPixel(x, y, android.graphics.Color.rgb(red, green, blue))
-                }
-            }
-            processedBitmap
-        }
-        else -> bitmap // Return original for other filters
-    }
-}
-
-private fun saveImageToGalleryAPI29Plus(context: Context, bitmap: Bitmap, filter: String): Uri? {
-    val filename = "DocuSnap_${filter}_${System.currentTimeMillis()}.jpg"
-    val contentValues = ContentValues().apply {
-        put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
-        put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
-        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_PICTURES + "/DocuSnap")
-    }
-
-    val contentResolver = context.contentResolver
-    val uri = contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-
-    uri?.let { imageUri ->
-        contentResolver.openOutputStream(imageUri)?.use { outputStream ->
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, outputStream)
-        }
-    }
-
-    return uri
-}
-
-private fun saveImageToGalleryLegacy(context: Context, bitmap: Bitmap, filter: String): Uri? {
-    val filename = "DocuSnap_${filter}_${System.currentTimeMillis()}.jpg"
-    val picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES)
-    val docuSnapDir = File(picturesDir, "DocuSnap")
-    
-    if (!docuSnapDir.exists()) {
-        docuSnapDir.mkdirs()
-    }
-    
-    val imageFile = File(docuSnapDir, filename)
-    
-    return try {
-        FileOutputStream(imageFile).use { outputStream ->
-            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, outputStream)
-        }
-        
-        // Notify gallery about the new image
-        val contentValues = ContentValues().apply {
-            put(MediaStore.Images.Media.DATA, imageFile.absolutePath)
-            put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
-        }
-        
-        context.contentResolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues)
-    } catch (e: IOException) {
-        null
     }
 }

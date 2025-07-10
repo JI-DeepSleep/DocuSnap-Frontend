@@ -97,7 +97,7 @@ fun DocuSnapApp() {
                 ImageProcessingScreen(
                     onNavigate = { route -> navController.navigate(route) },
                     onBackClick = { navController.popBackStack() },
-                    photoUri = photoUri,
+                    originalImageUri = photoUri,
                     source = source
                 )
             }
