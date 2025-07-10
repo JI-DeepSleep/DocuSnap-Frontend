@@ -11,12 +11,12 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
+import cn.edu.sjtu.deepsleep.docusnap.ui.components.DocumentCard
 
 @Composable
 fun DocumentGalleryScreen(
@@ -52,7 +52,7 @@ fun DocumentGalleryScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(MockData.mockDocuments) { document ->
-                    DocumentImageCard(
+                    DocumentCard(
                         document = document,
                         onClick = { onNavigate("document_detail") }
                     )
@@ -61,45 +61,3 @@ fun DocumentGalleryScreen(
         }
     }
 }
-
-@Composable
-private fun DocumentImageCard(
-    document: cn.edu.sjtu.deepsleep.docusnap.data.Document,
-    onClick: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(1f)
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(8.dp)
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Gray.copy(alpha = 0.1f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "📄",
-                    fontSize = 32.sp
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    text = document.name,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(horizontal = 8.dp)
-                )
-                Text(
-                    text = document.type.name.replace("_", " "),
-                    fontSize = 10.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-} 

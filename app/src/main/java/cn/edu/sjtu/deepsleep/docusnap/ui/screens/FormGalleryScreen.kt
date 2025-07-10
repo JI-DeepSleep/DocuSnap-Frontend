@@ -2,12 +2,16 @@ package cn.edu.sjtu.deepsleep.docusnap.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cn.edu.sjtu.deepsleep.docusnap.data.MockData
+import cn.edu.sjtu.deepsleep.docusnap.ui.components.DocumentCard
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.FormCard
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
 
@@ -38,9 +42,11 @@ fun FormGalleryScreen(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            // Forms List
-            LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+            // Image Grid
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(2),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(MockData.mockForms) { form ->
                     FormCard(

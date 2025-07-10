@@ -15,7 +15,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity
 import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.ui.graphics.Color
 
 @Composable
 fun SearchBar(
@@ -52,87 +54,6 @@ fun SearchBar(
             modifier = Modifier.height(56.dp)
         ) {
             Icon(Icons.Default.Search, contentDescription = "Search")
-        }
-    }
-}
-
-@Composable
-fun DocumentCard(
-    document: cn.edu.sjtu.deepsleep.docusnap.data.Document,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text(
-                text = document.name,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = document.type.name.replace("_", " "),
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            if (document.tags.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row {
-                    document.tags.take(3).forEach { tag ->
-                        AssistChip(
-                            onClick = { },
-                            label = { Text(tag) },
-                            modifier = Modifier.padding(end = 4.dp)
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-fun FormCard(
-    form: cn.edu.sjtu.deepsleep.docusnap.data.Form,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        onClick = onClick,
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = form.name,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "${form.formFields.size} fields",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Uploaded: ${form.uploadDate}",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
         }
     }
 }
@@ -506,6 +427,172 @@ fun TextualInfoItem(
                 modifier = Modifier.size(16.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
+        }
+    }
+}
+
+
+@Composable
+fun DocumentCard(
+    document: cn.edu.sjtu.deepsleep.docusnap.data.Document,
+    onClick: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // Preview image in upper part
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .background(Color.Gray.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "📄",
+                    fontSize = 32.sp
+                )
+            }
+            
+            // Bottom section with name, date, and status
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
+                // Document name
+                Text(
+                    text = document.name,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1
+                )
+                
+                // Date and status icon row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = document.uploadDate,
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    // Parse status icon
+                    Icon(
+                        imageVector = if (document.extractedInfo.isNotEmpty()) {
+                            Icons.Default.CheckCircle
+                        } else {
+                            Icons.Default.Schedule
+                        },
+                        contentDescription = if (document.extractedInfo.isNotEmpty()) {
+                            "Parsed"
+                        } else {
+                            "Unparsed"
+                        },
+                        modifier = Modifier.size(16.dp),
+                        tint = if (document.extractedInfo.isNotEmpty()) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FormCard(
+    form: cn.edu.sjtu.deepsleep.docusnap.data.Form,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .aspectRatio(1f)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // Preview image in upper part
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .background(Color.Gray.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "📋",
+                    fontSize = 32.sp
+                )
+            }
+            
+            // Bottom section with name, date, and status
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
+                // Form name
+                Text(
+                    text = form.name,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1
+                )
+                
+                // Date and status icon row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = form.uploadDate,
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    // Fill status icon
+                    val filledFields = form.formFields.count { it.value != null && it.value.isNotEmpty() }
+                    val totalFields = form.formFields.size
+                    val isFilled = filledFields == totalFields
+                    
+                    Icon(
+                        imageVector = if (isFilled) {
+                            Icons.Default.CheckCircle
+                        } else {
+                            Icons.Default.RadioButtonUnchecked
+                        },
+                        contentDescription = if (isFilled) {
+                            "Filled"
+                        } else {
+                            "Unfilled"
+                        },
+                        modifier = Modifier.size(16.dp),
+                        tint = if (isFilled) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
+            }
         }
     }
 }
