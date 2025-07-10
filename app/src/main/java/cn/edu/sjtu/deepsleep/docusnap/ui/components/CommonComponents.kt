@@ -1,10 +1,12 @@
 package cn.edu.sjtu.deepsleep.docusnap.ui.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,11 +15,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Color
 import cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity
 import android.widget.Toast
-import androidx.compose.foundation.clickable
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.InteractionSource
 
 @Composable
 fun SearchBar(
@@ -435,19 +437,21 @@ fun TextualInfoItem(
 @Composable
 fun DocumentCard(
     document: cn.edu.sjtu.deepsleep.docusnap.data.Document,
-    onClick: () -> Unit
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    onSelectionChanged: ((Boolean) -> Unit)? = null,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .aspectRatio(1f)
-            .clickable(onClick = onClick),
+            .aspectRatio(1f),
         shape = RoundedCornerShape(8.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Preview image in upper part
+            // Preview image in upper part with checkbox overlay
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -459,6 +463,18 @@ fun DocumentCard(
                     text = "📄",
                     fontSize = 32.sp
                 )
+                
+                // Selection checkbox (bottom right corner of image only)
+                if (isSelectionMode) {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = onSelectionChanged,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp)
+                            .size(24.dp)
+                    )
+                }
             }
             
             // Bottom section with name, date, and status
@@ -515,20 +531,21 @@ fun DocumentCard(
 @Composable
 fun FormCard(
     form: cn.edu.sjtu.deepsleep.docusnap.data.Form,
-    onClick: () -> Unit,
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    onSelectionChanged: ((Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .aspectRatio(1f)
-            .clickable(onClick = onClick),
+            .aspectRatio(1f),
         shape = RoundedCornerShape(8.dp)
     ) {
         Column(
             modifier = Modifier.fillMaxSize()
         ) {
-            // Preview image in upper part
+            // Preview image in upper part with checkbox overlay
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -540,6 +557,18 @@ fun FormCard(
                     text = "📋",
                     fontSize = 32.sp
                 )
+                
+                // Selection checkbox (bottom right corner of image only)
+                if (isSelectionMode) {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = onSelectionChanged,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp)
+                            .size(24.dp)
+                    )
+                }
             }
             
             // Bottom section with name, date, and status
