@@ -23,7 +23,7 @@ import kotlinx.coroutines.delay
 import android.widget.Toast
 
 @Composable
-fun FormDisplayScreen(
+fun FormDetailScreen(
     onNavigate: (String) -> Unit,
     onBackClick: () -> Unit
 ) {

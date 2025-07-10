@@ -6,6 +6,8 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.ColorLens
+import androidx.compose.material.icons.outlined.Filter
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.rememberCoroutineScope
@@ -165,7 +167,7 @@ fun ImageProcessingScreen(
                                 text = "Black & White",
                                 icon = Icons.Default.Tonality,
                                 onClick = {
-                                    selectedFilter = "Black & White"
+                                    selectedFilter = "Black White"
                                     // TODO: Apply black and white filter
                                     // currentImageUri = applyBlackAndWhiteFilter(currentImageUri)
                                 },
@@ -174,20 +176,20 @@ fun ImageProcessingScreen(
                         }
                         item {
                             FilterButton(
-                                text = "B&W High Contrast",
+                                text = "High Contrast",
                                 icon = Icons.Default.Contrast,
                                 onClick = {
-                                    selectedFilter = "B&W High Contrast"
+                                    selectedFilter = "High Contrast"
                                     // TODO: Apply binary thresholding filter
                                     // currentImageUri = applyBinaryThresholdingFilter(currentImageUri)
                                 },
-                                isSelected = selectedFilter == "B&W High Contrast"
+                                isSelected = selectedFilter == "High Contrast"
                             )
                         }
                         item {
                             FilterButton(
                                 text = "Color Enhancement",
-                                icon = Icons.Default.AutoFixHigh,
+                                icon = Icons.Outlined.ColorLens,
                                 onClick = {
                                     selectedFilter = "Color Enhancement"
                                     // TODO: Apply color enhancement filter
@@ -235,7 +237,7 @@ fun ImageProcessingScreen(
                     item {
                         FilterButton(
                             text = "Filter",
-                            icon = Icons.Default.FilterAlt,
+                            icon = Icons.Outlined.Filter,
                             onClick = { showFilterToolbar = !showFilterToolbar },
                             isSelected = showFilterToolbar
                         )
