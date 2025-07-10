@@ -102,24 +102,9 @@ fun DocuSnapApp() {
                 )
             }
             
-            composable(Screen.DocumentOverview.route) {
-                DocumentOverviewScreen(
-                    onNavigate = { route -> navController.navigate(route) },
-                    onBackClick = { navController.popBackStack() }
-                )
-            }
-            
-            composable(Screen.DocumentTextualInfo.route) {
-                DocumentTextualInfoScreen(
-                    onNavigate = { route -> navController.navigate(route) },
-                    onBackClick = { navController.popBackStack() }
-                )
-            }
-            
             composable(Screen.DocumentGallery.route) {
-                DocumentImageScreen(
-                    onNavigate = { route -> navController.navigate(route) },
-                    onBackClick = { }
+                DocumentGalleryScreen(
+                    onNavigate = { route -> navController.navigate(route) }
                 )
             }
             
@@ -130,10 +115,9 @@ fun DocuSnapApp() {
                 )
             }
             
-            composable(Screen.FormOverview.route) {
-                FormOverviewScreen(
-                    onNavigate = { route -> navController.navigate(route) },
-                    onBackClick = { }
+            composable(Screen.FormGallery.route) {
+                FormGalleryScreen(
+                    onNavigate = { route -> navController.navigate(route) }
                 )
             }
             

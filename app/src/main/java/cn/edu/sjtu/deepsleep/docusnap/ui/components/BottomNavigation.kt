@@ -20,8 +20,8 @@ sealed class BottomNavItem(
     val title: String,
     val icon: ImageVector
 ) {
-    object AccessForm : BottomNavItem(
-        route = Screen.FormOverview.route,
+    object FormGallery : BottomNavItem(
+        route = Screen.FormGallery.route,
         title = "Forms",
         icon = Icons.AutoMirrored.Filled.List
     )
@@ -32,7 +32,7 @@ sealed class BottomNavItem(
         icon = Icons.Default.Home
     )
     
-    object DocumentImage : BottomNavItem(
+    object DocumentGallery : BottomNavItem(
         route = Screen.DocumentGallery.route,
         title = "Documents",
         icon = Icons.Default.Image
@@ -42,31 +42,26 @@ sealed class BottomNavItem(
 @Composable
 fun BottomNavigation(navController: NavController) {
     val items = listOf(
-        BottomNavItem.AccessForm,
+        BottomNavItem.FormGallery,
         BottomNavItem.Home,
-        BottomNavItem.DocumentImage
+        BottomNavItem.DocumentGallery
     )
     
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
-    
     NavigationBar {
+        val navBackStackEntry by navController.currentBackStackEntryAsState()
+        val currentRoute = navBackStackEntry?.destination?.route
+        
         items.forEach { item ->
             NavigationBarItem(
                 icon = { Icon(item.icon, contentDescription = item.title) },
                 label = { Text(item.title) },
                 selected = currentRoute == item.route,
                 onClick = {
-                    navController.navigate(item.route) {
-                        // Pop up to the start destination of the graph to
-                        // avoid building up a large stack of destinations
-                        // on the back stack as users select items
-                        popUpTo(navController.graph.startDestinationId) {
-                            saveState = true
+                    if (currentRoute != item.route) {
+                        navController.navigate(item.route) {
+                            popUpTo(navController.graph.startDestinationId)
+                            launchSingleTop = true
                         }
-                        // Avoid multiple copies of the same destination when
-                        // reselecting the same item
-                        launchSingleTop = true
                     }
                 }
             )

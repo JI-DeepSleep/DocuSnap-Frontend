@@ -12,9 +12,8 @@ import cn.edu.sjtu.deepsleep.docusnap.ui.components.FormCard
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
 
 @Composable
-fun FormOverviewScreen(
-    onNavigate: (String) -> Unit,
-    onBackClick: () -> Unit
+fun FormGalleryScreen(
+    onNavigate: (String) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
 

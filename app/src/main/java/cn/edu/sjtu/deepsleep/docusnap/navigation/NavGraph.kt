@@ -7,11 +7,9 @@ sealed class Screen(val route: String) {
     object LocalMedia : Screen("local_media")
     object ImageProcessing : Screen("image_processing")
 
-    object DocumentOverview : Screen("document_overview")
-    object DocumentTextualInfo : Screen("document_textual_info")
     object DocumentGallery : Screen("document_gallery")
     object DocumentDetail : Screen("document_detail")
 
-    object FormOverview : Screen("form_overview")
+    object FormGallery : Screen("form_gallery")
     object FormDetail : Screen("form_detail")
 }

@@ -465,7 +465,7 @@ fun FormDisplayScreen(
                 TextButton(
                     onClick = {
                         // TODO: Implement actual deletion logic
-                        onNavigate("form_overview")
+                        onNavigate("form_gallery")
                         showDeleteDialog = false
                     }
                 ) {

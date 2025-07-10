@@ -53,30 +53,6 @@ fun SearchBar(
 }
 
 @Composable
-fun ActionButton(
-    text: String,
-    icon: ImageVector,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true
-) {
-    Button(
-        onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
-        enabled = enabled,
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(text)
-    }
-}
-
-@Composable
 fun SectionHeader(
     title: String,
     actionText: String? = null,
@@ -190,29 +166,3 @@ fun FormCard(
         }
     }
 }
-
-@Composable
-fun TopBar(
-    title: String,
-    onBackClick: (() -> Unit)? = null,
-    trailingIcon: ImageVector? = null,
-    onTrailingClick: (() -> Unit)? = null
-) {
-    TopAppBar(
-        title = { Text(title) },
-        navigationIcon = {
-            if (onBackClick != null) {
-                IconButton(onClick = onBackClick) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                }
-            }
-        },
-        actions = {
-            if (trailingIcon != null && onTrailingClick != null) {
-                IconButton(onClick = onTrailingClick) {
-                    Icon(trailingIcon, contentDescription = "Action")
-                }
-            }
-        }
-    )
-} 
