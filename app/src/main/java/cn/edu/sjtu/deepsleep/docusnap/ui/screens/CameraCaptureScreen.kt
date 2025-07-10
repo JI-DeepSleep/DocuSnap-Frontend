@@ -2,6 +2,8 @@ package cn.edu.sjtu.deepsleep.docusnap.ui.screens
 
 import android.Manifest
 import android.content.Context
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
@@ -62,6 +64,7 @@ fun CameraCaptureScreen(
     var zoomRatio by remember { mutableStateOf(1f) }
     var exposureCompensation by remember { mutableStateOf(0f) }
     var isCapturing by remember { mutableStateOf(false) }
+    var isFlashlightOn by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val imageCapture = remember { ImageCapture.Builder().build() }
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
@@ -69,6 +72,33 @@ fun CameraCaptureScreen(
     var cameraInfo by remember { mutableStateOf<androidx.camera.core.CameraInfo?>(null) }
     val outputDirectory = remember { getOutputDirectory(context) }
     val executor = remember { Executors.newSingleThreadExecutor() }
+
+    // Flashlight control function
+    // TODO: use a real device to check flashlight toggle functionality
+    fun toggleFlashlight() {
+        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+        try {
+            // Find the back camera
+            val cameraId = cameraManager.cameraIdList.find { id ->
+                val characteristics = cameraManager.getCameraCharacteristics(id)
+                val facing = characteristics.get(CameraCharacteristics.LENS_FACING)
+                facing == CameraCharacteristics.LENS_FACING_BACK
+            }
+            
+            if (cameraId != null) {
+                if (isFlashlightOn) {
+                    cameraManager.setTorchMode(cameraId, false)
+                    isFlashlightOn = false
+                } else {
+                    cameraManager.setTorchMode(cameraId, true)
+                    isFlashlightOn = true
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("CameraCapture", "Error toggling flashlight", e)
+            Toast.makeText(context, "Flashlight not available", Toast.LENGTH_SHORT).show()
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Camera Preview
@@ -101,7 +131,7 @@ fun CameraCaptureScreen(
 
         // Top Bar
         TopAppBar(
-            title = { Text("Camera Capture") },
+            title = { Text("Camera") },
             navigationIcon = {
                 IconButton(onClick = onBackClick) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -128,17 +158,18 @@ fun CameraCaptureScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Gallery button
+
+                // Flashlight toggle button
                 IconButton(
-                    onClick = { onNavigate("local_media?source=$source") },
+                    onClick = { toggleFlashlight() },
                     modifier = Modifier
                         .size(48.dp)
                         .background(Color.White.copy(alpha = 0.2f), CircleShape)
                 ) {
                     Icon(
-                        Icons.Default.PhotoLibrary,
-                        contentDescription = "Gallery",
-                        tint = Color.White
+                        if (isFlashlightOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
+                        contentDescription = if (isFlashlightOn) "Turn off flashlight" else "Turn on flashlight",
+                        tint = if (isFlashlightOn) Color.Yellow else Color.White
                     )
                 }
 
@@ -146,6 +177,7 @@ fun CameraCaptureScreen(
                 Button(
                     onClick = {
                         isCapturing = true
+                        // TODO: connect to docusnap database
                         val photoFile = File(
                             outputDirectory,
                             "IMG_${System.currentTimeMillis()}.jpg"
@@ -192,48 +224,20 @@ fun CameraCaptureScreen(
                     }
                 }
 
-                // Settings button (optional)
+                // Gallery button
                 IconButton(
-                    onClick = { /* Settings */ },
+                    onClick = { onNavigate("local_media?source=$source") },
                     modifier = Modifier
                         .size(48.dp)
                         .background(Color.White.copy(alpha = 0.2f), CircleShape)
                 ) {
                     Icon(
-                        Icons.Default.Settings,
-                        contentDescription = "Settings",
+                        Icons.Default.PhotoLibrary,
+                        contentDescription = "Gallery",
                         tint = Color.White
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Zoom control
-            Text("Zoom", color = Color.White)
-            Slider(
-                value = zoomRatio,
-                onValueChange = {
-                    zoomRatio = it
-                    cameraControl?.setZoomRatio(it)
-                },
-                valueRange = 1f..(cameraInfo?.zoomState?.value?.maxZoomRatio ?: 4f),
-                steps = 10,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Exposure control
-            Text("Exposure", color = Color.White)
-            Slider(
-                value = exposureCompensation,
-                onValueChange = {
-                    exposureCompensation = it
-                    cameraControl?.setExposureCompensationIndex(it.toInt())
-                },
-                valueRange = (cameraInfo?.exposureState?.exposureCompensationRange?.lower?.toFloat() ?: -2f)..(cameraInfo?.exposureState?.exposureCompensationRange?.upper?.toFloat() ?: 2f),
-                steps = 4,
-                modifier = Modifier.fillMaxWidth()
-            )
         }
     }
 }
