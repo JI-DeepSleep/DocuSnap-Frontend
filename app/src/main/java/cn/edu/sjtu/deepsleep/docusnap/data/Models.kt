@@ -31,7 +31,32 @@ enum class DocumentType {
     RECEIPT, INVOICE, CONTRACT, ID_CARD, MEDICAL_RECORD, OTHER
 }
 
+// Unified search entity that can represent text, document, or form
+sealed class SearchEntity {
+    data class TextEntity(
+        val id: String,
+        val text: String,
+        val sourceDocument: String? = null,
+        val relevanceScore: Float = 0.0f
+    ) : SearchEntity()
+    
+    data class DocumentEntity(
+        val document: Document,
+        val relevanceScore: Float = 0.0f
+    ) : SearchEntity()
+    
+    data class FormEntity(
+        val form: Form,
+        val relevanceScore: Float = 0.0f
+    ) : SearchEntity()
+}
+
 data class SearchResult(
+    val entities: List<SearchEntity> = emptyList()
+)
+
+// Legacy SearchResult for backward compatibility
+data class LegacySearchResult(
     val documents: List<Document> = emptyList(),
     val forms: List<Form> = emptyList(),
     val textualInfo: List<String> = emptyList()

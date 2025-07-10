@@ -14,6 +14,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
+import cn.edu.sjtu.deepsleep.docusnap.ui.components.TextualInfoItem
 import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 import android.widget.Toast
 
@@ -226,53 +227,6 @@ fun HomeScreen(
                     onNavigate = onNavigate
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun TextualInfoItem(
-    text: String,
-    onNavigate: (String) -> Unit
-) {
-    val context = LocalContext.current
-    
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = text,
-            fontSize = 14.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f)
-        )
-        IconButton(
-            onClick = { onNavigate("document_detail") },
-            modifier = Modifier.size(20.dp)
-        ) {
-            Icon(
-                Icons.Default.Link,
-                contentDescription = "Go to source document",
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
-        }
-        IconButton(
-            onClick = {
-                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                val clip = android.content.ClipData.newPlainText("Text Info", text)
-                clipboard.setPrimaryClip(clip)
-                Toast.makeText(context, "Text copied to clipboard", Toast.LENGTH_SHORT).show()
-            },
-            modifier = Modifier.size(20.dp)
-        ) {
-            Icon(
-                Icons.Default.ContentCopy,
-                contentDescription = "Copy text",
-                modifier = Modifier.size(16.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
         }
     }
 } 

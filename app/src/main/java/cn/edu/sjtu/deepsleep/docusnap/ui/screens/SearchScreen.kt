@@ -12,12 +12,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.edu.sjtu.deepsleep.docusnap.data.MockData
-import cn.edu.sjtu.deepsleep.docusnap.ui.components.DocumentCard
-import cn.edu.sjtu.deepsleep.docusnap.ui.components.FormCard
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
-import cn.edu.sjtu.deepsleep.docusnap.ui.components.SectionHeader
-import androidx.compose.material.icons.filled.Link
-import androidx.compose.ui.Alignment
+import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchEntityCard
 
 @Composable
 fun SearchScreen(
@@ -53,67 +49,41 @@ fun SearchScreen(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            // Search Results
+            // Search Results Count
+            if (searchResults.entities.isNotEmpty()) {
+                Text(
+                    text = "${searchResults.entities.size} results found",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+            }
+
+            // Unified Search Results
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Textual Information
-                if (searchResults.textualInfo.isNotEmpty()) {
-                    item {
-                        SectionHeader("Textual Information")
-                    }
-                    items(searchResults.textualInfo) { info ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = info,
-                                    fontSize = 14.sp,
-                                    modifier = Modifier.weight(1f)
-                                )
-                                IconButton(onClick = { onNavigate("document_detail") }) {
-                                    Icon(Icons.Default.Link, contentDescription = "Go to source document")
+                items(searchResults.entities) { entity ->
+                    SearchEntityCard(
+                        entity = entity,
+                        onClick = {
+                            when (entity) {
+                                is cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity.TextEntity -> {
+                                    onNavigate("document_detail")
+                                }
+                                is cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity.DocumentEntity -> {
+                                    onNavigate("document_detail")
+                                }
+                                is cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity.FormEntity -> {
+                                    onNavigate("form_detail")
                                 }
                             }
                         }
-                    }
-                }
-
-                // Documents
-                if (searchResults.documents.isNotEmpty()) {
-                    item {
-                        SectionHeader("Documents")
-                    }
-                    items(searchResults.documents) { document ->
-                        DocumentCard(
-                            document = document,
-                            onClick = { onNavigate("document_detail") }
-                        )
-                    }
-                }
-
-                // Forms
-                if (searchResults.forms.isNotEmpty()) {
-                    item {
-                        SectionHeader("Forms")
-                    }
-                    items(searchResults.forms) { form ->
-                        FormCard(
-                            form = form,
-                            selected = false,
-                            onClick = { onNavigate("form_detail") }
-                        )
-                    }
+                    )
                 }
 
                 // No results message
-                if (searchResults.documents.isEmpty() && 
-                    searchResults.forms.isEmpty() && 
-                    searchResults.textualInfo.isEmpty()) {
+                if (searchResults.entities.isEmpty()) {
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth()
