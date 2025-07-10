@@ -55,6 +55,14 @@ fun FormDisplayScreen(
         )
     }
 
+    // Mock related files
+    val relatedFiles = remember {
+        listOf(
+            MockData.mockDocuments[1], // Office Supply Invoice
+            MockData.mockDocuments[2]  // Employment Contract
+        )
+    }
+
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -358,15 +366,15 @@ fun FormDisplayScreen(
                             "No form fields available. Use Parse to extract fields from the form.",
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(16.dp)
+                            modifier = Modifier.padding(8.dp)
                         )
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Form Metadata
+            // Related Files Section
             Card(
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -374,28 +382,31 @@ fun FormDisplayScreen(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        text = "Form Details",
+                        text = "Related Files",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    Text(
-                        text = "Upload Date: ${form.uploadDate}",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "Form ID: ${form.id}",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "Total Fields: ${formFields.size}",
-                        fontSize = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    relatedFiles.forEach { relatedDoc ->
+                        RelatedFileItem(
+                            document = relatedDoc,
+                            onNavigate = onNavigate
+                        )
+                        if (relatedDoc != relatedFiles.last()) {
+                            Divider(modifier = Modifier.padding(vertical = 4.dp))
+                        }
+                    }
                 }
             }
+
+            // Upload Date at the bottom
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Upload Date: ${form.uploadDate}",
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
 
             // Delete button at the bottom
             Spacer(modifier = Modifier.height(8.dp))
@@ -564,6 +575,45 @@ private fun FormFieldDisplayItem(
         }
     }
 } 
+
+@Composable
+private fun RelatedFileItem(
+    document: cn.edu.sjtu.deepsleep.docusnap.data.Document,
+    onNavigate: (String) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = document.name,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                text = document.type.name.replace("_", " "),
+                fontSize = 12.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        
+        IconButton(
+            onClick = { onNavigate("document_detail") }
+        ) {
+            Icon(
+                Icons.Default.OpenInNew,
+                contentDescription = "Open document",
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
 
 @Composable
 private fun HelpItem(
