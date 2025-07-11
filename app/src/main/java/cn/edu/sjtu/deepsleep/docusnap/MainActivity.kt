@@ -86,18 +86,18 @@ fun DocuSnapApp() {
             }
             
             composable(
-                route = "image_processing?photoUri={photoUri}&source={source}",
+                route = "image_processing?photoUris={photoUris}&source={source}",
                 arguments = listOf(
-                    navArgument("photoUri") { type = NavType.StringType; nullable = true },
+                    navArgument("photoUris") { type = NavType.StringType; nullable = true },
                     navArgument("source") { type = NavType.StringType; defaultValue = "document" }
                 )
             ) { backStackEntry ->
-                val photoUri = backStackEntry.arguments?.getString("photoUri")
+                val photoUris = backStackEntry.arguments?.getString("photoUris")
                 val source = backStackEntry.arguments?.getString("source") ?: "document"
                 ImageProcessingScreen(
                     onNavigate = { route -> navController.navigate(route) },
                     onBackClick = { navController.popBackStack() },
-                    originalImageUri = photoUri,
+                    photoUris = photoUris,
                     source = source
                 )
             }

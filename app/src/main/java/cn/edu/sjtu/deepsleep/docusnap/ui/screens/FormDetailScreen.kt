@@ -596,11 +596,6 @@ private fun RelatedFileItem(
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
-            Text(
-                text = document.type.name.replace("_", " "),
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
         
         IconButton(

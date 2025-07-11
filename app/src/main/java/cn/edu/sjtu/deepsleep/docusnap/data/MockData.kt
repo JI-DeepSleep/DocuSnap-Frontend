@@ -1,11 +1,13 @@
 package cn.edu.sjtu.deepsleep.docusnap.data
 
+import java.util.UUID
+
 object MockData {
     val mockDocuments = listOf(
         Document(
-            id = "1",
+            id = UUID.randomUUID().toString(),
             name = "Lunch Receipt - Starbucks",
-            type = DocumentType.RECEIPT,
+            imageUris = listOf("mock_image_1.jpg", "mock_image_2.jpg"),
             extractedInfo = mapOf(
                 "Vendor" to "Starbucks Coffee",
                 "Date" to "2024-01-15",
@@ -17,9 +19,9 @@ object MockData {
             tags = listOf("Food", "Expense", "Coffee")
         ),
         Document(
-            id = "2",
+            id = UUID.randomUUID().toString(),
             name = "Office Supply Invoice",
-            type = DocumentType.INVOICE,
+            imageUris = listOf("mock_image_3.jpg"),
             extractedInfo = mapOf(
                 "Supplier" to "OfficeSupply Co.",
                 "Invoice Number" to "INV-2024-0876",
@@ -31,9 +33,9 @@ object MockData {
             tags = listOf("Business", "Invoice", "Office")
         ),
         Document(
-            id = "3",
+            id = UUID.randomUUID().toString(),
             name = "Employment Contract",
-            type = DocumentType.CONTRACT,
+            imageUris = listOf("mock_image_4.jpg", "mock_image_5.jpg", "mock_image_6.jpg"),
             extractedInfo = mapOf(
                 "Company" to "TechCorp Inc.",
                 "Employee" to "John Doe",
@@ -48,8 +50,9 @@ object MockData {
 
     val mockForms = listOf(
         Form(
-            id = "1",
+            id = UUID.randomUUID().toString(),
             name = "Expense Report Form",
+            imageUris = listOf("mock_form_1.jpg"),
             formFields = listOf(
                 FormField("Employee Name", "John Doe", true),
                 FormField("Department", "Engineering", true),
@@ -60,8 +63,9 @@ object MockData {
             )
         ),
         Form(
-            id = "2",
+            id = UUID.randomUUID().toString(),
             name = "Visa Application",
+            imageUris = listOf("mock_form_2.jpg", "mock_form_3.jpg"),
             formFields = listOf(
                 FormField("Full Name", "John Doe", true),
                 FormField("Date of Birth", "1990-05-15", true),
@@ -76,7 +80,6 @@ object MockData {
     // Mock search entities with relevance scores (higher score = more relevant)
     val mockSearchEntities = listOf(
         SearchEntity.TextEntity(
-            id = "text1",
             text = "Starbucks receipt: $12.50 on 2024-01-15",
             sourceDocument = "Lunch Receipt - Starbucks",
             relevanceScore = 0.95f
@@ -86,7 +89,6 @@ object MockData {
             relevanceScore = 0.92f
         ),
         SearchEntity.TextEntity(
-            id = "text2",
             text = "Office supplies invoice: $1,245.50 due 2024-02-10",
             sourceDocument = "Office Supply Invoice",
             relevanceScore = 0.88f
@@ -100,19 +102,16 @@ object MockData {
             relevanceScore = 0.82f
         ),
         SearchEntity.TextEntity(
-            id = "text3",
             text = "HR Department: hr@company.com",
             sourceDocument = "Company Directory",
             relevanceScore = 0.75f
         ),
         SearchEntity.TextEntity(
-            id = "text4",
             text = "Total Amount: $12.50",
             sourceDocument = "Starbucks Receipt",
             relevanceScore = 0.70f
         ),
         SearchEntity.TextEntity(
-            id = "text5",
             text = "Invoice Number: INV-2024-0876",
             sourceDocument = "Office Supply Invoice",
             relevanceScore = 0.68f
@@ -131,15 +130,5 @@ object MockData {
                 is SearchEntity.FormEntity -> it.relevanceScore
             }
         }
-    )
-
-    // Legacy search result for backward compatibility
-    val legacyMockSearchResults = LegacySearchResult(
-        documents = mockDocuments.filter { it.name.contains("receipt", ignoreCase = true) },
-        forms = mockForms.filter { it.name.contains("expense", ignoreCase = true) },
-        textualInfo = listOf(
-            "Starbucks receipt: $12.50 on 2024-01-15",
-            "Office supplies invoice: $1,245.50 due 2024-02-10"
-        )
     )
 } 

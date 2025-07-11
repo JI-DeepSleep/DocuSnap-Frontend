@@ -18,7 +18,10 @@ import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -28,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -38,6 +42,7 @@ import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import androidx.compose.ui.viewinterop.AndroidView
+import coil.compose.AsyncImage
 
 @Composable
 fun CameraCaptureScreen(
@@ -65,6 +70,7 @@ fun CameraCaptureScreen(
     var exposureCompensation by remember { mutableStateOf(0f) }
     var isCapturing by remember { mutableStateOf(false) }
     var isFlashlightOn by remember { mutableStateOf(false) }
+    var capturedImages by remember { mutableStateOf<List<String>>(emptyList()) }
     val scope = rememberCoroutineScope()
     val imageCapture = remember { ImageCapture.Builder().build() }
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
@@ -100,6 +106,19 @@ fun CameraCaptureScreen(
         }
     }
 
+    // Function to remove image from cache
+    fun removeImageFromCache(index: Int) {
+        capturedImages = capturedImages.filterIndexed { i, _ -> i != index }
+    }
+
+    // Function to proceed to image processing with all captured images
+    fun proceedToImageProcessing() {
+        if (capturedImages.isNotEmpty()) {
+            val imageUris = capturedImages.joinToString(",")
+            onNavigate("image_processing?photoUris=$imageUris&source=$source")
+        }
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         // Camera Preview
         AndroidView(
@@ -129,7 +148,7 @@ fun CameraCaptureScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Top Bar
+        // Top Bar with Done button
         TopAppBar(
             title = { Text("Camera") },
             navigationIcon = {
@@ -138,12 +157,76 @@ fun CameraCaptureScreen(
                 }
             },
             actions = {
-                // Flash toggle can be added here if needed
+                if (capturedImages.isNotEmpty()) {
+                    Button(
+                        onClick = { proceedToImageProcessing() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = null)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Done")
+                    }
+                }
             },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = Color.Transparent
             )
         )
+
+        // Captured Images Cache at Bottom
+        if (capturedImages.isNotEmpty()) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(bottom = 120.dp, start = 16.dp, end = 16.dp),
+                color = Color.Black.copy(alpha = 0.7f),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                LazyRow(
+                    modifier = Modifier.padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    itemsIndexed(capturedImages) { index, imageUri ->
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(
+                                    width = 2.dp,
+                                    color = Color.White,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                        ) {
+                            AsyncImage(
+                                model = imageUri,
+                                contentDescription = "Captured image ${index + 1}",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                            
+                            // Remove button
+                            IconButton(
+                                onClick = { removeImageFromCache(index) },
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .size(24.dp)
+                                    .background(Color.Red, CircleShape)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Remove image",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // Bottom Controls
         Column(
@@ -189,10 +272,9 @@ fun CameraCaptureScreen(
                             object : ImageCapture.OnImageSavedCallback {
                                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                                     isCapturing = false
-                                    // Navigate to image processing with the photo URI on the main thread
-                                    scope.launch {
-                                        onNavigate("image_processing?photoUri=${Uri.fromFile(photoFile)}&source=$source")
-                                    }
+                                    // Add captured image to cache
+                                    val imageUri = Uri.fromFile(photoFile).toString()
+                                    capturedImages = capturedImages + imageUri
                                 }
                                 override fun onError(exception: ImageCaptureException) {
                                     isCapturing = false

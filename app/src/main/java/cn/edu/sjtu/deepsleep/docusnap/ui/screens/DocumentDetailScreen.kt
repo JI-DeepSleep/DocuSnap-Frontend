@@ -132,10 +132,6 @@ fun DocumentDetailScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                AssistChip(
-                    onClick = { },
-                    label = { Text(document.type.name.replace("_", " ")) }
-                )
                 document.tags.forEach { tag ->
                     AssistChip(
                         onClick = { },
@@ -500,11 +496,6 @@ private fun RelatedFileItem(
                 text = document.name,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
-            )
-            Text(
-                text = document.type.name.replace("_", " "),
-                fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
         

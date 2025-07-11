@@ -3,6 +3,7 @@ package cn.edu.sjtu.deepsleep.docusnap.ui.screens
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
@@ -26,15 +27,55 @@ import coil.compose.AsyncImage
 fun ImageProcessingScreen(
     onNavigate: (String) -> Unit,
     onBackClick: () -> Unit,
-    originalImageUri: String? = null,
+    photoUris: String? = null, // Changed from originalImageUri to photoUris
     source: String = "document"
 ) {
     var isProcessing by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     var selectedFilter by remember { mutableStateOf("Original") }
     var showFilterToolbar by remember { mutableStateOf(false) }
-    var currentImageUri by remember { mutableStateOf(originalImageUri) }
+    var currentImageIndex by remember { mutableStateOf(0) }
+    var processedImages by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
     val scope = rememberCoroutineScope()
+
+    // Parse photoUris string into list
+    val imageUris = remember(photoUris) {
+        photoUris?.split(",")?.filter { it.isNotEmpty() } ?: emptyList()
+    }
+
+    // Current image URI
+    val currentImageUri = remember(currentImageIndex, imageUris, processedImages) {
+        processedImages[currentImageIndex] ?: imageUris.getOrNull(currentImageIndex)
+    }
+
+    // Navigation functions
+    fun goToPreviousImage() {
+        if (currentImageIndex > 0) {
+            currentImageIndex--
+        }
+    }
+
+    fun goToNextImage() {
+        if (currentImageIndex < imageUris.size - 1) {
+            currentImageIndex++
+        }
+    }
+
+    // Image processing functions
+    fun processCurrentImage(filterType: String) {
+        if (currentImageUri != null) {
+            isProcessing = true
+            scope.launch {
+                // TODO: Implement actual image processing based on filterType
+                kotlinx.coroutines.delay(1000) // Simulate processing time
+                
+                // For now, just mark as processed with the filter type
+                processedImages = processedImages + (currentImageIndex to currentImageUri)
+                selectedFilter = filterType
+                isProcessing = false
+            }
+        }
+    }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -57,7 +98,7 @@ fun ImageProcessingScreen(
                             else -> "home"
                         }
                         onNavigate(destination)
-                        // TODO: background parsing document or form
+                        // TODO: background parsing document or form with all processed images
                     }
                 ) {
                     Icon(Icons.Default.Check, contentDescription = null)
@@ -67,7 +108,7 @@ fun ImageProcessingScreen(
             }
         )
 
-        // Main Image Display
+        // Main Image Display with Navigation
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -82,6 +123,17 @@ fun ImageProcessingScreen(
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // Image index display
+                if (imageUris.isNotEmpty()) {
+                    Text(
+                        text = "${currentImageIndex + 1}/${imageUris.size}",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+
                 // Image placeholder or loaded image
                 Box(
                     modifier = Modifier
@@ -107,7 +159,7 @@ fun ImageProcessingScreen(
                     } else if (currentImageUri != null) {
                         AsyncImage(
                             model = currentImageUri,
-                            contentDescription = "Processed Image",
+                            contentDescription = "Processed Image ${currentImageIndex + 1}",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
@@ -134,6 +186,49 @@ fun ImageProcessingScreen(
                     }
                 }
             }
+
+            // Navigation arrows
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Previous arrow
+                IconButton(
+                    onClick = { goToPreviousImage() },
+                    enabled = currentImageIndex > 0,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            if (currentImageIndex > 0) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f),
+                            CircleShape
+                        )
+                ) {
+                    Icon(
+                        Icons.Default.ChevronLeft,
+                        contentDescription = "Previous image",
+                        tint = if (currentImageIndex > 0) Color.Black else Color.Gray
+                    )
+                }
+
+                // Next arrow
+                IconButton(
+                    onClick = { goToNextImage() },
+                    enabled = currentImageIndex < imageUris.size - 1,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            if (currentImageIndex < imageUris.size - 1) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f),
+                            CircleShape
+                        )
+                ) {
+                    Icon(
+                        Icons.Default.ChevronRight,
+                        contentDescription = "Next image",
+                        tint = if (currentImageIndex < imageUris.size - 1) Color.Black else Color.Gray
+                    )
+                }
+            }
         }
 
         // Secondary Filter Toolbar (appears when Filter button is clicked)
@@ -156,8 +251,7 @@ fun ImageProcessingScreen(
                                 icon = Icons.Default.Refresh,
                                 onClick = {
                                     selectedFilter = "Original"
-                                    // TODO: Apply original filter
-                                    // currentImageUri = applyOriginalFilter(currentImageUri)
+                                    processCurrentImage("Original")
                                 },
                                 isSelected = selectedFilter == "Original"
                             )
@@ -168,8 +262,7 @@ fun ImageProcessingScreen(
                                 icon = Icons.Default.Tonality,
                                 onClick = {
                                     selectedFilter = "Black White"
-                                    // TODO: Apply black and white filter
-                                    // currentImageUri = applyBlackAndWhiteFilter(currentImageUri)
+                                    processCurrentImage("Black White")
                                 },
                                 isSelected = selectedFilter == "Black & White"
                             )
@@ -180,8 +273,7 @@ fun ImageProcessingScreen(
                                 icon = Icons.Default.Contrast,
                                 onClick = {
                                     selectedFilter = "High Contrast"
-                                    // TODO: Apply binary thresholding filter
-                                    // currentImageUri = applyBinaryThresholdingFilter(currentImageUri)
+                                    processCurrentImage("High Contrast")
                                 },
                                 isSelected = selectedFilter == "High Contrast"
                             )
@@ -192,8 +284,7 @@ fun ImageProcessingScreen(
                                 icon = Icons.Outlined.ColorLens,
                                 onClick = {
                                     selectedFilter = "Color Enhancement"
-                                    // TODO: Apply color enhancement filter
-                                    // currentImageUri = applyColorEnhancementFilter(currentImageUri)
+                                    processCurrentImage("Color Enhancement")
                                 },
                                 isSelected = selectedFilter == "Color Enhancement"
                             )
@@ -223,14 +314,7 @@ fun ImageProcessingScreen(
                             icon = Icons.Default.AutoFixHigh,
                             onClick = {
                                 showFilterToolbar = false
-                                isProcessing = true
-                                scope.launch {
-                                    // TODO: Implement auto-processing with binary thresholding + 4 point perspective correction
-                                    // currentImageUri = performAutoProcessing(currentImageUri)
-                                    kotlinx.coroutines.delay(1000)
-                                    isProcessing = false
-                                    selectedFilter = "Auto Processed"
-                                }
+                                processCurrentImage("Auto Processed")
                             }
                         )
                     }
@@ -248,14 +332,7 @@ fun ImageProcessingScreen(
                             icon = Icons.Default.Transform,
                             onClick = {
                                 showFilterToolbar = false
-                                isProcessing = true
-                                scope.launch {
-                                    // TODO: Implement 4 point perspective correction
-                                    // currentImageUri = performPerspectiveCorrection(currentImageUri)
-                                    kotlinx.coroutines.delay(1000)
-                                    isProcessing = false
-                                    selectedFilter = "Perspective Corrected"
-                                }
+                                processCurrentImage("Perspective Corrected")
                             }
                         )
                     }
@@ -265,7 +342,7 @@ fun ImageProcessingScreen(
                             icon = Icons.Default.Refresh,
                             onClick = {
                                 selectedFilter = "Original"
-                                currentImageUri = originalImageUri
+                                processedImages = processedImages - currentImageIndex
                                 showFilterToolbar = false
                             }
                         )

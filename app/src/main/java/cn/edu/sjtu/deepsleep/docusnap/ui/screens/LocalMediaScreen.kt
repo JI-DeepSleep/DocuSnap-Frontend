@@ -28,7 +28,7 @@ fun LocalMediaScreen(
     onBackClick: () -> Unit,
     source: String = "document"
 ) {
-    var selectedImage by remember { mutableStateOf<String?>(null) }
+    var selectedImages by remember { mutableStateOf<Set<String>>(emptySet()) }
     
     // Mock gallery images
     val mockImages = remember {
@@ -49,11 +49,14 @@ fun LocalMediaScreen(
                 }
             },
             actions = {
-                if (selectedImage != null) {
+                if (selectedImages.isNotEmpty()) {
                     TextButton(
-                        onClick = { onNavigate("image_processing?originalImageUri=$selectedImage&source=$source") }
+                        onClick = { 
+                            val photoUris = selectedImages.joinToString(",")
+                            onNavigate("image_processing?photoUris=$photoUris&source=$source") 
+                        }
                     ) {
-                        Text("Import")
+                        Text("Import (${selectedImages.size})")
                     }
                 }
             }
@@ -72,9 +75,15 @@ fun LocalMediaScreen(
                         .aspectRatio(1f)
                         .clip(RoundedCornerShape(8.dp))
                         .background(Color.Gray.copy(alpha = 0.3f))
-                        .clickable { selectedImage = imageName }
+                        .clickable { 
+                            selectedImages = if (selectedImages.contains(imageName)) {
+                                selectedImages - imageName
+                            } else {
+                                selectedImages + imageName
+                            }
+                        }
                         .then(
-                            if (selectedImage == imageName) {
+                            if (selectedImages.contains(imageName)) {
                                 Modifier.border(
                                     width = 3.dp,
                                     color = MaterialTheme.colorScheme.primary,
@@ -103,7 +112,7 @@ fun LocalMediaScreen(
                     }
 
                     // Selection indicator
-                    if (selectedImage == imageName) {
+                    if (selectedImages.contains(imageName)) {
                         Box(
                             modifier = Modifier
                                 .align(Alignment.TopEnd)
