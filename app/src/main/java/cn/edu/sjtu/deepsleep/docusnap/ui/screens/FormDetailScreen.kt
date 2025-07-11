@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -21,6 +23,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import android.widget.Toast
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 
 @Composable
 fun FormDetailScreen(
@@ -37,6 +41,10 @@ fun FormDetailScreen(
     var showHelpDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    
+    // Image navigation state
+    var currentImageIndex by remember { mutableStateOf(0) }
+    val imageUris = remember { form.imageUris }
     
     // Store original form fields for restoration during parsing
     val originalFormFields = remember { form.formFields }
@@ -61,6 +69,19 @@ fun FormDetailScreen(
             MockData.mockDocuments[1], // Office Supply Invoice
             MockData.mockDocuments[2]  // Employment Contract
         )
+    }
+
+    // Navigation functions
+    fun goToPreviousImage() {
+        if (currentImageIndex > 0) {
+            currentImageIndex--
+        }
+    }
+
+    fun goToNextImage() {
+        if (currentImageIndex < imageUris.size - 1) {
+            currentImageIndex++
+        }
     }
 
     Column(
@@ -92,36 +113,112 @@ fun FormDetailScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Form Image
+            // Form Images with Navigation
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(200.dp)
             ) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Gray.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                    // Main image display
+                    if (imageUris.isNotEmpty()) {
+                        // Image index display
                         Text(
-                            text = "📋",
-                            fontSize = 48.sp
+                            text = "${currentImageIndex + 1}/${imageUris.size}",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier
+                                .padding(8.dp)
+                                .background(
+                                    Color.White.copy(alpha = 0.8f),
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = form.name,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Medium
+                        
+                        // Current image
+                        AsyncImage(
+                            model = imageUris[currentImageIndex],
+                            contentDescription = "Form image ${currentImageIndex + 1}",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
                         )
-                        Text(
-                            text = "Tap to zoom in/out",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        
+                        // Navigation arrows
+                        if (imageUris.size > 1) {
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Previous arrow
+                                IconButton(
+                                    onClick = { goToPreviousImage() },
+                                    enabled = currentImageIndex > 0,
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .background(
+                                            if (currentImageIndex > 0) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f),
+                                            CircleShape
+                                        )
+                                ) {
+                                    Icon(
+                                        Icons.Default.ChevronLeft,
+                                        contentDescription = "Previous image",
+                                        tint = if (currentImageIndex > 0) Color.Black else Color.Gray
+                                    )
+                                }
+
+                                // Next arrow
+                                IconButton(
+                                    onClick = { goToNextImage() },
+                                    enabled = currentImageIndex < imageUris.size - 1,
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .background(
+                                            if (currentImageIndex < imageUris.size - 1) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f),
+                                            CircleShape
+                                        )
+                                ) {
+                                    Icon(
+                                        Icons.Default.ChevronRight,
+                                        contentDescription = "Next image",
+                                        tint = if (currentImageIndex < imageUris.size - 1) Color.Black else Color.Gray
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        // Fallback when no images
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Gray.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "📋",
+                                    fontSize = 48.sp
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = form.name,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "No images available",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -176,7 +273,7 @@ fun FormDetailScreen(
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Icon(Icons.Default.Search, contentDescription = "Parse")
+                        Icon(Icons.Default.Animation, contentDescription = "Parse")
                     }
                 } else {
                     IconButton(
@@ -432,7 +529,7 @@ fun FormDetailScreen(
             text = {
                 Column {
                     HelpItem(
-                        icon = Icons.Default.Search,
+                        icon = Icons.Default.Animation,
                         title = "Parse",
                         description = "Extract field names from the form image. This identifies what fields need to be filled without adding values."
                     )

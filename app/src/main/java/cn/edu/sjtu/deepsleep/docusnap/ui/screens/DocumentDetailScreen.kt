@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -22,6 +24,8 @@ import android.widget.Toast
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import coil.compose.AsyncImage
+import androidx.compose.ui.layout.ContentScale
 
 @Composable
 fun DocumentDetailScreen(
@@ -39,6 +43,10 @@ fun DocumentDetailScreen(
     var parsingJob by remember { mutableStateOf<Job?>(null) }
     var previousExtractedInfo by remember { mutableStateOf(originalExtractedInfo) }
     val scope = rememberCoroutineScope()
+    
+    // Image navigation state
+    var currentImageIndex by remember { mutableStateOf(0) }
+    val imageUris = remember { document.imageUris }
     
     // Mock related files
     val relatedFiles = remember {
@@ -67,6 +75,19 @@ fun DocumentDetailScreen(
         Toast.makeText(context, "All information copied to clipboard", Toast.LENGTH_SHORT).show()
     }
 
+    // Navigation functions
+    fun goToPreviousImage() {
+        if (currentImageIndex > 0) {
+            currentImageIndex--
+        }
+    }
+
+    fun goToNextImage() {
+        if (currentImageIndex < imageUris.size - 1) {
+            currentImageIndex++
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -91,36 +112,112 @@ fun DocumentDetailScreen(
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            // Document Image
+            // Document Images with Navigation
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(250.dp)
             ) {
                 Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Gray.copy(alpha = 0.1f)),
-                    contentAlignment = Alignment.Center
+                    modifier = Modifier.fillMaxSize()
                 ) {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
+                    // Main image display
+                    if (imageUris.isNotEmpty()) {
+                        // Image index display
                         Text(
-                            text = "📄",
-                            fontSize = 64.sp
+                            text = "${currentImageIndex + 1}/${imageUris.size}",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier
+                                .padding(8.dp)
+                                .background(
+                                    Color.White.copy(alpha = 0.8f),
+                                    RoundedCornerShape(4.dp)
+                                )
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = document.name,
-                            fontSize = 18.sp,
-                            fontWeight = FontWeight.Medium
+                        
+                        // Current image
+                        AsyncImage(
+                            model = imageUris[currentImageIndex],
+                            contentDescription = "Document image ${currentImageIndex + 1}",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
                         )
-                        Text(
-                            text = "Tap to zoom",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        
+                        // Navigation arrows
+                        if (imageUris.size > 1) {
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Previous arrow
+                                IconButton(
+                                    onClick = { goToPreviousImage() },
+                                    enabled = currentImageIndex > 0,
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .background(
+                                            if (currentImageIndex > 0) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f),
+                                            CircleShape
+                                        )
+                                ) {
+                                    Icon(
+                                        Icons.Default.ChevronLeft,
+                                        contentDescription = "Previous image",
+                                        tint = if (currentImageIndex > 0) Color.Black else Color.Gray
+                                    )
+                                }
+
+                                // Next arrow
+                                IconButton(
+                                    onClick = { goToNextImage() },
+                                    enabled = currentImageIndex < imageUris.size - 1,
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .background(
+                                            if (currentImageIndex < imageUris.size - 1) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f),
+                                            CircleShape
+                                        )
+                                ) {
+                                    Icon(
+                                        Icons.Default.ChevronRight,
+                                        contentDescription = "Next image",
+                                        tint = if (currentImageIndex < imageUris.size - 1) Color.Black else Color.Gray
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        // Fallback when no images
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Gray.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "📄",
+                                    fontSize = 64.sp
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = document.name,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                                Text(
+                                    text = "No images available",
+                                    fontSize = 12.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -200,7 +297,7 @@ fun DocumentDetailScreen(
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Icon(Icons.Default.Search, contentDescription = "Parse")
+                        Icon(Icons.Default.Animation, contentDescription = "Parse")
                     }
                 } else {
                     IconButton(
@@ -355,7 +452,7 @@ fun DocumentDetailScreen(
                     text = {
                         Column {
                             HelpItem(
-                                icon = Icons.Default.Search,
+                                icon = Icons.Default.Animation,
                                 title = "Parse",
                                 description = "Extract information from the document image using AI-powered text recognition."
                             )
