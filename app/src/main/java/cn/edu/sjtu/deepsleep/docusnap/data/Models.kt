@@ -53,3 +53,14 @@ sealed class SearchEntity {
 data class SearchResult(
     val entities: List<SearchEntity> = emptyList()
 )
+
+// Data class for frequently used text info extracted from documents
+data class TextInfo(
+    val id: String,
+    val key: String, // The key/label of the information
+    val value: String, // The actual value extracted from the document
+    val category: String, // e.g., "Recent Expenses", "Important Contacts", "Travel Information"
+    val sourceDocumentId: String, // ID of the document this text was extracted from
+    val usageCount: Int = 0, // How frequently this text is used/searched
+    val lastUsed: String = "2024-01-15" // Last time this text was accessed
+)

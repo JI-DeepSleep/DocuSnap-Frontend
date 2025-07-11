@@ -182,4 +182,49 @@ object MockData {
             }
         }
     )
+
+    // Text info generated from document extracted info
+    // Each item represents a key-value pair that was extracted from a document's extractedInfo
+    // All text info must have a source document
+    val MockTextInfo = generateFrequentlyUsedTextInfoFromDocuments()
+
+    // Helper function to get text info grouped by category and usage
+    fun getFrequentTextInfo(): Map<String, List<TextInfo>> {
+        return MockTextInfo.groupBy { it.category }
+            .mapValues { (_, textInfos) ->
+                textInfos.sortedByDescending { it.usageCount }
+            }
+    }
+
+    // Helper function to generate text info from document extracted info
+    // This demonstrates how the system could automatically create text info
+    private fun generateFrequentlyUsedTextInfoFromDocuments(): List<TextInfo> {
+        val generated = mutableListOf<TextInfo>()
+        
+        mockDocuments.forEach { document ->
+            document.extractedInfo.forEach { (key, value) ->
+                // Determine category based on key or document type
+                val category = when {
+                    key.contains("Amount") || key.contains("Total") || key.contains("Price") || key.contains("Vendor") || key.contains("Invoice") -> "Recent Expenses"
+                    key.contains("Company") || key.contains("Employee") || key.contains("Position") -> "Important Contacts"
+                    key.contains("Date") || key.contains("Start") || key.contains("End") || key.contains("Contract") -> "Travel Information"
+                    else -> "General Information"
+                }
+                
+                generated.add(
+                    TextInfo(
+                        id = UUID.randomUUID().toString(),
+                        key = key,
+                        value = value,
+                        category = category,
+                        sourceDocumentId = document.id,
+                        usageCount = (1..10).random(), // Random usage count for demo
+                        lastUsed = "2024-01-${(15..20).random()}"
+                    )
+                )
+            }
+        }
+        
+        return generated
+    }
 } 

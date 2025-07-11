@@ -13,7 +13,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
-import cn.edu.sjtu.deepsleep.docusnap.ui.components.TextualInfoItem
+import cn.edu.sjtu.deepsleep.docusnap.ui.components.TextInfoItem
 import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 
 @Composable
@@ -22,8 +22,8 @@ fun HomeScreen(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     
-    // Get mock documents for reference
-    val mockDocuments = remember { MockData.mockDocuments }
+    // Get mock data for reference
+    val textInfoByCategory = remember { MockData.getFrequentTextInfo() }
 
     Column(
         modifier = Modifier
@@ -156,81 +156,29 @@ fun HomeScreen(
             modifier = Modifier.padding(bottom = 12.dp)
         )
         
-        // TODO: dynamically retrieve text info sorted by search frequency
-        // Sample frequently used text info
-        Card(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
+        // Dynamically display text info grouped by category
+        textInfoByCategory.forEach { (category, textInfoList) ->
+            Card(
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Text(
-                    text = "Recent Expenses",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                TextualInfoItem(
-                    text = "• Starbucks receipt: $12.50 on 2024-01-15",
-                    onNavigate = onNavigate,
-                    documentId = mockDocuments.firstOrNull { it.name.contains("Starbucks") }?.id
-                )
-                TextualInfoItem(
-                    text = "• Office supplies: $1,245.50 due 2024-02-10",
-                    onNavigate = onNavigate,
-                    documentId = mockDocuments.firstOrNull { it.name.contains("Office Supply") }?.id
-                )
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = category,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    textInfoList.forEach { textInfo ->
+                        TextInfoItem(
+                            textInfo = textInfo,
+                            onNavigate = onNavigate
+                        )
+                    }
+                }
             }
-        }
-        
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        Card(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text(
-                    text = "Important Contacts",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                TextualInfoItem(
-                    text = "• HR Department: hr@company.com",
-                    onNavigate = onNavigate
-                )
-                TextualInfoItem(
-                    text = "• IT Support: support@company.com",
-                    onNavigate = onNavigate
-                )
-            }
-        }
-        
-        Spacer(modifier = Modifier.height(12.dp))
-        
-        Card(
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(
-                modifier = Modifier.padding(16.dp)
-            ) {
-                Text(
-                    text = "Travel Information",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                TextualInfoItem(
-                    text = "• Flight: CA1234, Shanghai to Beijing, 2024-02-15",
-                    onNavigate = onNavigate
-                )
-                TextualInfoItem(
-                    text = "• Hotel: Hilton Shanghai, Confirmation #HIL789",
-                    onNavigate = onNavigate
-                )
-            }
+            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 } 

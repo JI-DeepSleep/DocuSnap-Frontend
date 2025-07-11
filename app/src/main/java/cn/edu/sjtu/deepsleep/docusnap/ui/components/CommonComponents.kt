@@ -1,7 +1,6 @@
 package cn.edu.sjtu.deepsleep.docusnap.ui.components
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -18,8 +17,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 import cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity
 import android.widget.Toast
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.InteractionSource
 
 @Composable
 fun SearchBar(
@@ -425,6 +422,60 @@ fun TextualInfoItem(
             onClick = {
                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 val clip = android.content.ClipData.newPlainText("Text Info", text)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(context, "Text copied to clipboard", Toast.LENGTH_SHORT).show()
+            },
+            modifier = Modifier.size(20.dp)
+        ) {
+            Icon(
+                Icons.Default.ContentCopy,
+                contentDescription = "Copy text",
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+// Component for text info that works with the data structure
+@Composable
+fun TextInfoItem(
+    textInfo: cn.edu.sjtu.deepsleep.docusnap.data.TextInfo,
+    onNavigate: (String) -> Unit
+) {
+    val context = LocalContext.current
+    
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Display key-value pair
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = "${textInfo.key}: ${textInfo.value}",
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        IconButton(
+            onClick = { 
+                onNavigate("document_detail?documentId=${textInfo.sourceDocumentId}&fromImageProcessing=false")
+            },
+            modifier = Modifier.size(20.dp)
+        ) {
+            Icon(
+                Icons.Default.Link,
+                contentDescription = "Go to source document",
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+        IconButton(
+            onClick = {
+                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("Text Info", "${textInfo.key}: ${textInfo.value}")
                 clipboard.setPrimaryClip(clip)
                 Toast.makeText(context, "Text copied to clipboard", Toast.LENGTH_SHORT).show()
             },
