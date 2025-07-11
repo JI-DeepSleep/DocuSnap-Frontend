@@ -107,7 +107,7 @@ fun DocumentGalleryScreen(
                                 }
                                 selectedDocuments = newSelected
                             } else {
-                                onNavigate("document_detail?documentId=${document.id}")
+                                onNavigate("document_detail?documentId=${document.id}&fromImageProcessing=false")
                             }
                         },
                         onLongClick = {

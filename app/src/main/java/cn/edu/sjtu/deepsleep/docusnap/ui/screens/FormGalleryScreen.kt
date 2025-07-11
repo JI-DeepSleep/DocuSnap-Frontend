@@ -107,7 +107,7 @@ fun FormGalleryScreen(
                                 }
                                 selectedForms = newSelected
                             } else {
-                                onNavigate("form_detail?formId=${form.id}")
+                                onNavigate("form_detail?formId=${form.id}&fromImageProcessing=false")
                             }
                         },
                         onLongClick = {

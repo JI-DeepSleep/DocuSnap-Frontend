@@ -69,6 +69,7 @@ fun DocumentDetailScreen(
     
     fun deleteDocument() {
         // TODO: Erase this file from the local file system
+        // Always go back to gallery when deleting, regardless of source
         onNavigate("document_gallery")
     }
     
@@ -607,7 +608,7 @@ private fun RelatedFileItem(
         }
         
         IconButton(
-            onClick = { onNavigate("document_detail?documentId=${document.id}") }
+            onClick = { onNavigate("document_detail?documentId=${document.id}&fromImageProcessing=false") }
         ) {
             Icon(
                 Icons.Default.OpenInNew,

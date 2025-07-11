@@ -109,15 +109,23 @@ fun DocuSnapApp() {
             }
             
             composable(
-                route = "document_detail?documentId={documentId}",
+                route = "document_detail?documentId={documentId}&fromImageProcessing={fromImageProcessing}",
                 arguments = listOf(
-                    navArgument("documentId") { type = NavType.StringType; nullable = true }
+                    navArgument("documentId") { type = NavType.StringType; nullable = true },
+                    navArgument("fromImageProcessing") { type = NavType.BoolType; defaultValue = false }
                 )
             ) { backStackEntry ->
                 val documentId = backStackEntry.arguments?.getString("documentId")
+                val fromImageProcessing = backStackEntry.arguments?.getBoolean("fromImageProcessing") ?: false
                 DocumentDetailScreen(
                     onNavigate = { route -> navController.navigate(route) },
-                    onBackClick = { navController.navigate(Screen.DocumentGallery.route) },
+                    onBackClick = { 
+                        if (fromImageProcessing) {
+                            navController.navigate(Screen.DocumentGallery.route)
+                        } else {
+                            navController.popBackStack()
+                        }
+                    },
                     documentId = documentId
                 )
             }
@@ -129,15 +137,23 @@ fun DocuSnapApp() {
             }
             
             composable(
-                route = "form_detail?formId={formId}",
+                route = "form_detail?formId={formId}&fromImageProcessing={fromImageProcessing}",
                 arguments = listOf(
-                    navArgument("formId") { type = NavType.StringType; nullable = true }
+                    navArgument("formId") { type = NavType.StringType; nullable = true },
+                    navArgument("fromImageProcessing") { type = NavType.BoolType; defaultValue = false }
                 )
             ) { backStackEntry ->
                 val formId = backStackEntry.arguments?.getString("formId")
+                val fromImageProcessing = backStackEntry.arguments?.getBoolean("fromImageProcessing") ?: false
                 FormDetailScreen(
                     onNavigate = { route -> navController.navigate(route) },
-                    onBackClick = { navController.navigate(Screen.FormGallery.route) },
+                    onBackClick = { 
+                        if (fromImageProcessing) {
+                            navController.navigate(Screen.FormGallery.route)
+                        } else {
+                            navController.popBackStack()
+                        }
+                    },
                     formId = formId
                 )
             }

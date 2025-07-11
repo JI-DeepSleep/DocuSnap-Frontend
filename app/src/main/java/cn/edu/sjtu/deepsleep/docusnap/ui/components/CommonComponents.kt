@@ -407,9 +407,9 @@ fun TextualInfoItem(
         IconButton(
             onClick = { 
                 if (documentId != null) {
-                    onNavigate("document_detail?documentId=$documentId")
+                    onNavigate("document_detail?documentId=$documentId&fromImageProcessing=false")
                 } else {
-                    onNavigate("document_detail")
+                    onNavigate("document_detail?fromImageProcessing=false")
                 }
             },
             modifier = Modifier.size(20.dp)

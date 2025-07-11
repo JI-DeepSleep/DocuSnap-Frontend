@@ -477,6 +477,7 @@ fun FormDetailScreen(
                 TextButton(
                     onClick = {
                         // TODO: Implement actual deletion logic
+                        // Always go back to gallery when deleting, regardless of source
                         onNavigate("form_gallery")
                         showDeleteDialog = false
                     }
@@ -523,7 +524,7 @@ private fun FormFieldDisplayItem(
                 // Show link to source document if srcDocId is present
                 if (field.srcDocId != null) {
                     IconButton(
-                        onClick = { onNavigate("document_detail?documentId=${field.srcDocId}") },
+                        onClick = { onNavigate("document_detail?documentId=${field.srcDocId}&fromImageProcessing=false") },
                         modifier = Modifier.size(20.dp)
                     ) {
                         Icon(
@@ -607,7 +608,7 @@ private fun RelatedFileItem(
         }
         
         IconButton(
-            onClick = { onNavigate("document_detail?documentId=${document.id}") }
+            onClick = { onNavigate("document_detail?documentId=${document.id}&fromImageProcessing=false") }
         ) {
             Icon(
                 Icons.Default.OpenInNew,

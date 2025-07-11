@@ -100,7 +100,7 @@ fun ImageProcessingScreen(
                     uploadDate = "2024-01-15"
                 )
                 // TODO: Save the document to the database/storage
-                onNavigate("document_detail?documentId=${newDocument.id}")
+                onNavigate("document_detail?documentId=${newDocument.id}&fromImageProcessing=true")
             }
             "form" -> {
                 // Create a new form
@@ -113,7 +113,7 @@ fun ImageProcessingScreen(
                     uploadDate = "2024-01-15"
                 )
                 // TODO: Save the form to the database/storage
-                onNavigate("form_detail?formId=${newForm.id}")
+                onNavigate("form_detail?formId=${newForm.id}&fromImageProcessing=true")
             }
             else -> onNavigate("home")
         }
