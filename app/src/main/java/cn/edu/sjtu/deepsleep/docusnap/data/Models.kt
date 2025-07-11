@@ -6,7 +6,9 @@ data class Document(
     val imageUris: List<String> = emptyList(), // Changed from imageUri to imageUris
     val extractedInfo: Map<String, String> = emptyMap(),
     val tags: List<String> = emptyList(),
-    val uploadDate: String = "2024-01-15"
+    val uploadDate: String = "2024-01-15",
+    val relatedDocumentIds: List<String> = emptyList(), // IDs of related documents
+    val relatedFormIds: List<String> = emptyList() // IDs of related forms
 )
 
 data class Form(
@@ -15,13 +17,16 @@ data class Form(
     val imageUris: List<String> = emptyList(), // Changed from imageUri to imageUris
     val formFields: List<FormField> = emptyList(),
     val extractedInfo: Map<String, String> = emptyMap(),
-    val uploadDate: String = "2024-01-15"
+    val uploadDate: String = "2024-01-15",
+    val relatedDocumentIds: List<String> = emptyList(), // IDs of related documents
+    val relatedFormIds: List<String> = emptyList() // IDs of related forms
 )
 
 data class FormField(
     val name: String,
     val value: String? = null,
-    val isRetrieved: Boolean = false
+    val isRetrieved: Boolean = false,
+    val srcDocId: String? = null // Source document ID for this field
 )
 
 // Unified search entity that can represent text, document, or form

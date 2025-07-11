@@ -389,7 +389,8 @@ private fun FormSearchCard(
 @Composable
 fun TextualInfoItem(
     text: String,
-    onNavigate: (String) -> Unit
+    onNavigate: (String) -> Unit,
+    documentId: String? = null
 ) {
     val context = LocalContext.current
     
@@ -404,7 +405,13 @@ fun TextualInfoItem(
             modifier = Modifier.weight(1f)
         )
         IconButton(
-            onClick = { onNavigate("document_detail") },
+            onClick = { 
+                if (documentId != null) {
+                    onNavigate("document_detail?documentId=$documentId")
+                } else {
+                    onNavigate("document_detail")
+                }
+            },
             modifier = Modifier.size(20.dp)
         ) {
             Icon(

@@ -30,9 +30,17 @@ import androidx.compose.ui.layout.ContentScale
 @Composable
 fun DocumentDetailScreen(
     onNavigate: (String) -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    documentId: String? = null
 ) {
-    val document = remember { MockData.mockDocuments.first() }
+    // Find the specific document by ID, or use the first one as fallback
+    val document = remember(documentId) {
+        if (documentId != null) {
+            MockData.mockDocuments.find { it.id == documentId } ?: MockData.mockDocuments.first()
+        } else {
+            MockData.mockDocuments.first()
+        }
+    }
     var isEditing by remember { mutableStateOf(false) }
     val originalExtractedInfo = remember { document.extractedInfo.toMap() }
     var extractedInfo by remember { mutableStateOf(originalExtractedInfo) }
@@ -48,12 +56,9 @@ fun DocumentDetailScreen(
     var currentImageIndex by remember { mutableStateOf(0) }
     val imageUris = remember { document.imageUris }
     
-    // Mock related files
-    val relatedFiles = remember {
-        listOf(
-            MockData.mockDocuments[1], // Office Supply Invoice
-            MockData.mockDocuments[2]  // Employment Contract
-        )
+    // Get related files using MockData helper functions
+    val relatedFiles = remember(document) {
+        MockData.getRelatedDocuments(document.id)
     }
     
     // Placeholder for export and delete actions
@@ -594,10 +599,15 @@ private fun RelatedFileItem(
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
+            Text(
+                text = document.uploadDate,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Light
+            )
         }
         
         IconButton(
-            onClick = { onNavigate("document_detail") }
+            onClick = { onNavigate("document_detail?documentId=${document.id}") }
         ) {
             Icon(
                 Icons.Default.OpenInNew,

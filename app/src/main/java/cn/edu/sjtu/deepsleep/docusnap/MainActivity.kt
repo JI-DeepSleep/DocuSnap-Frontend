@@ -108,10 +108,17 @@ fun DocuSnapApp() {
                 )
             }
             
-            composable(Screen.DocumentDetail.route) {
+            composable(
+                route = "document_detail?documentId={documentId}",
+                arguments = listOf(
+                    navArgument("documentId") { type = NavType.StringType; nullable = true }
+                )
+            ) { backStackEntry ->
+                val documentId = backStackEntry.arguments?.getString("documentId")
                 DocumentDetailScreen(
                     onNavigate = { route -> navController.navigate(route) },
-                    onBackClick = { navController.navigate(Screen.DocumentGallery.route) }
+                    onBackClick = { navController.navigate(Screen.DocumentGallery.route) },
+                    documentId = documentId
                 )
             }
             
@@ -121,10 +128,17 @@ fun DocuSnapApp() {
                 )
             }
             
-            composable(Screen.FormDetail.route) {
+            composable(
+                route = "form_detail?formId={formId}",
+                arguments = listOf(
+                    navArgument("formId") { type = NavType.StringType; nullable = true }
+                )
+            ) { backStackEntry ->
+                val formId = backStackEntry.arguments?.getString("formId")
                 FormDetailScreen(
                     onNavigate = { route -> navController.navigate(route) },
-                    onBackClick = { navController.navigate(Screen.FormGallery.route) }
+                    onBackClick = { navController.navigate(Screen.FormGallery.route) },
+                    formId = formId
                 )
             }
         }

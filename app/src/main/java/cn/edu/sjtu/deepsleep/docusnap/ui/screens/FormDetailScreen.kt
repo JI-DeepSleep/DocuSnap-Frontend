@@ -29,14 +29,20 @@ import androidx.compose.ui.layout.ContentScale
 @Composable
 fun FormDetailScreen(
     onNavigate: (String) -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    formId: String? = null
 ) {
-    val form = remember { MockData.mockForms.first() }
+    // Find the specific form by ID, or use the first one as fallback
+    val form = remember(formId) {
+        if (formId != null) {
+            MockData.mockForms.find { it.id == formId } ?: MockData.mockForms.first()
+        } else {
+            MockData.mockForms.first()
+        }
+    }
     var isEditing by remember { mutableStateOf(false) }
     var parsing by remember { mutableStateOf(false) }
-    var autoFilling by remember { mutableStateOf(false) }
     var parsingJob by remember { mutableStateOf<Job?>(null) }
-    var autoFillingJob by remember { mutableStateOf<Job?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -63,12 +69,9 @@ fun FormDetailScreen(
         )
     }
 
-    // Mock related files
-    val relatedFiles = remember {
-        listOf(
-            MockData.mockDocuments[1], // Office Supply Invoice
-            MockData.mockDocuments[2]  // Employment Contract
-        )
+    // Get related files using MockData helper functions
+    val relatedFiles = remember(form) {
+        MockData.getRelatedDocumentsForForm(form.id)
     }
 
     // Navigation functions
@@ -288,91 +291,6 @@ fun FormDetailScreen(
                     }
                 }
                 
-                // Auto-fill button
-                if (!autoFilling) {
-                    IconButton(
-                        onClick = {
-                            autoFilling = true
-                            autoFillingJob = scope.launch {
-                                delay(1000) // Simulate auto-fill
-                                // Get mock documents for auto-filling
-                                val mockDocs = MockData.mockDocuments
-                                
-                                // TODO: matching algorithm to replace this hardcoded map
-                                val fieldMapping = mapOf(
-                                    "name" to listOf("Employee"),
-                                    "employee" to listOf("Employee"),
-                                    "company" to listOf("Company", "Vendor", "Supplier"),
-                                    "vendor" to listOf("Vendor", "Company", "Supplier"),
-                                    "supplier" to listOf("Supplier", "Vendor", "Company"),
-                                    "date" to listOf("Date"),
-                                    "amount" to listOf("Total Amount"),
-                                    "total" to listOf("Total Amount"),
-                                    "purpose" to listOf("Travel Purpose"),
-                                    "department" to listOf("Department"),
-                                    "position" to listOf("Position"),
-                                    "salary" to listOf("Salary"),
-                                    "passport" to listOf("Passport Number"),
-                                    "destination" to listOf("Destination"),
-                                    "duration" to listOf("Duration"),
-                                    "invoice" to listOf("Invoice Number"),
-                                    "payment" to listOf("Payment Method")
-                                )
-                                
-                                // Fallback values for fields that don't have document data
-                                val fallbackValues = mapOf(
-                                    "purpose" to "Business trip",
-                                    "department" to "Engineering"
-                                )
-                                
-                                // Update form fields with auto-filled data from mock documents
-                                formFields = formFields.map { field ->
-                                    val fieldName = field.name.lowercase()
-                                    
-                                    // Find matching document keys for this field
-                                    val matchingKeys = fieldMapping.entries
-                                        .find { (keyword, _) -> fieldName.contains(keyword) }
-                                        ?.value ?: emptyList()
-                                    
-                                    // Try to find a value from mock documents
-                                    val matchedValue = matchingKeys
-                                        .asSequence()
-                                        .mapNotNull { key ->
-                                            mockDocs.find { it.extractedInfo.containsKey(key) }?.extractedInfo?.get(key)
-                                        }
-                                        .firstOrNull()
-                                        ?: fallbackValues[fieldMapping.entries
-                                            .find { (keyword, _) -> fieldName.contains(keyword) }
-                                            ?.key]
-                                    
-                                    if (matchedValue != null) {
-                                        field.copy(value = matchedValue, isRetrieved = true)
-                                    } else {
-                                        field.copy(value = null, isRetrieved = false)
-                                    }
-                                }
-                                autoFilling = false
-                                autoFillingJob = null
-                            }
-                        },
-                        modifier = Modifier.weight(1f),
-                        enabled = formFields.isNotEmpty() && !parsing
-                    ) {
-                        Icon(Icons.Default.AutoFixHigh, contentDescription = "Auto-fill")
-                    }
-                } else {
-                    IconButton(
-                        onClick = {
-                            autoFillingJob?.cancel()
-                            autoFilling = false
-                            autoFillingJob = null
-                        },
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.Stop, contentDescription = "Stop")
-                    }
-                }
-
                 // Edit button
                 IconButton(
                     onClick = { isEditing = !isEditing },
@@ -392,7 +310,7 @@ fun FormDetailScreen(
                             field.copy(value = null, isRetrieved = false)
                         }
                     },
-                    enabled = formFields.isNotEmpty() && !parsing && !autoFilling,
+                    enabled = formFields.isNotEmpty() && !parsing,
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.ClearAll, contentDescription = "Clear Values")
@@ -419,15 +337,6 @@ fun FormDetailScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text("Parsing form fields...", fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
-                }
-            } else if (autoFilling) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Auto-filling form...", fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
                 }
             } else if (formFields.isNotEmpty()) {
                 Card(
@@ -534,11 +443,6 @@ fun FormDetailScreen(
                         description = "Extract field names from the form image. This identifies what fields need to be filled without adding values."
                     )
                     HelpItem(
-                        icon = Icons.Default.AutoFixHigh,
-                        title = "Auto-fill",
-                        description = "Automatically fill form fields with data extracted from your document database."
-                    )
-                    HelpItem(
                         icon = Icons.Default.Edit,
                         title = "Edit",
                         description = "Toggle edit mode to manually modify field values."
@@ -616,11 +520,10 @@ private fun FormFieldDisplayItem(
                     fontWeight = FontWeight.Medium,
                     color = if (field.value == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                 )
-                
-                // Link and Copy icons for retrieved fields
-                if (field.isRetrieved && field.value != null) {
+                // Show link to source document if srcDocId is present
+                if (field.srcDocId != null) {
                     IconButton(
-                        onClick = { onNavigate("document_detail") },
+                        onClick = { onNavigate("document_detail?documentId=${field.srcDocId}") },
                         modifier = Modifier.size(20.dp)
                     ) {
                         Icon(
@@ -630,6 +533,9 @@ private fun FormFieldDisplayItem(
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
+                }
+                // Copy icon for retrieved fields
+                if (field.isRetrieved && field.value != null) {
                     IconButton(
                         onClick = {
                             val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
@@ -693,10 +599,15 @@ private fun RelatedFileItem(
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
+            Text(
+                text = document.uploadDate,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Light
+            )
         }
         
         IconButton(
-            onClick = { onNavigate("document_detail") }
+            onClick = { onNavigate("document_detail?documentId=${document.id}") }
         ) {
             Icon(
                 Icons.Default.OpenInNew,

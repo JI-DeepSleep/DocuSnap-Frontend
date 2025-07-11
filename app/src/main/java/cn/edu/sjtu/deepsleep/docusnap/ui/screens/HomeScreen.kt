@@ -9,26 +9,28 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.TextualInfoItem
 import cn.edu.sjtu.deepsleep.docusnap.data.MockData
-import android.widget.Toast
 
 @Composable
 fun HomeScreen(
     onNavigate: (String) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    
+    // Get mock documents for reference
+    val mockDocuments = remember { MockData.mockDocuments }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // App Title
         Text(
@@ -170,11 +172,13 @@ fun HomeScreen(
                 Spacer(modifier = Modifier.height(8.dp))
                 TextualInfoItem(
                     text = "• Starbucks receipt: $12.50 on 2024-01-15",
-                    onNavigate = onNavigate
+                    onNavigate = onNavigate,
+                    documentId = mockDocuments.firstOrNull { it.name.contains("Starbucks") }?.id
                 )
                 TextualInfoItem(
                     text = "• Office supplies: $1,245.50 due 2024-02-10",
-                    onNavigate = onNavigate
+                    onNavigate = onNavigate,
+                    documentId = mockDocuments.firstOrNull { it.name.contains("Office Supply") }?.id
                 )
             }
         }

@@ -22,6 +22,9 @@ import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import androidx.compose.ui.layout.ContentScale
 import coil.compose.AsyncImage
+import cn.edu.sjtu.deepsleep.docusnap.data.Document
+import cn.edu.sjtu.deepsleep.docusnap.data.Form
+import java.util.UUID
 
 @Composable
 fun ImageProcessingScreen(
@@ -77,6 +80,45 @@ fun ImageProcessingScreen(
         }
     }
 
+    // Function to create new document or form and navigate to it
+    fun createAndNavigateToDetail() {
+        val processedImageUris = if (processedImages.isNotEmpty()) {
+            processedImages.values.toList()
+        } else {
+            imageUris
+        }
+        
+        when (source) {
+            "document" -> {
+                // Create a new document
+                val newDocument = Document(
+                    id = UUID.randomUUID().toString(),
+                    name = "New Document ${System.currentTimeMillis()}",
+                    imageUris = processedImageUris,
+                    extractedInfo = emptyMap(),
+                    tags = listOf("New", "Document"),
+                    uploadDate = "2024-01-15"
+                )
+                // TODO: Save the document to the database/storage
+                onNavigate("document_detail?documentId=${newDocument.id}")
+            }
+            "form" -> {
+                // Create a new form
+                val newForm = Form(
+                    id = UUID.randomUUID().toString(),
+                    name = "New Form ${System.currentTimeMillis()}",
+                    imageUris = processedImageUris,
+                    formFields = emptyList(),
+                    extractedInfo = emptyMap(),
+                    uploadDate = "2024-01-15"
+                )
+                // TODO: Save the form to the database/storage
+                onNavigate("form_detail?formId=${newForm.id}")
+            }
+            else -> onNavigate("home")
+        }
+    }
+
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -90,16 +132,7 @@ fun ImageProcessingScreen(
             },
             actions = {
                 Button(
-                    onClick = {
-                        // Navigate based on source
-                        val destination = when (source) {
-                            "document" -> "document_detail"
-                            "form" -> "form_detail"
-                            else -> "home"
-                        }
-                        onNavigate(destination)
-                        // TODO: background parsing document or form with all processed images
-                    }
+                    onClick = { createAndNavigateToDetail() }
                 ) {
                     Icon(Icons.Default.Check, contentDescription = null)
                     Spacer(modifier = Modifier.width(4.dp))
