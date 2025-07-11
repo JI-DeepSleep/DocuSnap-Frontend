@@ -14,6 +14,7 @@ object MockData {
         Document(
             id = starbucksReceiptId,
             name = "Lunch Receipt - Starbucks",
+            description = "A lunch receipt from Starbucks showing coffee and sandwich purchase for $12.50.",
             imageUris = listOf("mock_image_1.jpg", "mock_image_2.jpg"),
             extractedInfo = mapOf(
                 "Vendor" to "Starbucks Coffee",
@@ -30,6 +31,7 @@ object MockData {
         Document(
             id = officeInvoiceId,
             name = "Office Supply Invoice",
+            description = "An invoice for office supplies totaling $1,245.50 from OfficeSupply Co.",
             imageUris = listOf("mock_image_3.jpg"),
             extractedInfo = mapOf(
                 "Supplier" to "OfficeSupply Co.",
@@ -46,6 +48,7 @@ object MockData {
         Document(
             id = employmentContractId,
             name = "Employment Contract",
+            description = "A full-time employment contract for John Doe as Software Engineer at TechCorp Inc.",
             imageUris = listOf("mock_image_4.jpg", "mock_image_5.jpg", "mock_image_6.jpg"),
             extractedInfo = mapOf(
                 "Company" to "TechCorp Inc.",
@@ -65,6 +68,7 @@ object MockData {
         Form(
             id = expenseFormId,
             name = "Expense Report Form",
+            description = "A company expense report form for tracking business expenses and reimbursements.",
             imageUris = listOf("mock_form_1.jpg"),
             formFields = listOf(
                 FormField("Employee Name", "John Doe", true, srcDocId = employmentContractId),
@@ -80,6 +84,7 @@ object MockData {
         Form(
             id = visaFormId,
             name = "Visa Application",
+            description = "A visa application form for travel to Japan with personal and travel details.",
             imageUris = listOf("mock_form_2.jpg", "mock_form_3.jpg"),
             formFields = listOf(
                 FormField("Full Name", "John Doe", true, srcDocId = employmentContractId),

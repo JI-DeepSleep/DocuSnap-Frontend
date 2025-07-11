@@ -228,6 +228,16 @@ fun FormDetailScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Form Summary
+            Text(
+                text = form.description,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             // Form Fields Section with Help Icon
             Row(
                 modifier = Modifier

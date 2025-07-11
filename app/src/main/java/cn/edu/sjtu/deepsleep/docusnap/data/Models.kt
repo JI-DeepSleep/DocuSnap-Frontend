@@ -3,6 +3,7 @@ package cn.edu.sjtu.deepsleep.docusnap.data
 data class Document(
     val id: String,
     val name: String,
+    val description: String,
     val imageUris: List<String> = emptyList(), // Changed from imageUri to imageUris
     val extractedInfo: Map<String, String> = emptyMap(),
     val tags: List<String> = emptyList(),
@@ -14,6 +15,7 @@ data class Document(
 data class Form(
     val id: String,
     val name: String,
+    val description: String,
     val imageUris: List<String> = emptyList(), // Changed from imageUri to imageUris
     val formFields: List<FormField> = emptyList(),
     val extractedInfo: Map<String, String> = emptyMap(),

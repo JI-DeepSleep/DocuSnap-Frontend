@@ -247,7 +247,7 @@ fun DocumentDetailScreen(
 
             // Document Summary
             Text(
-                text = "This is a receipt from Starbucks Coffee. It contains important information about transactions, dates, and amounts.",
+                text = document.description,
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 4.dp)

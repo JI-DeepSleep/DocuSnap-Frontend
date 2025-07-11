@@ -94,6 +94,7 @@ fun ImageProcessingScreen(
                 val newDocument = Document(
                     id = UUID.randomUUID().toString(),
                     name = "New Document ${System.currentTimeMillis()}",
+                    description = "A new document created by user",
                     imageUris = processedImageUris,
                     extractedInfo = emptyMap(),
                     tags = listOf("New", "Document"),
@@ -107,6 +108,7 @@ fun ImageProcessingScreen(
                 val newForm = Form(
                     id = UUID.randomUUID().toString(),
                     name = "New Form ${System.currentTimeMillis()}",
+                    description = "A new form uploaded by user",
                     imageUris = processedImageUris,
                     formFields = emptyList(),
                     extractedInfo = emptyMap(),
