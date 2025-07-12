@@ -1,5 +1,6 @@
 package cn.edu.sjtu.deepsleep.docusnap.ui.screens
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -31,9 +32,33 @@ import androidx.compose.ui.layout.ContentScale
 fun DocumentDetailScreen(
     onNavigate: (String) -> Unit,
     onBackClick: () -> Unit,
-    documentId: String? = null
+    documentId: String? = null,
+    photoUris: String? = null,
+    fromImageProcessing: Boolean = false // This was in MainActivity, let's add it here for consistency
 ) {
     // Find the specific document by ID, or use the first one as fallback
+    val imagesToShow = remember(photoUris) {
+        if (photoUris != null) {
+            // If photoUris from navigation exists, decode and use it.
+            try {
+                java.net.URLDecoder.decode(photoUris, "UTF-8").split(",").filter { it.isNotEmpty() }
+            } catch (e: Exception) {
+                // In case of decoding error, fallback to an empty list.
+                emptyList()
+            }
+        } else {
+            // Otherwise, fallback to loading from MockData (or a future database).
+            val doc = if (documentId != null) {
+                MockData.mockDocuments.find { it.id == documentId }
+            } else {
+                null
+            }
+            doc?.imageUris ?: emptyList()
+        }
+    }
+
+// Find the document for other info like title, description etc.
+// 为了显示标题、描述等其他信息，我们仍然需要 document 对象
     val document = remember(documentId) {
         if (documentId != null) {
             MockData.mockDocuments.find { it.id == documentId } ?: MockData.mockDocuments.first()
@@ -51,10 +76,11 @@ fun DocumentDetailScreen(
     var parsingJob by remember { mutableStateOf<Job?>(null) }
     var previousExtractedInfo by remember { mutableStateOf(originalExtractedInfo) }
     val scope = rememberCoroutineScope()
-    
-    // Image navigation state
+
+// Image navigation state
     var currentImageIndex by remember { mutableStateOf(0) }
-    val imageUris = remember { document.imageUris }
+// IMPORTANT: The imageUris variable is now replaced by imagesToShow
+// 重要：旧的 imageUris 变量现在被 imagesToShow 取代
     
     // Get related files using MockData helper functions
     val relatedFiles = remember(document) {
@@ -89,7 +115,7 @@ fun DocumentDetailScreen(
     }
 
     fun goToNextImage() {
-        if (currentImageIndex < imageUris.size - 1) {
+        if (currentImageIndex < imagesToShow.size - 1) {
             currentImageIndex++
         }
     }
@@ -128,10 +154,10 @@ fun DocumentDetailScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     // Main image display
-                    if (imageUris.isNotEmpty()) {
+                    if (imagesToShow.isNotEmpty()) {
                         // Image index display
                         Text(
-                            text = "${currentImageIndex + 1}/${imageUris.size}",
+                            text = "${currentImageIndex + 1}/${imagesToShow.size}",
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Medium,
@@ -146,14 +172,14 @@ fun DocumentDetailScreen(
                         
                         // Current image
                         AsyncImage(
-                            model = imageUris[currentImageIndex],
+                            model = imagesToShow[currentImageIndex],
                             contentDescription = "Document image ${currentImageIndex + 1}",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
                         
                         // Navigation arrows
-                        if (imageUris.size > 1) {
+                        if (imagesToShow.size > 1) {
                             Row(
                                 modifier = Modifier.fillMaxSize(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -180,18 +206,18 @@ fun DocumentDetailScreen(
                                 // Next arrow
                                 IconButton(
                                     onClick = { goToNextImage() },
-                                    enabled = currentImageIndex < imageUris.size - 1,
+                                    enabled = currentImageIndex < imagesToShow.size - 1,
                                     modifier = Modifier
                                         .size(48.dp)
                                         .background(
-                                            if (currentImageIndex < imageUris.size - 1) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f),
+                                            if (currentImageIndex < imagesToShow.size - 1) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f),
                                             CircleShape
                                         )
                                 ) {
                                     Icon(
                                         Icons.Default.ChevronRight,
                                         contentDescription = "Next image",
-                                        tint = if (currentImageIndex < imageUris.size - 1) Color.Black else Color.Gray
+                                        tint = if (currentImageIndex < imagesToShow.size - 1) Color.Black else Color.Gray
                                     )
                                 }
                             }

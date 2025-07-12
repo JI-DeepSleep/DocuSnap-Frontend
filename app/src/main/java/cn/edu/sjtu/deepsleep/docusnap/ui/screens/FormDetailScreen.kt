@@ -30,9 +30,35 @@ import androidx.compose.ui.layout.ContentScale
 fun FormDetailScreen(
     onNavigate: (String) -> Unit,
     onBackClick: () -> Unit,
-    formId: String? = null
+    formId: String? = null,
+    photoUris: String? = null,
+    fromImageProcessing: Boolean = false
 ) {
     // Find the specific form by ID, or use the first one as fallback
+    // [ 用这个新的逻辑块完整替换掉旧的 ]
+
+    // [1. NEW DATA LOGIC] Prioritize displaying images from navigation parameters.
+    val imagesToShow = remember(photoUris) {
+        if (photoUris != null) {
+            // If photoUris from navigation exists, decode and use it.
+            try {
+                java.net.URLDecoder.decode(photoUris, "UTF-8").split(",").filter { it.isNotEmpty() }
+            } catch (e: Exception) {
+                // In case of decoding error, fallback to an empty list.
+                emptyList()
+            }
+        } else {
+            // Otherwise, fallback to loading from MockData.
+            val frm = if (formId != null) {
+                MockData.mockForms.find { it.id == formId }
+            } else {
+                null
+            }
+            frm?.imageUris ?: emptyList()
+        }
+    }
+
+    // Find the form object for other info like title, description etc.
     val form = remember(formId) {
         if (formId != null) {
             MockData.mockForms.find { it.id == formId } ?: MockData.mockForms.first()
@@ -40,6 +66,7 @@ fun FormDetailScreen(
             MockData.mockForms.first()
         }
     }
+
     var isEditing by remember { mutableStateOf(false) }
     var parsing by remember { mutableStateOf(false) }
     var parsingJob by remember { mutableStateOf<Job?>(null) }
@@ -47,10 +74,10 @@ fun FormDetailScreen(
     var showHelpDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    
-    // Image navigation state
+
+
     var currentImageIndex by remember { mutableStateOf(0) }
-    val imageUris = remember { form.imageUris }
+
     
     // Store original form fields for restoration during parsing
     val originalFormFields = remember { form.formFields }
@@ -82,7 +109,7 @@ fun FormDetailScreen(
     }
 
     fun goToNextImage() {
-        if (currentImageIndex < imageUris.size - 1) {
+        if (currentImageIndex < imagesToShow.size - 1) {
             currentImageIndex++
         }
     }
@@ -126,10 +153,10 @@ fun FormDetailScreen(
                     modifier = Modifier.fillMaxSize()
                 ) {
                     // Main image display
-                    if (imageUris.isNotEmpty()) {
+                    if (imagesToShow.isNotEmpty()) {
                         // Image index display
                         Text(
-                            text = "${currentImageIndex + 1}/${imageUris.size}",
+                            text = "${currentImageIndex + 1}/${imagesToShow.size}",
                             fontSize = 14.sp,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Medium,
@@ -144,14 +171,14 @@ fun FormDetailScreen(
                         
                         // Current image
                         AsyncImage(
-                            model = imageUris[currentImageIndex],
+                            model = imagesToShow[currentImageIndex],
                             contentDescription = "Form image ${currentImageIndex + 1}",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
                         
                         // Navigation arrows
-                        if (imageUris.size > 1) {
+                        if (imagesToShow.size > 1) {
                             Row(
                                 modifier = Modifier.fillMaxSize(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -178,18 +205,18 @@ fun FormDetailScreen(
                                 // Next arrow
                                 IconButton(
                                     onClick = { goToNextImage() },
-                                    enabled = currentImageIndex < imageUris.size - 1,
+                                    enabled = currentImageIndex < imagesToShow.size - 1,
                                     modifier = Modifier
                                         .size(48.dp)
                                         .background(
-                                            if (currentImageIndex < imageUris.size - 1) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f),
+                                            if (currentImageIndex < imagesToShow.size - 1) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f),
                                             CircleShape
                                         )
                                 ) {
                                     Icon(
                                         Icons.Default.ChevronRight,
                                         contentDescription = "Next image",
-                                        tint = if (currentImageIndex < imageUris.size - 1) Color.Black else Color.Gray
+                                        tint = if (currentImageIndex < imagesToShow.size - 1) Color.Black else Color.Gray
                                     )
                                 }
                             }

@@ -32,6 +32,7 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.Image
+import android.util.Log
 
 @Composable
 fun ImageProcessingScreen(
@@ -100,16 +101,22 @@ fun ImageProcessingScreen(
     }
 
     // Function to create new document or form and navigate to it
+    // [ 用这个新函数替换掉旧的 ]
     fun createAndNavigateToDetail() {
         val processedImageUris = if (processedImages.isNotEmpty()) {
             processedImages.values.toList()
         } else {
             imageUris
         }
-        
+
+        // [1. PREPARE DATA] Convert the list of Uris into a single, URL-safe string.
+        // 第一步：准备数据。将 URI 列表转换成一个 URL 安全的字符串。
+        val urisString = processedImageUris.joinToString(",")
+        val encodedUris = java.net.URLEncoder.encode(urisString, "UTF-8")
+
         when (source) {
             "document" -> {
-                // Create a new document
+                // Create a new document object (this part is unchanged)
                 val newDocument = Document(
                     id = UUID.randomUUID().toString(),
                     name = "New Document ${System.currentTimeMillis()}",
@@ -120,10 +127,12 @@ fun ImageProcessingScreen(
                     uploadDate = "2024-01-15"
                 )
                 // TODO: Save the document to the database/storage
-                onNavigate("document_detail?documentId=${newDocument.id}&fromImageProcessing=true")
+
+                // [2. MODIFY NAVIGATION] Add the encodedUris to the navigation route.
+                onNavigate("document_detail?documentId=${newDocument.id}&fromImageProcessing=true&photoUris=$encodedUris")
             }
             "form" -> {
-                // Create a new form
+                // Create a new form object (this part is unchanged)
                 val newForm = Form(
                     id = UUID.randomUUID().toString(),
                     name = "New Form ${System.currentTimeMillis()}",
@@ -134,7 +143,9 @@ fun ImageProcessingScreen(
                     uploadDate = "2024-01-15"
                 )
                 // TODO: Save the form to the database/storage
-                onNavigate("form_detail?formId=${newForm.id}&fromImageProcessing=true")
+
+                // [3. MODIFY NAVIGATION] Add the encodedUris to the navigation route.
+                onNavigate("form_detail?formId=${newForm.id}&fromImageProcessing=true&photoUris=$encodedUris")
             }
             else -> onNavigate("home")
         }
@@ -441,10 +452,6 @@ private fun applyOriginalFilter(imageUri: String?): String? {
     return imageUri
 }
 
-private fun applyBlackAndWhiteFilter(imageUri: String?): String? {
-    // TODO: Apply black and white filter
-    return imageUri
-}
 
 private fun applyBinaryThresholdingFilter(imageUri: String?): String? {
     // TODO: Apply binary thresholding filter
@@ -497,7 +504,6 @@ private fun uriToBitmap(context: Context, uriString: String): Bitmap? {
     }
 }
 
-// Example filter function to prove editing works.
 private fun applyBlackAndWhiteFilter(bitmap: Bitmap): Bitmap {
     val newBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
     for (x in 0 until newBitmap.width) {
