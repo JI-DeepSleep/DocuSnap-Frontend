@@ -32,7 +32,12 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.Image
+import kotlinx.coroutines.Dispatchers
+import java.io.File
+import java.io.FileOutputStream
+import androidx.core.content.FileProvider
 import android.util.Log
+import android.widget.Toast
 
 @Composable
 fun ImageProcessingScreen(
@@ -75,34 +80,53 @@ fun ImageProcessingScreen(
     }
 
     // Image processing functions
+    // [ 用这个新函数替换旧的 processCurrentImage ]
     fun processCurrentImage(filterType: String) {
         if (currentImageUri == null) return
 
         isProcessing = true
-        scope.launch {
-            // [1. DECODE] Convert the Uri string to an editable Bitmap.
+        // [1. CHANGE] Use IO dispatcher for file operations as it can be slow.
+        scope.launch(Dispatchers.IO) {
             val inputBitmap = uriToBitmap(context, currentImageUri)
 
             if (inputBitmap != null) {
-                // [2. PROCESS] Apply a filter to the Bitmap.
                 val outputBitmap = when (filterType) {
                     "Black & White" -> applyBlackAndWhiteFilter(inputBitmap)
-                    // TODO: Add other filters later
-                    else -> inputBitmap // Default to original if filter not found
+                    else -> inputBitmap
                 }
 
-                // [3. UPDATE STATE] Store the processed Bitmap to show it in the UI.
-                processedBitmap = outputBitmap
-            }
+                // [2. ADD] Save the processed bitmap and get the new Uri.
+                val newUri = saveBitmapToCache(context, outputBitmap)
 
-            selectedFilter = filterType
-            isProcessing = false
+                // [3. CHANGE] Switch back to the Main thread for UI and state updates.
+                launch(Dispatchers.Main) {
+                    if (newUri != null) {
+                        // [KEY CHANGE] Store the URI of the NEW, saved file.
+                        processedImages = processedImages + (currentImageIndex to newUri.toString())
+                        Log.d("ImageSaveDebug", "Map updated for index $currentImageIndex. New URI: $newUri. Map now has ${processedImages.size} items.")
+                    } else {
+                    // [ADD THIS LOG] Log an error if saving failed.
+                    // 【添加这行日志】如果保存失败，就打印一条错误日志。
+                    Log.e("ImageSaveDebug", "saveBitmapToCache failed, newUri is null!")
+                }
+
+                    // We still use processedBitmap for live preview on this screen.
+                    processedBitmap = outputBitmap
+                    selectedFilter = filterType
+                    isProcessing = false
+                }
+            } else {
+                launch(Dispatchers.Main) {
+                    isProcessing = false
+                    Toast.makeText(context, "Failed to load image", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 
     // Function to create new document or form and navigate to it
-    // [ 用这个新函数替换掉旧的 ]
     fun createAndNavigateToDetail() {
+        Log.d("ImageSaveDebug", "Create/Navigate called. Current processedImages map: $processedImages")
         val processedImageUris = if (processedImages.isNotEmpty()) {
             processedImages.values.toList()
         } else {
@@ -514,4 +538,26 @@ private fun applyBlackAndWhiteFilter(bitmap: Bitmap): Bitmap {
         }
     }
     return newBitmap
+}
+
+private fun saveBitmapToCache(context: Context, bitmap: Bitmap): Uri? {
+    return try {
+        val cachePath = File(context.cacheDir, "images")
+        cachePath.mkdirs() // Create the cache directory if it doesn't exist.
+
+        // Create a new file for the bitmap.
+        val file = File(cachePath, "processed_image_${System.currentTimeMillis()}.jpg")
+        val stream = FileOutputStream(file)
+
+        // Compress the bitmap to the file.
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream)
+        stream.close()
+
+        // Get a content Uri for the file using FileProvider.
+        // NOTE: Your app's applicationId must match the authority string.
+        FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
 }
