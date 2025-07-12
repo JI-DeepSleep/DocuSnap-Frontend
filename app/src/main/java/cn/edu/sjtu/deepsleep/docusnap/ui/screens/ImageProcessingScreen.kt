@@ -25,6 +25,13 @@ import coil.compose.AsyncImage
 import cn.edu.sjtu.deepsleep.docusnap.data.Document
 import cn.edu.sjtu.deepsleep.docusnap.data.Form
 import java.util.UUID
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Color as AndroidColor
+import android.graphics.ImageDecoder
+import android.net.Uri
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.Image
 
 @Composable
 fun ImageProcessingScreen(
@@ -40,6 +47,8 @@ fun ImageProcessingScreen(
     var currentImageIndex by remember { mutableStateOf(0) }
     var processedImages by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var processedBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
     // Parse photoUris string into list
     val imageUris = remember(photoUris) {
@@ -66,17 +75,27 @@ fun ImageProcessingScreen(
 
     // Image processing functions
     fun processCurrentImage(filterType: String) {
-        if (currentImageUri != null) {
-            isProcessing = true
-            scope.launch {
-                // TODO: Implement actual image processing based on filterType
-                kotlinx.coroutines.delay(1000) // Simulate processing time
-                
-                // For now, just mark as processed with the filter type
-                processedImages = processedImages + (currentImageIndex to currentImageUri)
-                selectedFilter = filterType
-                isProcessing = false
+        if (currentImageUri == null) return
+
+        isProcessing = true
+        scope.launch {
+            // [1. DECODE] Convert the Uri string to an editable Bitmap.
+            val inputBitmap = uriToBitmap(context, currentImageUri)
+
+            if (inputBitmap != null) {
+                // [2. PROCESS] Apply a filter to the Bitmap.
+                val outputBitmap = when (filterType) {
+                    "Black & White" -> applyBlackAndWhiteFilter(inputBitmap)
+                    // TODO: Add other filters later
+                    else -> inputBitmap // Default to original if filter not found
+                }
+
+                // [3. UPDATE STATE] Store the processed Bitmap to show it in the UI.
+                processedBitmap = outputBitmap
             }
+
+            selectedFilter = filterType
+            isProcessing = false
         }
     }
 
@@ -175,6 +194,7 @@ fun ImageProcessingScreen(
                         .size(300.dp),
                     contentAlignment = Alignment.Center
                 ) {
+                    // Priority 1: Show a loading spinner if processing.
                     if (isProcessing || isSaving) {
                         CircularProgressIndicator()
                         // Processing status
@@ -191,14 +211,27 @@ fun ImageProcessingScreen(
                                 color = MaterialTheme.colorScheme.primary
                             )
                         }
-                    } else if (currentImageUri != null) {
-                        AsyncImage(
-                            model = currentImageUri,
-                            contentDescription = "Processed Image ${currentImageIndex + 1}",
+                    }
+                    // Priority 2: If we have a processed Bitmap, display it.
+                    else if (processedBitmap != null) {
+                        Image(
+                            bitmap = processedBitmap!!.asImageBitmap(),
+                            contentDescription = "Processed Image",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
-                    } else {
+                    }
+                    // Priority 3: Otherwise, display the original image from its Uri.
+                    else if (currentImageUri != null) {
+                        AsyncImage(
+                            model = currentImageUri,
+                            contentDescription = "Original Image",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                    // Priority 4: If there is no image at all, show a placeholder.
+                    else {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
@@ -296,8 +329,8 @@ fun ImageProcessingScreen(
                                 text = "Black & White",
                                 icon = Icons.Default.Tonality,
                                 onClick = {
-                                    selectedFilter = "Black White"
-                                    processCurrentImage("Black White")
+                                    selectedFilter = "Black & White"
+                                    processCurrentImage("Black & White")
                                 },
                                 isSelected = selectedFilter == "Black & White"
                             )
@@ -376,7 +409,10 @@ fun ImageProcessingScreen(
                             text = "Reset",
                             icon = Icons.Default.Refresh,
                             onClick = {
+                                // [ADD THIS] Clear the processed bitmap to revert to the original.
+                                processedBitmap = null
                                 selectedFilter = "Original"
+                                // The line below is now less relevant but we can keep it for now.
                                 processedImages = processedImages - currentImageIndex
                                 showFilterToolbar = false
                             }
@@ -446,4 +482,30 @@ private fun FilterButton(
         Spacer(modifier = Modifier.width(2.dp))
         Text(text, fontSize = 12.sp)
     }
+}
+
+// Helper function to decode a Uri string into a Bitmap.
+private fun uriToBitmap(context: Context, uriString: String): Bitmap? {
+    return try {
+        val imageUri = Uri.parse(uriString)
+        val source = ImageDecoder.createSource(context.contentResolver, imageUri)
+        // Decode the image. Add memory optimization later if needed.
+        ImageDecoder.decodeBitmap(source)
+    } catch (e: Exception) {
+        e.printStackTrace()
+        null
+    }
+}
+
+// Example filter function to prove editing works.
+private fun applyBlackAndWhiteFilter(bitmap: Bitmap): Bitmap {
+    val newBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
+    for (x in 0 until newBitmap.width) {
+        for (y in 0 until newBitmap.height) {
+            val pixel = newBitmap.getPixel(x, y)
+            val gray = (AndroidColor.red(pixel) * 0.3 + AndroidColor.green(pixel) * 0.59 + AndroidColor.blue(pixel) * 0.11).toInt()
+            newBitmap.setPixel(x, y, AndroidColor.rgb(gray, gray, gray))
+        }
+    }
+    return newBitmap
 }

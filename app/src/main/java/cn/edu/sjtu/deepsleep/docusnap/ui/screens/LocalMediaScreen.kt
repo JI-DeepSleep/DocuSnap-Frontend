@@ -37,10 +37,13 @@ fun LocalMediaScreen(
     val pickMultipleMedia = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(),
         onResult = { uris ->
-            // This code runs after the user selects images and returns to the app.
             if (uris.isNotEmpty()) {
-                // Update our state with the selected image Uris
-                selectedImages = uris.toSet()
+                // If user selected images, navigate forward immediately.
+                val photoUris = uris.joinToString(",") { it.toString() }
+                onNavigate("image_processing?photoUris=$photoUris&source=$source")
+            } else {
+                // If user cancelled, navigate back.
+                onBackClick()
             }
         }
     )
@@ -51,65 +54,23 @@ fun LocalMediaScreen(
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Top Bar
-        TopAppBar(
-            title = { Text("Local Gallery") },
-            navigationIcon = {
-                IconButton(onClick = onBackClick) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                }
-            },
-            actions = {
-                if (selectedImages.isNotEmpty()) {
-                    TextButton(
-                        onClick = {
-                            val photoUris = selectedImages.joinToString(",") { it.toString() }
-                            onNavigate("image_processing?photoUris=$photoUris&source=$source")
-                        }
-                    ) {
-                        Text("Import (${selectedImages.size})")
-                    }
-                }
-            }
-        )
-
-        // Gallery Grid
-        Button(
-            onClick = {
-                // Launch the photo picker when the button is clicked.
-                pickMultipleMedia.launch(
-                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                )
-            },
-            modifier = Modifier.padding(16.dp)
-        ) {
-            Text("Open Gallery to Select Images")
+        LaunchedEffect(Unit) {
+            pickMultipleMedia.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
         }
 
-        // Display the images that the user has selected.
-        if (selectedImages.isNotEmpty()) {
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(3),
-                contentPadding = PaddingValues(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(top = 8.dp)
+        // Display a loading indicator to the user.
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(selectedImages.toList()) { uri ->
-                    // Use AsyncImage to display the real image from its Uri
-                    AsyncImage(
-                        model = uri,
-                        contentDescription = "Selected image",
-                        modifier = Modifier
-                            .aspectRatio(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .border(
-                                width = 3.dp,
-                                color = MaterialTheme.colorScheme.primary,
-                                shape = RoundedCornerShape(8.dp)
-                            )
-                    )
-                }
+                CircularProgressIndicator()
+                Text(text = "Opening Gallery...", modifier = Modifier.padding(top = 8.dp))
             }
         }
     }
