@@ -21,6 +21,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import coil.compose.AsyncImage
 
 @Composable
 fun LocalMediaScreen(
@@ -28,14 +33,20 @@ fun LocalMediaScreen(
     onBackClick: () -> Unit,
     source: String = "document"
 ) {
-    var selectedImages by remember { mutableStateOf<Set<String>>(emptySet()) }
+    var selectedImages by remember { mutableStateOf<Set<Uri>>(emptySet()) }
+    val pickMultipleMedia = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(),
+        onResult = { uris ->
+            // This code runs after the user selects images and returns to the app.
+            if (uris.isNotEmpty()) {
+                // Update our state with the selected image Uris
+                selectedImages = uris.toSet()
+            }
+        }
+    )
     
     // Mock gallery images
-    val mockImages = remember {
-        List(20) { index ->
-            "Image ${index + 1}"
-        }
-    }
+
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -51,9 +62,9 @@ fun LocalMediaScreen(
             actions = {
                 if (selectedImages.isNotEmpty()) {
                     TextButton(
-                        onClick = { 
-                            val photoUris = selectedImages.joinToString(",")
-                            onNavigate("image_processing?photoUris=$photoUris&source=$source") 
+                        onClick = {
+                            val photoUris = selectedImages.joinToString(",") { it.toString() }
+                            onNavigate("image_processing?photoUris=$photoUris&source=$source")
                         }
                     ) {
                         Text("Import (${selectedImages.size})")
@@ -63,75 +74,41 @@ fun LocalMediaScreen(
         )
 
         // Gallery Grid
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
-            contentPadding = PaddingValues(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        Button(
+            onClick = {
+                // Launch the photo picker when the button is clicked.
+                pickMultipleMedia.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            },
+            modifier = Modifier.padding(16.dp)
         ) {
-            items(mockImages) { imageName ->
-                Box(
-                    modifier = Modifier
-                        .aspectRatio(1f)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color.Gray.copy(alpha = 0.3f))
-                        .clickable { 
-                            selectedImages = if (selectedImages.contains(imageName)) {
-                                selectedImages - imageName
-                            } else {
-                                selectedImages + imageName
-                            }
-                        }
-                        .then(
-                            if (selectedImages.contains(imageName)) {
-                                Modifier.border(
-                                    width = 3.dp,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                            } else {
-                                Modifier
-                            }
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    // Image placeholder
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "📷",
-                            fontSize = 24.sp
-                        )
-                        Text(
-                            text = imageName,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
+            Text("Open Gallery to Select Images")
+        }
 
-                    // Selection indicator
-                    if (selectedImages.contains(imageName)) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(4.dp)
-                                .size(24.dp)
-                                .background(
-                                    MaterialTheme.colorScheme.primary,
-                                    CircleShape
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.Check,
-                                contentDescription = "Selected",
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
+        // Display the images that the user has selected.
+        if (selectedImages.isNotEmpty()) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(3),
+                contentPadding = PaddingValues(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.padding(top = 8.dp)
+            ) {
+                items(selectedImages.toList()) { uri ->
+                    // Use AsyncImage to display the real image from its Uri
+                    AsyncImage(
+                        model = uri,
+                        contentDescription = "Selected image",
+                        modifier = Modifier
+                            .aspectRatio(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .border(
+                                width = 3.dp,
+                                color = MaterialTheme.colorScheme.primary,
+                                shape = RoundedCornerShape(8.dp)
                             )
-                        }
-                    }
+                    )
                 }
             }
         }
