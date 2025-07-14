@@ -344,7 +344,7 @@ fun DocumentDetailScreen(
                     enabled = extractedInfo.isNotEmpty() && !parsing,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Icon(Icons.Default.Clear, contentDescription = "Clear")
+                    Icon(Icons.Default.Delete, contentDescription = "Clear")
                 }
                 
                 // Copy all button
@@ -497,7 +497,7 @@ fun DocumentDetailScreen(
                                 description = "Toggle edit mode to manually modify extracted information values."
                             )
                             HelpItem(
-                                icon = Icons.Default.Clear,
+                                icon = Icons.Default.Delete,
                                 title = "Clear",
                                 description = "Remove all extracted information from the document."
                             )

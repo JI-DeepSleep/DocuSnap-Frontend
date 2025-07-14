@@ -387,7 +387,7 @@ fun FormDetailScreen(
                     enabled = (extractedInfo.isNotEmpty() || formFields.isNotEmpty()) && !parsing,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Icon(Icons.Default.Clear, contentDescription = "Clear All")
+                    Icon(Icons.Default.Delete, contentDescription = "Clear All")
                 }
 
                 // Copy button (copy everything)
@@ -607,7 +607,7 @@ fun FormDetailScreen(
                         description = "Clear all form field values while keeping the field names intact."
                     )
                     HelpItem(
-                        icon = Icons.Default.Clear,
+                        icon = Icons.Default.Delete,
                         title = "Clear All",
                         description = "Remove all extracted information and form fields completely."
                     )
