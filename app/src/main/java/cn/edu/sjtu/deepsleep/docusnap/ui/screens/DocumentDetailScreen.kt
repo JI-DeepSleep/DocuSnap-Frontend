@@ -309,7 +309,7 @@ fun DocumentDetailScreen(
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Icon(Icons.Default.Animation, contentDescription = "Parse")
+                        Icon(Icons.Default.DocumentScanner, contentDescription = "Parse")
                     }
                 } else {
                     IconButton(
@@ -487,7 +487,7 @@ fun DocumentDetailScreen(
                     text = {
                         Column {
                             HelpItem(
-                                icon = Icons.Default.Animation,
+                                icon = Icons.Default.DocumentScanner,
                                 title = "Parse",
                                 description = "Extract information from the document image using AI-powered text recognition."
                             )

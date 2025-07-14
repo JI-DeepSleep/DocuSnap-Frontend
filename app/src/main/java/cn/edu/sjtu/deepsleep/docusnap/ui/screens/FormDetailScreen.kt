@@ -312,7 +312,7 @@ fun FormDetailScreen(
                         },
                         modifier = Modifier.weight(1f)
                     ) {
-                        Icon(Icons.Default.Animation, contentDescription = "Parse")
+                        Icon(Icons.Default.DocumentScanner, contentDescription = "Parse")
                     }
                 } else {
                     IconButton(
@@ -587,7 +587,7 @@ fun FormDetailScreen(
             text = {
                 Column {
                     HelpItem(
-                        icon = Icons.Default.Animation,
+                        icon = Icons.Default.DocumentScanner,
                         title = "Parse",
                         description = "Extract both information and field names from the form image."
                     )
