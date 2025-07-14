@@ -653,7 +653,7 @@ private fun RelatedFileItem(
             }
         ) {
             Icon(
-                Icons.Default.OpenInNew,
+                Icons.Default.Link,
                 contentDescription = "Open file",
                 tint = MaterialTheme.colorScheme.primary
             )
