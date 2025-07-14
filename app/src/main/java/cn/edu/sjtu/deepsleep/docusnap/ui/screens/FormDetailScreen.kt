@@ -96,9 +96,12 @@ fun FormDetailScreen(
         )
     }
 
+    // Create mutable state for extracted info
+    var extractedInfo by remember { mutableStateOf(form.extractedInfo) }
+
     // Get related files using MockData helper functions
     val relatedFiles = remember(form) {
-        MockData.getRelatedDocumentsForForm(form.id)
+        MockData.getRelatedFiles(form.id)
     }
 
     // Navigation functions
@@ -265,45 +268,41 @@ fun FormDetailScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Form Fields Section with Help Icon
+            // Form Tags
             Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text(
-                    text = "Form Fields",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                IconButton(
-                    onClick = { showHelpDialog = true }
-                ) {
-                    Icon(
-                        Icons.Default.Help,
-                        contentDescription = "Help",
-                        tint = MaterialTheme.colorScheme.primary
+                form.tags.forEach { tag ->
+                    AssistChip(
+                        onClick = { },
+                        label = { Text(tag) }
                     )
                 }
             }
 
-            // Action buttons row: Parse, Edit, Clear, Auto-fill, Clear Values
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Tool buttons row: Parse/Autofill/Edit/Clear Form/Clear All/Copy/Help
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Parse button
+                // Parse button (parse both extracted info and form fields)
                 if (!parsing) {
                     IconButton(
                         onClick = {
                             parsing = true
+                            // Clear both extracted info and form fields
+                            extractedInfo = emptyMap()
+                            formFields = emptyList()
                             parsingJob = scope.launch {
-                                // TODO： form parsing API
-                                delay(1000) // Simulate parsing
-                                // Parse restores the original field structure with empty values
+                                // TODO： form parsing API for both extracted info and form fields
+                                delay(2000) // Simulate parsing
+                                // After parsing, restore the original data
+                                extractedInfo = form.extractedInfo
                                 formFields = originalFormFields.map { field ->
                                     field.copy(value = null, isRetrieved = false)
                                 }
@@ -328,10 +327,36 @@ fun FormDetailScreen(
                     }
                 }
                 
-                // Edit button
+                // Autofill button (auto fill form fields)
+                IconButton(
+                    onClick = {
+                        // TODO: Auto-fill form fields from extracted info or related documents
+                        // For now, simulate auto-filling with some realistic values
+                        formFields = formFields.map { field ->
+                            when (field.name.lowercase()) {
+                                "employee name" -> field.copy(value = "John Doe", isRetrieved = true)
+                                "department" -> field.copy(value = "Engineering", isRetrieved = true)
+                                "date" -> field.copy(value = "2024-01-15", isRetrieved = true)
+                                "amount" -> field.copy(value = "$12.50", isRetrieved = true)
+                                "full name" -> field.copy(value = "John Doe", isRetrieved = true)
+                                "date of birth" -> field.copy(value = "1990-05-15", isRetrieved = true)
+                                "passport number" -> field.copy(value = "A12345678", isRetrieved = true)
+                                "destination" -> field.copy(value = "Japan", isRetrieved = true)
+                                "duration" -> field.copy(value = "2 weeks", isRetrieved = true)
+                                else -> field.copy(value = null, isRetrieved = false) // Keep unavailable fields as null
+                            }
+                        }
+                    },
+                    enabled = formFields.isNotEmpty() && !parsing,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.AutoAwesome, contentDescription = "Autofill")
+                }
+                
+                // Edit button (edit both extracted info and form fields)
                 IconButton(
                     onClick = { isEditing = !isEditing },
-                    enabled = formFields.isNotEmpty() && !parsing,
+                    enabled = (extractedInfo.isNotEmpty() || formFields.isNotEmpty()) && !parsing,
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
@@ -340,7 +365,7 @@ fun FormDetailScreen(
                     )
                 }
                 
-                // Clear Values button
+                // Clear Form button (clear form fields only)
                 IconButton(
                     onClick = { 
                         formFields = formFields.map { field ->
@@ -350,32 +375,107 @@ fun FormDetailScreen(
                     enabled = formFields.isNotEmpty() && !parsing,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Icon(Icons.Default.ClearAll, contentDescription = "Clear Values")
+                    Icon(Icons.Default.ClearAll, contentDescription = "Clear Form")
                 }
 
-                // Clear button (clears everything)
+                // Clear All button (clear both extracted info and form fields)
                 IconButton(
                     onClick = {
                         formFields = emptyList()
+                        extractedInfo = emptyMap()
                     },
-                    enabled = formFields.isNotEmpty() && !parsing,
+                    enabled = (extractedInfo.isNotEmpty() || formFields.isNotEmpty()) && !parsing,
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.Clear, contentDescription = "Clear All")
                 }
+
+                // Copy button (copy everything)
+                IconButton(
+                    onClick = { 
+                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        val extractedText = extractedInfo.entries.joinToString("\n") { "${it.key}: ${it.value}" }
+                        val formFieldsText = formFields.joinToString("\n") { "${it.name}: ${it.value ?: ""}" }
+                        val allText = if (extractedText.isNotEmpty() && formFieldsText.isNotEmpty()) {
+                            "Extracted Information:\n$extractedText\n\nForm Fields:\n$formFieldsText"
+                        } else if (extractedText.isNotEmpty()) {
+                            "Extracted Information:\n$extractedText"
+                        } else if (formFieldsText.isNotEmpty()) {
+                            "Form Fields:\n$formFieldsText"
+                        } else {
+                            "No information available"
+                        }
+                        val clip = android.content.ClipData.newPlainText("Form Information", allText)
+                        clipboard.setPrimaryClip(clip)
+                        Toast.makeText(context, "All information copied to clipboard", Toast.LENGTH_SHORT).show()
+                    },
+                    enabled = (extractedInfo.isNotEmpty() || formFields.isNotEmpty()) && !parsing,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = "Copy All")
+                }
+
+                // Help button
+                IconButton(
+                    onClick = { showHelpDialog = true },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Help, contentDescription = "Help")
+                }
             }
 
-            // Show parsing/auto-filling message or form fields
+            // Show parsing message if parsing
             if (parsing) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(120.dp),
+                        .height(60.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Parsing form fields...", fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
+                    Text("Parsing form...", fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
                 }
-            } else if (formFields.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Extracted Information Section
+            if (extractedInfo.isNotEmpty()) {
+                Text(
+                    text = "Extracted Information",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
+                Card(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(8.dp)
+                    ) {
+                        extractedInfo.forEach { (key, value) ->
+                            ExtractedInfoItem(
+                                key = key,
+                                value = value,
+                                isEditing = isEditing
+                            )
+                            if (key != extractedInfo.keys.last()) {
+                                Divider(modifier = Modifier.padding(vertical = 2.dp))
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Form Fields Section
+            if (formFields.isNotEmpty()) {
+                Text(
+                    text = "Form Fields",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
                 Card(
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -394,8 +494,8 @@ fun FormDetailScreen(
                         }
                     }
                 }
-            } else {
-                // Show empty state when no fields
+            } else if (!parsing && extractedInfo.isEmpty()) {
+                // Show prompt message when both extracted info and form fields are empty
                 Card(
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -405,12 +505,24 @@ fun FormDetailScreen(
                             .height(120.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Text(
-                            "No form fields available. Use Parse to extract fields from the form.",
-                            fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(8.dp)
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                "No information available",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                "Use Parse to extract information and form fields from the document",
+                                fontSize = 14.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 16.dp),
+                                textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            )
+                        }
                     }
                 }
             }
@@ -430,12 +542,12 @@ fun FormDetailScreen(
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    relatedFiles.forEach { relatedDoc ->
+                    relatedFiles.forEach { relatedFile ->
                         RelatedFileItem(
-                            document = relatedDoc,
+                            file = relatedFile,
                             onNavigate = onNavigate
                         )
-                        if (relatedDoc != relatedFiles.last()) {
+                        if (relatedFile != relatedFiles.last()) {
                             Divider(modifier = Modifier.padding(vertical = 4.dp))
                         }
                     }
@@ -471,28 +583,38 @@ fun FormDetailScreen(
     if (showHelpDialog) {
         AlertDialog(
             onDismissRequest = { showHelpDialog = false },
-            title = { Text("Form Field Actions") },
+            title = { Text("Form Actions") },
             text = {
                 Column {
                     HelpItem(
                         icon = Icons.Default.Animation,
                         title = "Parse",
-                        description = "Extract field names from the form image. This identifies what fields need to be filled without adding values."
+                        description = "Extract both information and field names from the form image."
+                    )
+                    HelpItem(
+                        icon = Icons.Default.AutoAwesome,
+                        title = "Autofill",
+                        description = "Automatically fill form fields using extracted information or related documents."
                     )
                     HelpItem(
                         icon = Icons.Default.Edit,
                         title = "Edit",
-                        description = "Toggle edit mode to manually modify field values."
+                        description = "Toggle edit mode to manually modify extracted information and field values."
                     )
                     HelpItem(
                         icon = Icons.Default.ClearAll,
-                        title = "Clear Values",
-                        description = "Clear all field values while keeping the field names intact."
+                        title = "Clear Form",
+                        description = "Clear all form field values while keeping the field names intact."
                     )
                     HelpItem(
                         icon = Icons.Default.Clear,
                         title = "Clear All",
-                        description = "Remove all form fields completely. Use Parse to restore them."
+                        description = "Remove all extracted information and form fields completely."
+                    )
+                    HelpItem(
+                        icon = Icons.Default.ContentCopy,
+                        title = "Copy All",
+                        description = "Copy all extracted information and form fields to clipboard."
                     )
                 }
             },
@@ -558,15 +680,15 @@ private fun FormFieldDisplayItem(
                     fontWeight = FontWeight.Medium,
                     color = if (field.value == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                 )
-                // Show link to source document if srcDocId is present
-                if (field.srcDocId != null) {
+                // Show link to source file if srcFileId is present
+                if (field.srcFileId != null) {
                     IconButton(
-                        onClick = { onNavigate("document_detail?documentId=${field.srcDocId}&fromImageProcessing=false") },
+                        onClick = { onNavigate("document_detail?documentId=${field.srcFileId}&fromImageProcessing=false") },
                         modifier = Modifier.size(20.dp)
                     ) {
                         Icon(
                             Icons.Default.Link,
-                            contentDescription = "Go to source document",
+                            contentDescription = "Go to source file",
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -619,7 +741,7 @@ private fun FormFieldDisplayItem(
 
 @Composable
 private fun RelatedFileItem(
-    document: cn.edu.sjtu.deepsleep.docusnap.data.Document,
+    file: Any,
     onNavigate: (String) -> Unit
 ) {
     Row(
@@ -633,25 +755,107 @@ private fun RelatedFileItem(
             modifier = Modifier.weight(1f)
         ) {
             Text(
-                text = document.name,
+                text = when (file) {
+                    is cn.edu.sjtu.deepsleep.docusnap.data.Document -> file.name
+                    is cn.edu.sjtu.deepsleep.docusnap.data.Form -> file.name
+                    else -> "Unknown file"
+                },
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
             Text(
-                text = document.uploadDate,
+                text = when (file) {
+                    is cn.edu.sjtu.deepsleep.docusnap.data.Document -> file.uploadDate
+                    is cn.edu.sjtu.deepsleep.docusnap.data.Form -> file.uploadDate
+                    else -> ""
+                },
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Light
             )
         }
         
         IconButton(
-            onClick = { onNavigate("document_detail?documentId=${document.id}&fromImageProcessing=false") }
+            onClick = { 
+                when (file) {
+                    is cn.edu.sjtu.deepsleep.docusnap.data.Document -> onNavigate("document_detail?documentId=${file.id}&fromImageProcessing=false")
+                    is cn.edu.sjtu.deepsleep.docusnap.data.Form -> onNavigate("form_detail?formId=${file.id}&fromImageProcessing=false")
+                }
+            }
         ) {
             Icon(
                 Icons.Default.OpenInNew,
-                contentDescription = "Open document",
+                contentDescription = "Open file",
                 tint = MaterialTheme.colorScheme.primary
             )
+        }
+    }
+}
+
+@Composable
+private fun ExtractedInfoItem(
+    key: String,
+    value: String,
+    isEditing: Boolean
+) {
+    var editedValue by remember { mutableStateOf(value) }
+    val context = LocalContext.current
+    
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Key column
+        Text(
+            text = key,
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Medium,
+            modifier = Modifier.weight(1f)
+        )
+        
+        Spacer(modifier = Modifier.width(16.dp))
+        
+        // Value and copy icon column
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.weight(1f)
+        ) {
+            if (isEditing) {
+                OutlinedTextField(
+                    value = editedValue,
+                    onValueChange = { editedValue = it },
+                    modifier = Modifier.weight(1f),
+                    singleLine = true
+                )
+            } else {
+                Text(
+                    text = value,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+            
+            // Copy icon for individual values
+            IconButton(
+                onClick = {
+                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    val clip = android.content.ClipData.newPlainText("Value", value)
+                    clipboard.setPrimaryClip(clip)
+                    Toast.makeText(context, "Value copied to clipboard", Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    Icons.Default.ContentCopy,
+                    contentDescription = "Copy value",
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
         }
     }
 }

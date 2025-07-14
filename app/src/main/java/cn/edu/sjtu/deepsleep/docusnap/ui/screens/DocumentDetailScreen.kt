@@ -84,7 +84,7 @@ fun DocumentDetailScreen(
     
     // Get related files using MockData helper functions
     val relatedFiles = remember(document) {
-        MockData.getRelatedDocuments(document.id)
+        MockData.getRelatedFiles(document.id)
     }
     
     // Placeholder for export and delete actions
@@ -256,6 +256,16 @@ fun DocumentDetailScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Document Summary
+            Text(
+                text = document.description,
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 4.dp)
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
             // Document Type and Tags
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -271,44 +281,14 @@ fun DocumentDetailScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Document Summary
-            Text(
-                text = document.description,
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(bottom = 4.dp)
-            )
-
-            // Extracted Information Section with Help Icon
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Extracted Information",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                IconButton(
-                    onClick = { showHelpDialog = true }
-                ) {
-                    Icon(
-                        Icons.Default.Help,
-                        contentDescription = "Help",
-                        tint = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-            
-            // Row of action buttons as icons
+            // Tool buttons row: Parse/Edit/Clear/Copy/Help
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
+                // Parse button
                 if (!parsing) {
                     IconButton(
                         onClick = {
@@ -346,6 +326,7 @@ fun DocumentDetailScreen(
                     }
                 }
                 
+                // Edit button
                 IconButton(
                     onClick = { isEditing = !isEditing },
                     enabled = extractedInfo.isNotEmpty() && !parsing,
@@ -357,6 +338,7 @@ fun DocumentDetailScreen(
                     )
                 }
                 
+                // Clear button
                 IconButton(
                     onClick = { extractedInfo = emptyMap() },
                     enabled = extractedInfo.isNotEmpty() && !parsing,
@@ -365,6 +347,7 @@ fun DocumentDetailScreen(
                     Icon(Icons.Default.Clear, contentDescription = "Clear")
                 }
                 
+                // Copy all button
                 IconButton(
                     onClick = { copyAllExtractedInfo() },
                     enabled = extractedInfo.isNotEmpty() && !parsing,
@@ -372,19 +355,39 @@ fun DocumentDetailScreen(
                 ) {
                     Icon(Icons.Default.ContentCopy, contentDescription = "Copy All")
                 }
+
+                // Help button
+                IconButton(
+                    onClick = { showHelpDialog = true },
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Help, contentDescription = "Help")
+                }
             }
-            
-            // Show parsing message or info list
+
+            // Show parsing message if parsing
             if (parsing) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(120.dp),
+                        .height(60.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("parsing document...", fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
+                    Text("Parsing document...", fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
                 }
-            } else if (extractedInfo.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Extracted Information Section
+            Text(
+                text = "Extracted Information",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            
+            // Show info list or empty state
+            if (extractedInfo.isNotEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -404,7 +407,7 @@ fun DocumentDetailScreen(
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-            } else {
+            } else if (!parsing) {
                 // Show empty state when no extracted info
                 Card(
                     modifier = Modifier.fillMaxWidth()
@@ -441,12 +444,12 @@ fun DocumentDetailScreen(
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    relatedFiles.forEach { relatedDoc ->
+                    relatedFiles.forEach { relatedFile ->
                         RelatedFileItem(
-                            document = relatedDoc,
+                            file = relatedFile,
                             onNavigate = onNavigate
                         )
-                        if (relatedDoc != relatedFiles.last()) {
+                        if (relatedFile != relatedFiles.last()) {
                             Divider(modifier = Modifier.padding(vertical = 4.dp))
                         }
                     }
@@ -608,7 +611,7 @@ private fun ExtractedInfoItem(
 
 @Composable
 private fun RelatedFileItem(
-    document: cn.edu.sjtu.deepsleep.docusnap.data.Document,
+    file: Any,
     onNavigate: (String) -> Unit
 ) {
     Row(
@@ -622,23 +625,36 @@ private fun RelatedFileItem(
             modifier = Modifier.weight(1f)
         ) {
             Text(
-                text = document.name,
+                text = when (file) {
+                    is cn.edu.sjtu.deepsleep.docusnap.data.Document -> file.name
+                    is cn.edu.sjtu.deepsleep.docusnap.data.Form -> file.name
+                    else -> "Unknown file"
+                },
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
             Text(
-                text = document.uploadDate,
+                text = when (file) {
+                    is cn.edu.sjtu.deepsleep.docusnap.data.Document -> file.uploadDate
+                    is cn.edu.sjtu.deepsleep.docusnap.data.Form -> file.uploadDate
+                    else -> ""
+                },
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Light
             )
         }
         
         IconButton(
-            onClick = { onNavigate("document_detail?documentId=${document.id}&fromImageProcessing=false") }
+            onClick = { 
+                when (file) {
+                    is cn.edu.sjtu.deepsleep.docusnap.data.Document -> onNavigate("document_detail?documentId=${file.id}&fromImageProcessing=false")
+                    is cn.edu.sjtu.deepsleep.docusnap.data.Form -> onNavigate("form_detail?formId=${file.id}&fromImageProcessing=false")
+                }
+            }
         ) {
             Icon(
                 Icons.Default.OpenInNew,
-                contentDescription = "Open document",
+                contentDescription = "Open file",
                 tint = MaterialTheme.colorScheme.primary
             )
         }

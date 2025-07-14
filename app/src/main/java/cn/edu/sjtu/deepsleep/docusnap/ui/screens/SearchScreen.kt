@@ -69,10 +69,17 @@ fun SearchScreen(
                         onClick = {
                             when (entity) {
                                 is cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity.TextEntity -> {
-                                    // For text entities, navigate to the source document if available
-                                    val sourceDoc = MockData.mockDocuments.find { it.name == entity.sourceDocument }
-                                    if (sourceDoc != null) {
-                                        onNavigate("document_detail?documentId=${sourceDoc.id}&fromImageProcessing=false")
+                                    // For text entities, navigate to the source file if available
+                                    if (entity.srcFileId != null) {
+                                        // Check if it's a document or form
+                                        val sourceDoc = MockData.mockDocuments.find { it.id == entity.srcFileId }
+                                        val sourceForm = MockData.mockForms.find { it.id == entity.srcFileId }
+                                        
+                                        when {
+                                            sourceDoc != null -> onNavigate("document_detail?documentId=${sourceDoc.id}&fromImageProcessing=false")
+                                            sourceForm != null -> onNavigate("form_detail?formId=${sourceForm.id}&fromImageProcessing=false")
+                                            else -> onNavigate("document_detail?fromImageProcessing=false")
+                                        }
                                     } else {
                                         onNavigate("document_detail?fromImageProcessing=false")
                                     }

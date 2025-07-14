@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 import cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity
 import android.widget.Toast
+import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 
 @Composable
 fun SearchBar(
@@ -68,7 +69,7 @@ fun SearchEntityCard(
         is SearchEntity.TextEntity -> {
             TextualInfoCard(
                 text = entity.text,
-                sourceDocument = entity.sourceDocument,
+                srcFileId = entity.srcFileId,
                 onNavigate = onClick,
                 modifier = modifier
             )
@@ -93,7 +94,7 @@ fun SearchEntityCard(
 @Composable
 private fun TextualInfoCard(
     text: String,
-    sourceDocument: String?,
+    srcFileId: String?,
     onNavigate: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -104,6 +105,11 @@ private fun TextualInfoCard(
     val key = if (keyValue.size > 1) keyValue[0].trim() else ""
     val value = if (keyValue.size > 1) keyValue[1].trim() else text
     
+    // Get source file info
+    val sourceDoc = if (srcFileId != null) MockData.mockDocuments.find { it.id == srcFileId } else null
+    val sourceForm = if (srcFileId != null) MockData.mockForms.find { it.id == srcFileId } else null
+    val sourceName = sourceDoc?.name ?: sourceForm?.name
+    
     Card(
         modifier = modifier.fillMaxWidth(),
         onClick = onNavigate,
@@ -112,7 +118,7 @@ private fun TextualInfoCard(
         Column(
             modifier = Modifier.padding(16.dp)
         ) {
-            // First line: key and source document with link icon
+            // First line: key and source file with link icon
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -126,19 +132,19 @@ private fun TextualInfoCard(
                     modifier = Modifier.weight(1f)
                 )
                 
-                if (sourceDocument != null) {
+                if (sourceName != null) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(4.dp)
                     ) {
                         Text(
-                            text = sourceDocument,
+                            text = sourceName,
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Icon(
                             Icons.Default.Link,
-                            contentDescription = "Go to source document",
+                            contentDescription = "Go to source file",
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.primary
                         )
@@ -461,13 +467,20 @@ fun TextInfoItem(
         }
         IconButton(
             onClick = { 
-                onNavigate("document_detail?documentId=${textInfo.sourceDocumentId}&fromImageProcessing=false")
+                // Navigate to source file (document or form)
+                when {
+                    MockData.mockDocuments.any { it.id == textInfo.srcFileId } -> 
+                        onNavigate("document_detail?documentId=${textInfo.srcFileId}&fromImageProcessing=false")
+                    MockData.mockForms.any { it.id == textInfo.srcFileId } -> 
+                        onNavigate("form_detail?formId=${textInfo.srcFileId}&fromImageProcessing=false")
+                    else -> onNavigate("document_detail?fromImageProcessing=false")
+                }
             },
             modifier = Modifier.size(20.dp)
         ) {
             Icon(
                 Icons.Default.Link,
-                contentDescription = "Go to source document",
+                contentDescription = "Go to source file",
                 modifier = Modifier.size(16.dp),
                 tint = MaterialTheme.colorScheme.primary
             )
