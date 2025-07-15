@@ -21,108 +21,53 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import coil.compose.AsyncImage
 
 @Composable
 fun LocalMediaScreen(
     onNavigate: (String) -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    source: String = "document"
 ) {
-    var selectedImage by remember { mutableStateOf<String?>(null) }
-    
-    // Mock gallery images
-    val mockImages = remember {
-        List(20) { index ->
-            "Image ${index + 1}"
+    var selectedImages by remember { mutableStateOf<Set<Uri>>(emptySet()) }
+    val pickMultipleMedia = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(),
+        onResult = { uris ->
+            if (uris.isNotEmpty()) {
+                // If user selected images, navigate forward immediately.
+                val photoUris = uris.joinToString(",") { it.toString() }
+                onNavigate("image_processing?photoUris=$photoUris&source=$source")
+            } else {
+                // If user cancelled, navigate back.
+                onBackClick()
+            }
         }
-    }
+    )
 
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Top Bar
-        TopAppBar(
-            title = { Text("Select Image") },
-            navigationIcon = {
-                IconButton(onClick = onBackClick) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                }
-            },
-            actions = {
-                if (selectedImage != null) {
-                    TextButton(
-                        onClick = { onNavigate("image_processing") }
-                    ) {
-                        Text("Select")
-                    }
-                }
-            }
-        )
+        LaunchedEffect(Unit) {
+            pickMultipleMedia.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
+        }
 
-        // Gallery Grid
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(3),
-            contentPadding = PaddingValues(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+        // Display a loading indicator to the user.
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
         ) {
-            items(mockImages) { imageName ->
-                Box(
-                    modifier = Modifier
-                        .aspectRatio(1f)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color.Gray.copy(alpha = 0.3f))
-                        .clickable { selectedImage = imageName }
-                        .then(
-                            if (selectedImage == imageName) {
-                                Modifier.border(
-                                    width = 3.dp,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    shape = RoundedCornerShape(8.dp)
-                                )
-                            } else {
-                                Modifier
-                            }
-                        ),
-                    contentAlignment = Alignment.Center
-                ) {
-                    // Image placeholder
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "📷",
-                            fontSize = 24.sp
-                        )
-                        Text(
-                            text = imageName,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-
-                    // Selection indicator
-                    if (selectedImage == imageName) {
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopEnd)
-                                .padding(4.dp)
-                                .size(24.dp)
-                                .background(
-                                    MaterialTheme.colorScheme.primary,
-                                    CircleShape
-                                ),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.Check,
-                                contentDescription = "Selected",
-                                tint = Color.White,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
-                }
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                CircularProgressIndicator()
+                Text(text = "Opening Gallery...", modifier = Modifier.padding(top = 8.dp))
             }
         }
     }

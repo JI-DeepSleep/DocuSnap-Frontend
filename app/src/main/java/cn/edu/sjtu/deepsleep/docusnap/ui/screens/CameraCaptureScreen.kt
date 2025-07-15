@@ -2,6 +2,8 @@ package cn.edu.sjtu.deepsleep.docusnap.ui.screens
 
 import android.Manifest
 import android.content.Context
+import android.hardware.camera2.CameraCharacteristics
+import android.hardware.camera2.CameraManager
 import android.net.Uri
 import android.util.Log
 import android.widget.Toast
@@ -16,7 +18,10 @@ import androidx.camera.view.PreviewView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -26,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -36,11 +42,13 @@ import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import androidx.compose.ui.viewinterop.AndroidView
+import coil.compose.AsyncImage
 
 @Composable
 fun CameraCaptureScreen(
     onNavigate: (String) -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    source: String = "document"
 ) {
     val context = LocalContext.current
     var hasCameraPermission by remember { mutableStateOf(false) }
@@ -61,6 +69,8 @@ fun CameraCaptureScreen(
     var zoomRatio by remember { mutableStateOf(1f) }
     var exposureCompensation by remember { mutableStateOf(0f) }
     var isCapturing by remember { mutableStateOf(false) }
+    var isFlashlightOn by remember { mutableStateOf(false) }
+    var capturedImages by remember { mutableStateOf<List<String>>(emptyList()) }
     val scope = rememberCoroutineScope()
     val imageCapture = remember { ImageCapture.Builder().build() }
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
@@ -68,6 +78,46 @@ fun CameraCaptureScreen(
     var cameraInfo by remember { mutableStateOf<androidx.camera.core.CameraInfo?>(null) }
     val outputDirectory = remember { getOutputDirectory(context) }
     val executor = remember { Executors.newSingleThreadExecutor() }
+
+    // Flashlight control function
+    // TODO: use a real device to check flashlight toggle functionality
+    fun toggleFlashlight() {
+        val cameraManager = context.getSystemService(Context.CAMERA_SERVICE) as CameraManager
+        try {
+            // Find the back camera
+            val cameraId = cameraManager.cameraIdList.find { id ->
+                val characteristics = cameraManager.getCameraCharacteristics(id)
+                val facing = characteristics.get(CameraCharacteristics.LENS_FACING)
+                facing == CameraCharacteristics.LENS_FACING_BACK
+            }
+            
+            if (cameraId != null) {
+                if (isFlashlightOn) {
+                    cameraManager.setTorchMode(cameraId, false)
+                    isFlashlightOn = false
+                } else {
+                    cameraManager.setTorchMode(cameraId, true)
+                    isFlashlightOn = true
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("CameraCapture", "Error toggling flashlight", e)
+            Toast.makeText(context, "Flashlight not available", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    // Function to remove image from cache
+    fun removeImageFromCache(index: Int) {
+        capturedImages = capturedImages.filterIndexed { i, _ -> i != index }
+    }
+
+    // Function to proceed to image processing with all captured images
+    fun proceedToImageProcessing() {
+        if (capturedImages.isNotEmpty()) {
+            val imageUris = capturedImages.joinToString(",")
+            onNavigate("image_processing?photoUris=$imageUris&source=$source")
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         // Camera Preview
@@ -98,21 +148,85 @@ fun CameraCaptureScreen(
             modifier = Modifier.fillMaxSize()
         )
 
-        // Top Bar
+        // Top Bar with Done button
         TopAppBar(
-            title = { Text("Camera Capture") },
+            title = { Text("Camera") },
             navigationIcon = {
                 IconButton(onClick = onBackClick) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                 }
             },
             actions = {
-                // Flash toggle can be added here if needed
+                if (capturedImages.isNotEmpty()) {
+                    Button(
+                        onClick = { proceedToImageProcessing() },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = null)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Done")
+                    }
+                }
             },
             colors = TopAppBarDefaults.topAppBarColors(
                 containerColor = Color.Transparent
             )
         )
+
+        // Captured Images Cache at Bottom
+        if (capturedImages.isNotEmpty()) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(bottom = 120.dp, start = 16.dp, end = 16.dp),
+                color = Color.Black.copy(alpha = 0.7f),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                LazyRow(
+                    modifier = Modifier.padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    itemsIndexed(capturedImages) { index, imageUri ->
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(
+                                    width = 2.dp,
+                                    color = Color.White,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                        ) {
+                            AsyncImage(
+                                model = imageUri,
+                                contentDescription = "Captured image ${index + 1}",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                            
+                            // Remove button
+                            IconButton(
+                                onClick = { removeImageFromCache(index) },
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .size(24.dp)
+                                    .background(Color.Red, CircleShape)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Remove image",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         // Bottom Controls
         Column(
@@ -127,17 +241,18 @@ fun CameraCaptureScreen(
                 horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Gallery button
+
+                // Flashlight toggle button
                 IconButton(
-                    onClick = { onNavigate("local_media") },
+                    onClick = { toggleFlashlight() },
                     modifier = Modifier
                         .size(48.dp)
                         .background(Color.White.copy(alpha = 0.2f), CircleShape)
                 ) {
                     Icon(
-                        Icons.Default.PhotoLibrary,
-                        contentDescription = "Gallery",
-                        tint = Color.White
+                        if (isFlashlightOn) Icons.Default.FlashOn else Icons.Default.FlashOff,
+                        contentDescription = if (isFlashlightOn) "Turn off flashlight" else "Turn on flashlight",
+                        tint = if (isFlashlightOn) Color.Yellow else Color.White
                     )
                 }
 
@@ -145,6 +260,7 @@ fun CameraCaptureScreen(
                 Button(
                     onClick = {
                         isCapturing = true
+                        // TODO: connect to docusnap database
                         val photoFile = File(
                             outputDirectory,
                             "IMG_${System.currentTimeMillis()}.jpg"
@@ -156,10 +272,9 @@ fun CameraCaptureScreen(
                             object : ImageCapture.OnImageSavedCallback {
                                 override fun onImageSaved(output: ImageCapture.OutputFileResults) {
                                     isCapturing = false
-                                    // Navigate to image processing with the photo URI on the main thread
-                                    scope.launch {
-                                        onNavigate("image_processing?photoUri=${Uri.fromFile(photoFile)}")
-                                    }
+                                    // Add captured image to cache
+                                    val imageUri = Uri.fromFile(photoFile).toString()
+                                    capturedImages = capturedImages + imageUri
                                 }
                                 override fun onError(exception: ImageCaptureException) {
                                     isCapturing = false
@@ -191,48 +306,20 @@ fun CameraCaptureScreen(
                     }
                 }
 
-                // Settings button (optional)
+                // Gallery button
                 IconButton(
-                    onClick = { /* Settings */ },
+                    onClick = { onNavigate("local_media?source=$source") },
                     modifier = Modifier
                         .size(48.dp)
                         .background(Color.White.copy(alpha = 0.2f), CircleShape)
                 ) {
                     Icon(
-                        Icons.Default.Settings,
-                        contentDescription = "Settings",
+                        Icons.Default.PhotoLibrary,
+                        contentDescription = "Gallery",
                         tint = Color.White
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Zoom control
-            Text("Zoom", color = Color.White)
-            Slider(
-                value = zoomRatio,
-                onValueChange = {
-                    zoomRatio = it
-                    cameraControl?.setZoomRatio(it)
-                },
-                valueRange = 1f..(cameraInfo?.zoomState?.value?.maxZoomRatio ?: 4f),
-                steps = 10,
-                modifier = Modifier.fillMaxWidth()
-            )
-
-            // Exposure control
-            Text("Exposure", color = Color.White)
-            Slider(
-                value = exposureCompensation,
-                onValueChange = {
-                    exposureCompensation = it
-                    cameraControl?.setExposureCompensationIndex(it.toInt())
-                },
-                valueRange = (cameraInfo?.exposureState?.exposureCompensationRange?.lower?.toFloat() ?: -2f)..(cameraInfo?.exposureState?.exposureCompensationRange?.upper?.toFloat() ?: 2f),
-                steps = 4,
-                modifier = Modifier.fillMaxWidth()
-            )
         }
     }
 }

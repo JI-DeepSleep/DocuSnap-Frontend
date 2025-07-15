@@ -1,17 +1,23 @@
 package cn.edu.sjtu.deepsleep.docusnap.ui.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.graphics.Color
+import cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity
+import android.widget.Toast
+import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 
 @Composable
 fun SearchBar(
@@ -52,58 +58,138 @@ fun SearchBar(
     }
 }
 
+// Unified search result card components
 @Composable
-fun ActionButton(
-    text: String,
-    icon: ImageVector,
+fun SearchEntityCard(
+    entity: SearchEntity,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true
+    modifier: Modifier = Modifier
 ) {
-    Button(
-        onClick = onClick,
-        modifier = modifier.fillMaxWidth(),
-        enabled = enabled,
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            modifier = Modifier.size(20.dp)
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(text)
+    when (entity) {
+        is SearchEntity.TextEntity -> {
+            TextualInfoCard(
+                text = entity.text,
+                srcFileId = entity.srcFileId,
+                onNavigate = onClick,
+                modifier = modifier
+            )
+        }
+        is SearchEntity.DocumentEntity -> {
+            DocumentSearchCard(
+                document = entity.document,
+                onClick = onClick,
+                modifier = modifier
+            )
+        }
+        is SearchEntity.FormEntity -> {
+            FormSearchCard(
+                form = entity.form,
+                onClick = onClick,
+                modifier = modifier
+            )
+        }
     }
 }
 
 @Composable
-fun SectionHeader(
-    title: String,
-    actionText: String? = null,
-    onActionClick: (() -> Unit)? = null
+private fun TextualInfoCard(
+    text: String,
+    srcFileId: String?,
+    onNavigate: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+    val context = LocalContext.current
+    
+    // Parse text as key-value pair (assuming format like "key: value")
+    val keyValue = text.split(":", limit = 2)
+    val key = if (keyValue.size > 1) keyValue[0].trim() else ""
+    val value = if (keyValue.size > 1) keyValue[1].trim() else text
+    
+    // Get source file info
+    val sourceDoc = if (srcFileId != null) MockData.mockDocuments.find { it.id == srcFileId } else null
+    val sourceForm = if (srcFileId != null) MockData.mockForms.find { it.id == srcFileId } else null
+    val sourceName = sourceDoc?.name ?: sourceForm?.name
+    
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        onClick = onNavigate,
+        shape = RoundedCornerShape(12.dp)
     ) {
-        Text(
-            text = title,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold
-        )
-        if (actionText != null && onActionClick != null) {
-            TextButton(onClick = onActionClick) {
-                Text(actionText)
+        Column(
+            modifier = Modifier.padding(16.dp)
+        ) {
+            // First line: key and source file with link icon
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = key,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.weight(1f)
+                )
+                
+                if (sourceName != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = sourceName,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Icon(
+                            Icons.Default.Link,
+                            contentDescription = "Go to source file",
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+            
+            Spacer(modifier = Modifier.height(8.dp))
+            
+            // Second line: value with copy icon
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = value,
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+                
+                IconButton(
+                    onClick = {
+                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        val clip = android.content.ClipData.newPlainText("Text Info", text)
+                        clipboard.setPrimaryClip(clip)
+                        Toast.makeText(context, "Text copied to clipboard", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        Icons.Default.ContentCopy,
+                        contentDescription = "Copy text",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-fun DocumentCard(
+private fun DocumentSearchCard(
     document: cn.edu.sjtu.deepsleep.docusnap.data.Document,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -113,30 +199,93 @@ fun DocumentCard(
         onClick = onClick,
         shape = RoundedCornerShape(12.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
+        Row(
+            modifier = Modifier.height(120.dp)
         ) {
-            Text(
-                text = document.name,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = document.type.name.replace("_", " "),
-                fontSize = 14.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            if (document.tags.isNotEmpty()) {
+            // Preview image on the left spanning card vertically
+            Card(
+                modifier = Modifier
+                    .width(80.dp)
+                    .fillMaxHeight(),
+                shape = RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "📄",
+                        fontSize = 24.sp
+                    )
+                }
+            }
+            
+            // Content on the right
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(16.dp)
+            ) {
+                // First line: small image icon and document name
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Image,
+                        contentDescription = "Document",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = document.name,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                
                 Spacer(modifier = Modifier.height(8.dp))
-                Row {
-                    document.tags.take(3).forEach { tag ->
-                        AssistChip(
-                            onClick = { },
-                            label = { Text(tag) },
-                            modifier = Modifier.padding(end = 4.dp)
-                        )
+                
+                // Second line: tags and date
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Tags
+                    if (document.tags.isNotEmpty()) {
+                        Row {
+                            document.tags.take(2).forEach { tag ->
+                                AssistChip(
+                                    onClick = { },
+                                    label = { Text(tag, fontSize = 10.sp) },
+                                    modifier = Modifier.padding(end = 4.dp)
+                                )
+                            }
+                        }
                     }
+                    
+                    // Date
+                    Text(
+                        text = document.uploadDate,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Third line: info preview
+                document.extractedInfo.entries.take(2).forEach { (key, value) ->
+                    Text(
+                        text = "$key: $value",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    )
                 }
             }
         }
@@ -144,7 +293,7 @@ fun DocumentCard(
 }
 
 @Composable
-fun FormCard(
+private fun FormSearchCard(
     form: cn.edu.sjtu.deepsleep.docusnap.data.Form,
     selected: Boolean,
     onClick: () -> Unit,
@@ -156,60 +305,395 @@ fun FormCard(
         shape = RoundedCornerShape(12.dp)
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier.height(120.dp)
         ) {
-            Column(
-                modifier = Modifier.weight(1f)
+            // Preview image on the left spanning card vertically
+            Card(
+                modifier = Modifier
+                    .width(80.dp)
+                    .fillMaxHeight(),
+                shape = RoundedCornerShape(topStart = 12.dp, bottomStart = 12.dp)
             ) {
-                Text(
-                    text = form.name,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Medium
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "${form.formFields.size} fields",
-                    fontSize = 14.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Uploaded: ${form.uploadDate}",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "📋",
+                        fontSize = 24.sp
+                    )
+                }
             }
-            Checkbox(
-                checked = selected,
-                onCheckedChange = { onClick() }
+            
+            // Content on the right
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(16.dp)
+            ) {
+                // First line: small list icon and form name
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.List,
+                        contentDescription = "Form",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.secondary
+                    )
+                    Text(
+                        text = form.name,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Second line: field count and date
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "${form.formFields.size} fields",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    Text(
+                        text = form.uploadDate,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                // Third line: form fields preview
+                form.formFields.filter { it.value != null && it.value.isNotEmpty() }.take(2).forEach { field ->
+                    Text(
+                        text = "${field.name}: ${field.value}",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 2.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+// Reusable TextualInfoItem component moved from HomeScreen
+@Composable
+fun TextualInfoItem(
+    text: String,
+    onNavigate: (String) -> Unit,
+    documentId: String? = null
+) {
+    val context = LocalContext.current
+    
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = text,
+            fontSize = 14.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f)
+        )
+        IconButton(
+            onClick = { 
+                if (documentId != null) {
+                    onNavigate("document_detail?documentId=$documentId&fromImageProcessing=false")
+                } else {
+                    onNavigate("document_detail?fromImageProcessing=false")
+                }
+            },
+            modifier = Modifier.size(20.dp)
+        ) {
+            Icon(
+                Icons.Default.Link,
+                contentDescription = "Go to source document",
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+        IconButton(
+            onClick = {
+                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("Text Info", text)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(context, "Text copied to clipboard", Toast.LENGTH_SHORT).show()
+            },
+            modifier = Modifier.size(20.dp)
+        ) {
+            Icon(
+                Icons.Default.ContentCopy,
+                contentDescription = "Copy text",
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.primary
             )
         }
     }
 }
 
+// Component for text info that works with the data structure
 @Composable
-fun TopBar(
-    title: String,
-    onBackClick: (() -> Unit)? = null,
-    trailingIcon: ImageVector? = null,
-    onTrailingClick: (() -> Unit)? = null
+fun TextInfoItem(
+    textInfo: cn.edu.sjtu.deepsleep.docusnap.data.TextInfo,
+    onNavigate: (String) -> Unit
 ) {
-    TopAppBar(
-        title = { Text(title) },
-        navigationIcon = {
-            if (onBackClick != null) {
-                IconButton(onClick = onBackClick) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+    val context = LocalContext.current
+    
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        // Display key-value pair
+        Column(
+            modifier = Modifier.weight(1f)
+        ) {
+            Text(
+                text = "${textInfo.key}: ${textInfo.value}",
+                fontSize = 14.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        IconButton(
+            onClick = { 
+                // Navigate to source file (document or form)
+                when {
+                    MockData.mockDocuments.any { it.id == textInfo.srcFileId } -> 
+                        onNavigate("document_detail?documentId=${textInfo.srcFileId}&fromImageProcessing=false")
+                    MockData.mockForms.any { it.id == textInfo.srcFileId } -> 
+                        onNavigate("form_detail?formId=${textInfo.srcFileId}&fromImageProcessing=false")
+                    else -> onNavigate("document_detail?fromImageProcessing=false")
+                }
+            },
+            modifier = Modifier.size(20.dp)
+        ) {
+            Icon(
+                Icons.Default.Link,
+                contentDescription = "Go to source file",
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+        IconButton(
+            onClick = {
+                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                val clip = android.content.ClipData.newPlainText("Text Info", "${textInfo.key}: ${textInfo.value}")
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(context, "Text copied to clipboard", Toast.LENGTH_SHORT).show()
+            },
+            modifier = Modifier.size(20.dp)
+        ) {
+            Icon(
+                Icons.Default.ContentCopy,
+                contentDescription = "Copy text",
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.primary
+            )
+        }
+    }
+}
+
+
+@Composable
+fun DocumentCard(
+    document: cn.edu.sjtu.deepsleep.docusnap.data.Document,
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    onSelectionChanged: ((Boolean) -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .aspectRatio(1f),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // Preview image in upper part with checkbox overlay
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .background(Color.Gray.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "📄",
+                    fontSize = 32.sp
+                )
+                
+                // Selection checkbox (bottom right corner of image only)
+                if (isSelectionMode) {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = onSelectionChanged,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp)
+                            .size(24.dp)
+                    )
                 }
             }
-        },
-        actions = {
-            if (trailingIcon != null && onTrailingClick != null) {
-                IconButton(onClick = onTrailingClick) {
-                    Icon(trailingIcon, contentDescription = "Action")
+            
+            // Bottom section with name, date, and status
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
+                // Document name
+                Text(
+                    text = document.name,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1
+                )
+                
+                // Date and status icon row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = document.uploadDate,
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    // Parse status icon
+                    Icon(
+                        imageVector = if (document.extractedInfo.isNotEmpty()) {
+                            Icons.Default.CheckCircle
+                        } else {
+                            Icons.Default.Schedule
+                        },
+                        contentDescription = if (document.extractedInfo.isNotEmpty()) {
+                            "Parsed"
+                        } else {
+                            "Unparsed"
+                        },
+                        modifier = Modifier.size(16.dp),
+                        tint = if (document.extractedInfo.isNotEmpty()) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
                 }
             }
         }
-    )
-} 
+    }
+}
+
+@Composable
+fun FormCard(
+    form: cn.edu.sjtu.deepsleep.docusnap.data.Form,
+    isSelectionMode: Boolean = false,
+    isSelected: Boolean = false,
+    onSelectionChanged: ((Boolean) -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .aspectRatio(1f),
+        shape = RoundedCornerShape(8.dp)
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            // Preview image in upper part with checkbox overlay
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .background(Color.Gray.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "📋",
+                    fontSize = 32.sp
+                )
+                
+                // Selection checkbox (bottom right corner of image only)
+                if (isSelectionMode) {
+                    Checkbox(
+                        checked = isSelected,
+                        onCheckedChange = onSelectionChanged,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(8.dp)
+                            .size(24.dp)
+                    )
+                }
+            }
+            
+            // Bottom section with name, date, and status
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
+                // Form name
+                Text(
+                    text = form.name,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1
+                )
+                
+                // Date and status icon row
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = form.uploadDate,
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    
+                    // Fill status icon
+                    val filledFields = form.formFields.count { it.value != null && it.value.isNotEmpty() }
+                    val totalFields = form.formFields.size
+                    val isFilled = filledFields == totalFields
+                    
+                    Icon(
+                        imageVector = if (isFilled) {
+                            Icons.Default.CheckCircle
+                        } else {
+                            Icons.Default.RadioButtonUnchecked
+                        },
+                        contentDescription = if (isFilled) {
+                            "Filled"
+                        } else {
+                            "Unfilled"
+                        },
+                        modifier = Modifier.size(16.dp),
+                        tint = if (isFilled) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        }
+                    )
+                }
+            }
+        }
+    }
+}

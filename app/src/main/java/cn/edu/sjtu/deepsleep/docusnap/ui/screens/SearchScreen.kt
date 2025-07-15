@@ -11,11 +11,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
 import cn.edu.sjtu.deepsleep.docusnap.data.MockData
-import cn.edu.sjtu.deepsleep.docusnap.ui.components.DocumentCard
-import cn.edu.sjtu.deepsleep.docusnap.ui.components.FormCard
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
-import cn.edu.sjtu.deepsleep.docusnap.ui.components.SectionHeader
+import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchEntityCard
 
 @Composable
 fun SearchScreen(
@@ -23,6 +22,8 @@ fun SearchScreen(
     onBackClick: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
+
+    // TODO: DeviceDBService.searchByQuery(searchQuery)
     val searchResults = remember { MockData.mockSearchResults }
 
     Column(
@@ -51,59 +52,54 @@ fun SearchScreen(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            // Search Results
+            // Search Results Count
+            if (searchResults.entities.isNotEmpty()) {
+                Text(
+                    text = "${searchResults.entities.size} results found",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+            }
+
+            // Unified Search Results
             LazyColumn(
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Textual Information
-                if (searchResults.textualInfo.isNotEmpty()) {
-                    item {
-                        SectionHeader("Textual Information")
-                    }
-                    items(searchResults.textualInfo) { info ->
-                        Card(
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Text(
-                                text = info,
-                                modifier = Modifier.padding(16.dp),
-                                fontSize = 14.sp
-                            )
+                items(searchResults.entities) { entity ->
+                    SearchEntityCard(
+                        entity = entity,
+                        onClick = {
+                            when (entity) {
+                                is cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity.TextEntity -> {
+                                    // For text entities, navigate to the source file if available
+                                    if (entity.srcFileId != null) {
+                                        // Check if it's a document or form
+                                        val sourceDoc = MockData.mockDocuments.find { it.id == entity.srcFileId }
+                                        val sourceForm = MockData.mockForms.find { it.id == entity.srcFileId }
+                                        
+                                        when {
+                                            sourceDoc != null -> onNavigate("document_detail?documentId=${sourceDoc.id}&fromImageProcessing=false")
+                                            sourceForm != null -> onNavigate("form_detail?formId=${sourceForm.id}&fromImageProcessing=false")
+                                            else -> onNavigate("document_detail?fromImageProcessing=false")
+                                        }
+                                    } else {
+                                        onNavigate("document_detail?fromImageProcessing=false")
+                                    }
+                                }
+                                is cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity.DocumentEntity -> {
+                                    onNavigate("document_detail?documentId=${entity.document.id}&fromImageProcessing=false")
+                                }
+                                is cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity.FormEntity -> {
+                                    onNavigate("form_detail?formId=${entity.form.id}&fromImageProcessing=false")
+                                }
+                            }
                         }
-                    }
-                }
-
-                // Documents
-                if (searchResults.documents.isNotEmpty()) {
-                    item {
-                        SectionHeader("Documents")
-                    }
-                    items(searchResults.documents) { document ->
-                        DocumentCard(
-                            document = document,
-                            onClick = { onNavigate("document_display") }
-                        )
-                    }
-                }
-
-                // Forms
-                if (searchResults.forms.isNotEmpty()) {
-                    item {
-                        SectionHeader("Forms")
-                    }
-                    items(searchResults.forms) { form ->
-                        FormCard(
-                            form = form,
-                            selected = false,
-                            onClick = { onNavigate("form_display") }
-                        )
-                    }
+                    )
                 }
 
                 // No results message
-                if (searchResults.documents.isEmpty() && 
-                    searchResults.forms.isEmpty() && 
-                    searchResults.textualInfo.isEmpty()) {
+                if (searchResults.entities.isEmpty()) {
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth()

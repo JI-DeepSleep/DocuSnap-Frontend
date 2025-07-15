@@ -6,12 +6,13 @@ sealed class Screen(val route: String) {
     object CameraCapture : Screen("camera_capture")
     object LocalMedia : Screen("local_media")
     object ImageProcessing : Screen("image_processing")
-    object UploadedFormSelection : Screen("uploaded_form_selection")
-    object FillForm : Screen("fill_form")
-    object AccessDocument : Screen("access_document")
-    object DocumentTextualInfo : Screen("document_textual_info")
-    object DocumentImage : Screen("document_image")
-    object DocumentDisplay : Screen("document_display")
-    object AccessForm : Screen("access_form")
-    object FormDisplay : Screen("form_display")
+
+    object DocumentGallery : Screen("document_gallery")
+    object DocumentDetail : Screen("document_detail")
+
+    object FormGallery : Screen("form_gallery")
+    object FormDetail : Screen("form_detail")
+    
+    object Settings : Screen("settings")
+    object PinVerification : Screen("pin_verification")
 }

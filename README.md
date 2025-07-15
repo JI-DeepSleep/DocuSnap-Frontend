@@ -1,0 +1,1 @@
+# Make sure every commit can be successfully ran in Android API 33 emulator!!!

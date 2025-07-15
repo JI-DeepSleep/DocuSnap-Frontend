@@ -12,27 +12,51 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
+import cn.edu.sjtu.deepsleep.docusnap.ui.components.TextInfoItem
+import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 
 @Composable
 fun HomeScreen(
     onNavigate: (String) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    
+    // TODO: DeviceDBService.getFrequentTextInfo()
+    val textInfoByCategory = remember { MockData.getFrequentTextInfo() }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
-            .verticalScroll(rememberScrollState())
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // App Title
-        Text(
-            text = "DocuSnap",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
+        // App Title with Settings Icon
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Spacer(modifier = Modifier.width(48.dp)) // Balance the settings icon
+            Text(
+                text = "DocuSnap",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            IconButton(
+                onClick = { onNavigate("settings") },
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    Icons.Default.Settings,
+                    contentDescription = "Settings",
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
         Text(
             text = "Your AI-powered Personal Document Assistant",
             fontSize = 14.sp,
@@ -60,7 +84,7 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Button(
-                onClick = { onNavigate("camera_capture") },
+                onClick = { onNavigate("camera_capture?source=document") },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -72,7 +96,7 @@ fun HomeScreen(
                 Text("Camera")
             }
             Button(
-                onClick = { onNavigate("local_media") },
+                onClick = { onNavigate("local_media?source=document") },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primaryContainer,
@@ -99,7 +123,7 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Button(
-                onClick = { onNavigate("camera_capture") },
+                onClick = { onNavigate("camera_capture?source=form") },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -111,7 +135,7 @@ fun HomeScreen(
                 Text("Camera")
             }
             Button(
-                onClick = { onNavigate("local_media") },
+                onClick = { onNavigate("local_media?source=form") },
                 modifier = Modifier.weight(1f),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
@@ -124,83 +148,55 @@ fun HomeScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(modifier = Modifier.height(4.dp))
 
-        // Fill Form Section
-        Text(
-            text = "Fill Form",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
-        Row(
+        Button(
+            onClick = { /* Not supported in demo */ },
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            colors = ButtonDefaults.buttonColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+            ),
+            enabled = false
         ) {
-            Button(
-                onClick = { onNavigate("uploaded_form_selection") },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onTertiaryContainer
-                )
-            ) {
-                Icon(Icons.Default.Description, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Library")
-            }
-            Button(
-                onClick = { /* Not supported in demo */ },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-                ),
-                enabled = false
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Online Form")
-            }
+            Icon(Icons.Default.Add, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text("Online Form (Coming soon)")
         }
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        // Access Uploaded Files Section
+        // Frequently Used Text Info Section
         Text(
-            text = "Access Uploaded Files",
+            text = "Frequently Used Text Info",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 12.dp)
         )
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Button(
-                onClick = { onNavigate("access_document") },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
+        
+        // Dynamically display text info grouped by category
+        textInfoByCategory.forEach { (category, textInfoList) ->
+            Card(
+                modifier = Modifier.fillMaxWidth()
             ) {
-                Icon(Icons.Default.Folder, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Documents")
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Text(
+                        text = category,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    textInfoList.forEach { textInfo ->
+                        TextInfoItem(
+                            textInfo = textInfo,
+                            onNavigate = onNavigate
+                        )
+                    }
+                }
             }
-            Button(
-                onClick = { onNavigate("access_form") },
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary
-                )
-            ) {
-                Icon(Icons.Default.Assignment, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text("Forms")
-            }
+            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 } 
