@@ -31,11 +31,15 @@ class BackendApiService(private val context: Context) {
     // Document Handler
     // TODO: invoke backend process document API
     suspend fun processDocument(enhancedImage: Bitmap) {
+        // should change bit map to a list of bitmap or some other ways to support multi images
+        // upon upload, compress quality to 20
     }
     
     // Form Handler
     // TODO: invoke backend process form API
     suspend fun processForm(enhancedImage: Bitmap, formType: String) {
+        // should change bit map to a list of bitmap or some other ways to support multi images
+        // upon upload, compress quality to 20
     }
 
     // TODO: invoke backend fill form API
