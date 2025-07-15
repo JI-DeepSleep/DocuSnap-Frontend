@@ -12,4 +12,7 @@ sealed class Screen(val route: String) {
 
     object FormGallery : Screen("form_gallery")
     object FormDetail : Screen("form_detail")
+    
+    object Settings : Screen("settings")
+    object PinVerification : Screen("pin_verification")
 }
