@@ -1,8 +1,9 @@
-package cn.edu.sjtu.deepsleep.docusnap.data
+package cn.edu.sjtu.deepsleep.docusnap.service
 
 import android.content.Context
 import android.graphics.Bitmap
 import android.util.Base64
+import cn.edu.sjtu.deepsleep.docusnap.data.SettingsManager
 import kotlinx.coroutines.flow.first
 import okhttp3.*
 import java.io.ByteArrayOutputStream

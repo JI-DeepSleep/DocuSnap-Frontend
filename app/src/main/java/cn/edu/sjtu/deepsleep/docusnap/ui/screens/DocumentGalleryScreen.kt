@@ -27,7 +27,7 @@ import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.DocumentCard
 import android.widget.Toast
-import cn.edu.sjtu.deepsleep.docusnap.data.DeviceDBService
+import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

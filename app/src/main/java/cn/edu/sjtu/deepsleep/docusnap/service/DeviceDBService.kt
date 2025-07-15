@@ -1,4 +1,4 @@
-package cn.edu.sjtu.deepsleep.docusnap.data
+package cn.edu.sjtu.deepsleep.docusnap.service
 
 import android.content.Context
 import org.json.JSONObject

@@ -11,7 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cn.edu.sjtu.deepsleep.docusnap.data.DeviceDBService
+import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
 import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchEntityCard
