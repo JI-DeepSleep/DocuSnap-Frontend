@@ -34,6 +34,8 @@ fun FormDetailScreen(
     photoUris: String? = null,
     fromImageProcessing: Boolean = false
 ) {
+    // TODO: retrieve form data from DeviceDBService.getForm()
+    // TODO: when exit this page, call saveForm() or updateForm() depending on fromImageProcessing or not
     // Find the specific form by ID, or use the first one as fallback
     // [ 用这个新的逻辑块完整替换掉旧的 ]
 
@@ -131,7 +133,7 @@ fun FormDetailScreen(
             actions = {
                 IconButton(
                     onClick = {
-                        // TODO: Implement export logic (save form image to gallery)
+                        // TODO: DeviceDBService.exportForms()
                         Toast.makeText(context, "Form saved to local media", Toast.LENGTH_SHORT).show()
                     }
                 ) {
@@ -299,7 +301,7 @@ fun FormDetailScreen(
                             extractedInfo = emptyMap()
                             formFields = emptyList()
                             parsingJob = scope.launch {
-                                // TODO： form parsing API for both extracted info and form fields
+                                // TODO： BackendApiService.processForm()
                                 delay(2000) // Simulate parsing
                                 // After parsing, restore the original data
                                 extractedInfo = form.extractedInfo
@@ -330,7 +332,7 @@ fun FormDetailScreen(
                 // Autofill button (auto fill form fields)
                 IconButton(
                     onClick = {
-                        // TODO: Auto-fill form fields from extracted info or related documents
+                        // TODO: BackendApiService.fillForm(）
                         // For now, simulate auto-filling with some realistic values
                         formFields = formFields.map { field ->
                             when (field.name.lowercase()) {
@@ -635,7 +637,7 @@ fun FormDetailScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        // TODO: Implement actual deletion logic
+                        // TODO: DeviceDBService.deleteForms()
                         // Always go back to gallery when deleting, regardless of source
                         onNavigate("form_gallery")
                         showDeleteDialog = false

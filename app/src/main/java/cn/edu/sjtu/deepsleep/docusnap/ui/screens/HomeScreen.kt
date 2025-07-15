@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cn.edu.sjtu.deepsleep.docusnap.data.DeviceDBService
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.TextInfoItem
 import cn.edu.sjtu.deepsleep.docusnap.data.MockData
@@ -22,7 +23,7 @@ fun HomeScreen(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     
-    // Get mock data for reference
+    // TODO: DeviceDBService.getFrequentTextInfo()
     val textInfoByCategory = remember { MockData.getFrequentTextInfo() }
 
     Column(

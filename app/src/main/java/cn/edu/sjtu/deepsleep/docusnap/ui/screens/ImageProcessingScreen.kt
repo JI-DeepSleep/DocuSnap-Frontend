@@ -80,6 +80,7 @@ fun ImageProcessingScreen(
         }
     }
 
+    // TODO: move this function to ImageProcService
     // Image processing functions
     // [ 用这个新函数替换旧的 processCurrentImage ]
     fun processCurrentImage(filterType: String) {

@@ -1,6 +1,5 @@
 package cn.edu.sjtu.deepsleep.docusnap.ui.screens
 
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -36,6 +35,8 @@ fun DocumentDetailScreen(
     photoUris: String? = null,
     fromImageProcessing: Boolean = false // This was in MainActivity, let's add it here for consistency
 ) {
+    // TODO: retrieve document data from DeviceDBService.getDocument()
+    // TODO: when exit this page, call saveDocument() or updateDocument() depending on fromImageProcessing or not
     // Find the specific document by ID, or use the first one as fallback
     val imagesToShow = remember(photoUris) {
         if (photoUris != null) {
@@ -87,18 +88,6 @@ fun DocumentDetailScreen(
         MockData.getRelatedFiles(document.id)
     }
     
-    // Placeholder for export and delete actions
-    fun exportDocument() {
-        // TODO: Implement export logic (save image(s) to gallery)
-        Toast.makeText(context, "Document saved to local media", Toast.LENGTH_SHORT).show()
-    }
-    
-    fun deleteDocument() {
-        // TODO: Erase this file from the local file system
-        // Always go back to gallery when deleting, regardless of source
-        onNavigate("document_gallery")
-    }
-    
     fun copyAllExtractedInfo() {
         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
         val text = extractedInfo.entries.joinToString("\n") { "${it.key}: ${it.value}" }
@@ -132,7 +121,11 @@ fun DocumentDetailScreen(
                 }
             },
             actions = {
-                IconButton(onClick = { exportDocument() }) {
+                IconButton(
+                    onClick = {
+                        Toast.makeText(context, "Document saved to local media", Toast.LENGTH_SHORT).show()
+                        // TODO: DeviceDBService.exportDocuments()
+                }) {
                     Icon(Icons.Default.Download, contentDescription = "Export/Download")
                 }
             }
@@ -298,7 +291,7 @@ fun DocumentDetailScreen(
                             // Hide info list
                             extractedInfo = emptyMap()
                             // Start mock parsing job
-                            // TODO: call doc parsing API
+                            // TODO: BackendApiService.processDocument()
                             parsingJob = scope.launch {
                                 delay(2000)
                                 // After delay, show parsed info
@@ -523,8 +516,9 @@ fun DocumentDetailScreen(
                     text = { Text("Are you sure you want to permanently delete this document?") },
                     confirmButton = {
                         TextButton(onClick = {
-                            deleteDocument()
+                            // TODO: DeviceDBService.deleteDocuments()
                             showDeleteDialog = false
+                            onNavigate("document_gallery")
                         }) {
                             Text("Delete", color = Color.Red)
                         }

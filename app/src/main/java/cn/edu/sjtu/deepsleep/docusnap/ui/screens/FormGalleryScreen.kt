@@ -92,6 +92,7 @@ fun FormGalleryScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.weight(1f)
             ) {
+                // TODO: change the mockForms to DeviceDBService.getFormGallery()
                 itemsIndexed(MockData.mockForms) { index, form ->
                     val isSelected = selectedForms.contains(index)
                     
@@ -184,7 +185,7 @@ fun FormGalleryScreen(
                                     "Exporting ${selectedForms.size} form(s) to local media...",
                                     Toast.LENGTH_SHORT
                                 ).show()
-                                // TODO: Implement actual export logic
+                                // TODO: DeviceDBService.exportForms(Ids)
                             },
                             enabled = selectedForms.isNotEmpty()
                         ) {
@@ -225,7 +226,7 @@ fun FormGalleryScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        // TODO: Implement actual deletion logic
+                        // TODO: DeviceDBService.deleteForms(Ids)
                         showDeleteConfirmation = false
                         isSelectionMode = false
                         selectedForms = mutableSetOf()
