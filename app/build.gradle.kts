@@ -53,10 +53,15 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    
+    implementation("com.squareup.retrofit2:retrofit:2.9.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.9.0")
+    implementation("com.squareup.retrofit2:converter-moshi:2.9.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     // Navigation
     implementation("androidx.navigation:navigation-compose:2.7.7")
-    
+    implementation("com.squareup.moshi:moshi:1.15.0")
+    implementation("com.squareup.moshi:moshi-kotlin:1.15.0")
+
     // Camera and Image Processing
     implementation("androidx.camera:camera-camera2:1.3.0")
     implementation("androidx.camera:camera-lifecycle:1.3.0")
@@ -70,12 +75,16 @@ dependencies {
     
     // Icons
     implementation("androidx.compose.material:material-icons-extended:1.6.3")
-    
+
     // HTTP Client for API calls
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    
+
     // SharedPreferences for settings persistence (built into Android)
-    
+
+    implementation(libs.androidx.room.common.jvm)
+    implementation(libs.androidx.room.runtime.android)
+    implementation(libs.androidx.media3.transformer)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
