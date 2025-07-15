@@ -34,6 +34,7 @@ fun SettingsScreen(
     var pin by remember { mutableStateOf("") }
     var confirmPin by remember { mutableStateOf("") }
     var backendUrl by remember { mutableStateOf(AppConstants.DEFAULT_BACKEND_URL) }
+    var backendPublicKey by remember { mutableStateOf(AppConstants.DEFAULT_BACKEND_PUBLIC_KEY) }
     var showPinDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
     var showSaveSuccess by remember { mutableStateOf(false) }
@@ -45,6 +46,7 @@ fun SettingsScreen(
             pin = settings.pin
             confirmPin = settings.pin
             backendUrl = settings.backendUrl
+            backendPublicKey = settings.backendPublicKey
         }
     }
 
@@ -185,6 +187,16 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
+                
+                Spacer(modifier = Modifier.height(8.dp))
+                
+                OutlinedTextField(
+                    value = backendPublicKey,
+                    onValueChange = { backendPublicKey = it },
+                    label = { Text("Backend Public Key") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
             }
         }
 
@@ -197,7 +209,8 @@ fun SettingsScreen(
                     val newSettings = AppSettings(
                         pinProtectionEnabled = pinProtectionEnabled,
                         pin = if (pinProtectionEnabled) pin else "",
-                        backendUrl = backendUrl
+                        backendUrl = backendUrl,
+                        backendPublicKey = backendPublicKey
                     )
                     settingsManager.updateSettings(newSettings)
                     showSaveSuccess = true
