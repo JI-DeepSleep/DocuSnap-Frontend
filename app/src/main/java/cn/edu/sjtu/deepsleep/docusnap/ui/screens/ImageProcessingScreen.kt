@@ -126,7 +126,7 @@ fun ImageProcessingScreen(
 
     // Function to create new document or form and navigate to it
     fun createAndNavigateToDetail() {
-        Log.d("ImageSaveDebug", "Create/Navigate called. Current processedImages map: $processedImages")
+        Log.d("ImageSaveDebug", "Create/Navigate called. Current processedImages map: $processedImages")    
         val processedImageUris = if (processedImages.isNotEmpty()) {
             processedImages.values.toList()
         } else {
