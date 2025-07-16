@@ -189,13 +189,16 @@ fun SettingsScreen(
                 )
                 
                 Spacer(modifier = Modifier.height(8.dp))
-                
+
                 OutlinedTextField(
                     value = backendPublicKey,
                     onValueChange = { backendPublicKey = it },
                     label = { Text("Backend Public Key") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 150.dp)
+                        .verticalScroll(rememberScrollState()),
+                    singleLine = false
                 )
             }
         }
