@@ -72,6 +72,8 @@ fun FormDetailScreen(
     var isEditing by remember { mutableStateOf(false) }
     var parsing by remember { mutableStateOf(false) }
     var parsingJob by remember { mutableStateOf<Job?>(null) }
+    var autoFilling by remember { mutableStateOf(false) }
+    var autoFillingJob by remember { mutableStateOf<Job?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
@@ -312,6 +314,7 @@ fun FormDetailScreen(
                                 parsingJob = null
                             }
                         },
+                        enabled = !autoFilling,
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Default.DocumentScanner, contentDescription = "Parse")
@@ -330,35 +333,54 @@ fun FormDetailScreen(
                 }
                 
                 // Autofill button (auto fill form fields)
-                IconButton(
-                    onClick = {
-                        // TODO: BackendApiService.fillForm(）
-                        // For now, simulate auto-filling with some realistic values
-                        formFields = formFields.map { field ->
-                            when (field.name.lowercase()) {
-                                "employee name" -> field.copy(value = "John Doe", isRetrieved = true)
-                                "department" -> field.copy(value = "Engineering", isRetrieved = true)
-                                "date" -> field.copy(value = "2024-01-15", isRetrieved = true)
-                                "amount" -> field.copy(value = "$12.50", isRetrieved = true)
-                                "full name" -> field.copy(value = "John Doe", isRetrieved = true)
-                                "date of birth" -> field.copy(value = "1990-05-15", isRetrieved = true)
-                                "passport number" -> field.copy(value = "A12345678", isRetrieved = true)
-                                "destination" -> field.copy(value = "Japan", isRetrieved = true)
-                                "duration" -> field.copy(value = "2 weeks", isRetrieved = true)
-                                else -> field.copy(value = null, isRetrieved = false) // Keep unavailable fields as null
+                if (!autoFilling) {
+                    IconButton(
+                        onClick = {
+                            autoFilling = true
+                            autoFillingJob = scope.launch {
+                                // TODO: BackendApiService.fillForm()
+                                delay(2000) // Simulate auto-filling process
+                                // After auto-filling, update form fields with realistic values
+                                formFields = formFields.map { field ->
+                                    when (field.name.lowercase()) {
+                                        "employee name" -> field.copy(value = "John Doe", isRetrieved = true)
+                                        "department" -> field.copy(value = "Engineering", isRetrieved = true)
+                                        "date" -> field.copy(value = "2024-01-15", isRetrieved = true)
+                                        "amount" -> field.copy(value = "$12.50", isRetrieved = true)
+                                        "full name" -> field.copy(value = "John Doe", isRetrieved = true)
+                                        "date of birth" -> field.copy(value = "1990-05-15", isRetrieved = true)
+                                        "passport number" -> field.copy(value = "A12345678", isRetrieved = true)
+                                        "destination" -> field.copy(value = "Japan", isRetrieved = true)
+                                        "duration" -> field.copy(value = "2 weeks", isRetrieved = true)
+                                        else -> field.copy(value = null, isRetrieved = false) // Keep unavailable fields as null
+                                    }
+                                }
+                                autoFilling = false
+                                autoFillingJob = null
                             }
-                        }
-                    },
-                    enabled = formFields.isNotEmpty() && !parsing,
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.AutoAwesome, contentDescription = "Autofill")
+                        },
+                        enabled = formFields.isNotEmpty() && !parsing,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.AutoAwesome, contentDescription = "Autofill")
+                    }
+                } else {
+                    IconButton(
+                        onClick = {
+                            autoFillingJob?.cancel()
+                            autoFilling = false
+                            autoFillingJob = null
+                        },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.Stop, contentDescription = "Stop")
+                    }
                 }
                 
                 // Edit button (edit both extracted info and form fields)
                 IconButton(
                     onClick = { isEditing = !isEditing },
-                    enabled = (extractedInfo.isNotEmpty() || formFields.isNotEmpty()) && !parsing,
+                    enabled = (extractedInfo.isNotEmpty() || formFields.isNotEmpty()) && !parsing && !autoFilling,
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
@@ -374,7 +396,7 @@ fun FormDetailScreen(
                             field.copy(value = null, isRetrieved = false)
                         }
                     },
-                    enabled = formFields.isNotEmpty() && !parsing,
+                    enabled = formFields.isNotEmpty() && !parsing && !autoFilling,
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.ClearAll, contentDescription = "Clear Form")
@@ -386,7 +408,7 @@ fun FormDetailScreen(
                         formFields = emptyList()
                         extractedInfo = emptyMap()
                     },
-                    enabled = (extractedInfo.isNotEmpty() || formFields.isNotEmpty()) && !parsing,
+                    enabled = (extractedInfo.isNotEmpty() || formFields.isNotEmpty()) && !parsing && !autoFilling,
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.Delete, contentDescription = "Clear All")
@@ -411,7 +433,7 @@ fun FormDetailScreen(
                         clipboard.setPrimaryClip(clip)
                         Toast.makeText(context, "All information copied to clipboard", Toast.LENGTH_SHORT).show()
                     },
-                    enabled = (extractedInfo.isNotEmpty() || formFields.isNotEmpty()) && !parsing,
+                    enabled = (extractedInfo.isNotEmpty() || formFields.isNotEmpty()) && !parsing && !autoFilling,
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.ContentCopy, contentDescription = "Copy All")
@@ -435,6 +457,19 @@ fun FormDetailScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Text("Parsing form...", fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+
+            // Show auto-filling message if auto-filling
+            if (autoFilling) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Auto-filling form...", fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -470,7 +505,7 @@ fun FormDetailScreen(
             }
 
             // Form Fields Section
-            if (formFields.isNotEmpty()) {
+            if (formFields.isNotEmpty() && !autoFilling) {
                 Text(
                     text = "Form Fields",
                     fontSize = 18.sp,
@@ -496,7 +531,7 @@ fun FormDetailScreen(
                         }
                     }
                 }
-            } else if (!parsing && extractedInfo.isEmpty()) {
+            } else if (!parsing && !autoFilling && extractedInfo.isEmpty()) {
                 // Show prompt message when both extracted info and form fields are empty
                 Card(
                     modifier = Modifier.fillMaxWidth()
