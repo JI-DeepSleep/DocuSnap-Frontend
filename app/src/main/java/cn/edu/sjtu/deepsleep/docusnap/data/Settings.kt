@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 // Global constants
 object AppConstants {
     const val DEFAULT_BACKEND_URL = "https://docusnap.zjyang.dev/api/v1/"
-    const val BACKEND_GITHUB_URL = "https://github.com/docusnap/backend"
+    const val BACKEND_GITHUB_URL = "https://github.com/JI-DeepSleep/DocuSnap-Backend"
     const val DEFAULT_BACKEND_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----\n" +
             "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqvRk6hI+G8RfuFC6nrxD\n" +
             "X3K7LJrTorEhkBwWfZH2rqbK0sjMDHtOleiFKmgr3rgzVbyqFXy/eTlbIvozcVge\n" +

@@ -2,6 +2,7 @@ package cn.edu.sjtu.deepsleep.docusnap.ui.screens
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -14,6 +15,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.edu.sjtu.deepsleep.docusnap.data.AppConstants
@@ -172,9 +174,9 @@ fun SettingsScreen(
                         Icon(Icons.Default.Help, contentDescription = "Help")
                     }
                 }
-                
+
                 Text(
-                    text = "Custom backend server URL",
+                    text = "Backend URL",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp)
@@ -183,17 +185,22 @@ fun SettingsScreen(
                 OutlinedTextField(
                     value = backendUrl,
                     onValueChange = { backendUrl = it },
-                    label = { Text("Backend URL") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
                 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                Text(
+                    text = "Backend Public Key",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+
                 OutlinedTextField(
                     value = backendPublicKey,
                     onValueChange = { backendPublicKey = it },
-                    label = { Text("Backend Public Key") },
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 150.dp)
@@ -235,10 +242,10 @@ fun SettingsScreen(
             title = { Text("Backend Configuration") },
             text = { 
                 Text(
-                    "You can deploy your own backend server for enhanced security and privacy. " +
+                    "You can deploy your own backend server to keep everything under your control. " +
                     "Our backend code is open source and available at: ${AppConstants.BACKEND_GITHUB_URL}\n\n" +
                     "By default, the app uses our hosted backend service. " +
-                    "To use your own server, enter the full URL including the protocol (e.g., https://your-server.com)."
+                    "To use your own server, enter the full URL including the protocol (e.g., https://your-server.com) and enter the public key you generated."
                 )
             },
             confirmButton = {
