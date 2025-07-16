@@ -577,9 +577,9 @@ fun DocumentCard(
                     // Parse status icon
                     Icon(
                         imageVector = if (document.extractedInfo.isNotEmpty()) {
-                            Icons.Default.CheckCircle
+                            Icons.Default.DocumentScanner
                         } else {
-                            Icons.Default.Schedule
+                            Icons.Default.RadioButtonUnchecked
                         },
                         contentDescription = if (document.extractedInfo.isNotEmpty()) {
                             "Parsed"
@@ -671,26 +671,50 @@ fun FormCard(
                     // Fill status icon
                     val filledFields = form.formFields.count { it.value != null && it.value.isNotEmpty() }
                     val totalFields = form.formFields.size
-                    val isFilled = filledFields == totalFields
-                    
-                    Icon(
-                        imageVector = if (isFilled) {
-                            Icons.Default.CheckCircle
-                        } else {
-                            Icons.Default.RadioButtonUnchecked
-                        },
-                        contentDescription = if (isFilled) {
-                            "Filled"
-                        } else {
-                            "Unfilled"
-                        },
-                        modifier = Modifier.size(16.dp),
-                        tint = if (isFilled) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        }
-                    )
+                    val isFilled = filledFields > 0 || totalFields == 0
+
+                    Row(){
+                        // Parse status icon
+                        Icon(
+                            imageVector = if (form.extractedInfo.isNotEmpty()) {
+                                Icons.Default.DocumentScanner
+                            } else {
+                                Icons.Default.RadioButtonUnchecked
+                            },
+                            contentDescription = if (form.extractedInfo.isNotEmpty()) {
+                                "Parsed"
+                            } else {
+                                "Unparsed"
+                            },
+                            modifier = Modifier.size(16.dp),
+                            tint = if (form.extractedInfo.isNotEmpty()) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.width(5.dp))
+
+                        Icon(
+                            imageVector = if (isFilled) {
+                                Icons.Default.AutoAwesome
+                            } else {
+                                Icons.Default.RadioButtonUnchecked
+                            },
+                            contentDescription = if (isFilled) {
+                                "Filled"
+                            } else {
+                                "Unfilled"
+                            },
+                            modifier = Modifier.size(16.dp),
+                            tint = if (isFilled) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            }
+                        )
+                    }
                 }
             }
         }
