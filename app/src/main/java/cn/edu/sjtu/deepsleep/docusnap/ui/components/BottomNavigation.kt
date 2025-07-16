@@ -2,12 +2,13 @@ package cn.edu.sjtu.deepsleep.docusnap.ui.components
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Assignment
+import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -23,19 +24,17 @@ sealed class BottomNavItem(
     object FormGallery : BottomNavItem(
         route = Screen.FormGallery.route,
         title = "Forms",
-        icon = Icons.AutoMirrored.Filled.List
+        icon = Icons.Default.Assignment
     )
-    
     object Home : BottomNavItem(
         route = Screen.Home.route,
         title = "Home",
         icon = Icons.Default.Home
     )
-    
     object DocumentGallery : BottomNavItem(
         route = Screen.DocumentGallery.route,
         title = "Documents",
-        icon = Icons.Default.Image
+        icon = Icons.Default.Description
     )
 }
 
@@ -46,15 +45,20 @@ fun BottomNavigation(navController: NavController) {
         BottomNavItem.Home,
         BottomNavItem.DocumentGallery
     )
-    
+
     NavigationBar {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route
-        
+
         items.forEach { item ->
             NavigationBarItem(
-                icon = { Icon(item.icon, contentDescription = item.title) },
-                label = { Text(item.title) },
+                icon = {
+                    Icon(
+                        imageVector = item.icon,
+                        contentDescription = item.title
+                    )
+                },
+                label = {},
                 selected = currentRoute == item.route,
                 onClick = {
                     if (currentRoute != item.route) {
@@ -63,8 +67,9 @@ fun BottomNavigation(navController: NavController) {
                             launchSingleTop = true
                         }
                     }
-                }
+                },
+                alwaysShowLabel = false
             )
         }
     }
-} 
+}
