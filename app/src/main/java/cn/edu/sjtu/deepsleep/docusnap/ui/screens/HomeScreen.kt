@@ -12,6 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.TextInfoItem
 import cn.edu.sjtu.deepsleep.docusnap.data.MockData
@@ -22,7 +23,7 @@ fun HomeScreen(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     
-    // Get mock data for reference
+    // TODO: DeviceDBService.getFrequentTextInfo()
     val textInfoByCategory = remember { MockData.getFrequentTextInfo() }
 
     Column(
@@ -32,13 +33,30 @@ fun HomeScreen(
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // App Title
-        Text(
-            text = "DocuSnap",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
+        // App Title with Settings Icon
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Spacer(modifier = Modifier.width(48.dp)) // Balance the settings icon
+            Text(
+                text = "DocuSnap",
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            IconButton(
+                onClick = { onNavigate("settings") },
+                modifier = Modifier.size(48.dp)
+            ) {
+                Icon(
+                    Icons.Default.Settings,
+                    contentDescription = "Settings",
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        }
         Text(
             text = "Your AI-powered Personal Document Assistant",
             fontSize = 14.sp,
@@ -130,21 +148,21 @@ fun HomeScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Button(
-            onClick = { /* Not supported in demo */ },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-            ),
-            enabled = false
-        ) {
-            Icon(Icons.Default.Add, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Online Form (Coming soon)")
-        }
+//        Spacer(modifier = Modifier.height(4.dp))
+//
+//        Button(
+//            onClick = { /* Not supported in demo */ },
+//            modifier = Modifier.fillMaxWidth(),
+//            colors = ButtonDefaults.buttonColors(
+//                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+//                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+//            ),
+//            enabled = false
+//        ) {
+//            Icon(Icons.Default.Add, contentDescription = null)
+//            Spacer(modifier = Modifier.width(8.dp))
+//            Text("Online Form (Coming soon)")
+//        }
 
         Spacer(modifier = Modifier.height(24.dp))
 

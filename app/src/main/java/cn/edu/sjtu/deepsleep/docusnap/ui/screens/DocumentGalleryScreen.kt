@@ -27,6 +27,7 @@ import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.DocumentCard
 import android.widget.Toast
+import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -92,6 +93,7 @@ fun DocumentGalleryScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.weight(1f)
             ) {
+                // TODO: change the mockDocuments to DeviceDBService.getDocumentGallery()
                 itemsIndexed(MockData.mockDocuments) { index, document ->
                     val isSelected = selectedDocuments.contains(index)
                     
@@ -184,7 +186,7 @@ fun DocumentGalleryScreen(
                                     "Exporting ${selectedDocuments.size} document(s) to local media...",
                                     Toast.LENGTH_SHORT
                                 ).show()
-                                // TODO: Implement actual export logic
+                                // TODO: DeviceDBService.exportDocuments(Ids)
                             },
                             enabled = selectedDocuments.isNotEmpty()
                         ) {
@@ -225,7 +227,7 @@ fun DocumentGalleryScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        // TODO: Implement actual deletion logic
+                        // TODO: DeviceDBService.deleteDocuments(Ids)
                         showDeleteConfirmation = false
                         isSelectionMode = false
                         selectedDocuments = mutableSetOf()

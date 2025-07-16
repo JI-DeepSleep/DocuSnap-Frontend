@@ -25,8 +25,7 @@ object MockData {
                 "Items" to "Latte, Sandwich"
             ),
             tags = listOf("Food", "Expense", "Coffee"),
-            relatedDocumentIds = listOf(officeInvoiceId), // Related to office invoice (both expenses)
-            relatedFormIds = listOf(expenseFormId) // Related to expense form
+            relatedFileIds = listOf(officeInvoiceId, expenseFormId) // Related to office invoice and expense form
         ),
         Document(
             id = officeInvoiceId,
@@ -42,8 +41,7 @@ object MockData {
                 "Payment Status" to "Unpaid"
             ),
             tags = listOf("Business", "Invoice", "Office"),
-            relatedDocumentIds = listOf(starbucksReceiptId), // Related to Starbucks receipt (both expenses)
-            relatedFormIds = listOf(expenseFormId) // Related to expense form
+            relatedFileIds = listOf(starbucksReceiptId, expenseFormId) // Related to Starbucks receipt and expense form
         ),
         Document(
             id = employmentContractId,
@@ -59,8 +57,7 @@ object MockData {
                 "Contract Type" to "Full-time"
             ),
             tags = listOf("Employment", "Contract", "Legal"),
-            relatedDocumentIds = listOf(), // No related documents
-            relatedFormIds = listOf(visaFormId) // Related to visa application (both legal documents)
+            relatedFileIds = listOf(visaFormId) // Related to visa application
         )
     )
 
@@ -70,69 +67,86 @@ object MockData {
             name = "Expense Report Form",
             description = "A company expense report form for tracking business expenses and reimbursements.",
             imageUris = listOf("mock_form_1.jpg"),
-            formFields = listOf(
-                FormField("Employee Name", "John Doe", true, srcDocId = employmentContractId),
-                FormField("Department", "Engineering", true, srcDocId = employmentContractId),
-                FormField("Date", "2024-01-15", true, srcDocId = starbucksReceiptId),
-                FormField("Purpose", "", false, srcDocId = null),
-                FormField("Amount", "$12.50", true, srcDocId = starbucksReceiptId),
-                FormField("Manager Approval", "", false, srcDocId = null)
+            extractedInfo = mapOf(
+                "Form Type" to "Expense Report",
+                "Company" to "TechCorp Inc.",
+                "Department" to "Engineering",
+                "Fiscal Year" to "2024"
             ),
-            relatedDocumentIds = listOf(starbucksReceiptId, officeInvoiceId),
-            relatedFormIds = listOf()
+            tags = listOf("Business", "Expense", "Form"),
+            formFields = listOf(
+                FormField("Employee Name", "John Doe", true, srcFileId = employmentContractId),
+                FormField("Department", "Engineering", true, srcFileId = employmentContractId),
+                FormField("Date", "2024-01-15", true, srcFileId = starbucksReceiptId),
+                FormField("Purpose", "", false, srcFileId = null),
+                FormField("Amount", "$12.50", true, srcFileId = starbucksReceiptId),
+                FormField("Manager Approval", "", false, srcFileId = null)
+            ),
+            relatedFileIds = listOf(starbucksReceiptId, officeInvoiceId)
         ),
         Form(
             id = visaFormId,
             name = "Visa Application",
             description = "A visa application form for travel to Japan with personal and travel details.",
             imageUris = listOf("mock_form_2.jpg", "mock_form_3.jpg"),
-            formFields = listOf(
-                FormField("Full Name", "John Doe", true, srcDocId = employmentContractId),
-                FormField("Date of Birth", "1990-05-15", true, srcDocId = null),
-                FormField("Passport Number", "A12345678", true, srcDocId = null),
-                FormField("Travel Purpose", "", false, srcDocId = null),
-                FormField("Destination", "Japan", true, srcDocId = null),
-                FormField("Duration", "2 weeks", true, srcDocId = null)
+            extractedInfo = mapOf(
+                "Form Type" to "Visa Application",
+                "Country" to "Japan",
+                "Application Type" to "Tourist Visa",
+                "Processing Time" to "5-7 business days"
             ),
-            relatedDocumentIds = listOf(employmentContractId),
-            relatedFormIds = listOf()
+            tags = listOf("Travel", "Visa", "Form"),
+            formFields = listOf(
+                FormField("Full Name", "John Doe", true, srcFileId = employmentContractId),
+                FormField("Date of Birth", "1990-05-15", true, srcFileId = null),
+                FormField("Passport Number", "A12345678", true, srcFileId = null),
+                FormField("Travel Purpose", "", false, srcFileId = null),
+                FormField("Destination", "Japan", true, srcFileId = null),
+                FormField("Duration", "2 weeks", true, srcFileId = null)
+            ),
+            relatedFileIds = listOf(employmentContractId)
         )
     )
 
-    // Helper functions to get related documents and forms
-    fun getRelatedDocuments(documentId: String): List<Document> {
-        val document = mockDocuments.find { it.id == documentId }
-        return document?.relatedDocumentIds?.mapNotNull { relatedId ->
+    // Helper functions to get related files (documents and forms)
+    fun getRelatedFiles(fileId: String): List<Any> {
+        val document = mockDocuments.find { it.id == fileId }
+        val form = mockForms.find { it.id == fileId }
+        
+        val relatedIds = document?.relatedFileIds ?: form?.relatedFileIds ?: emptyList()
+        
+        return relatedIds.mapNotNull { relatedId ->
+            mockDocuments.find { it.id == relatedId } ?: mockForms.find { it.id == relatedId }
+        }
+    }
+    
+    fun getRelatedDocuments(fileId: String): List<Document> {
+        val document = mockDocuments.find { it.id == fileId }
+        val form = mockForms.find { it.id == fileId }
+        
+        val relatedIds = document?.relatedFileIds ?: form?.relatedFileIds ?: emptyList()
+        
+        return relatedIds.mapNotNull { relatedId ->
             mockDocuments.find { it.id == relatedId }
-        } ?: emptyList()
+        }
     }
     
-    fun getRelatedForms(documentId: String): List<Form> {
-        val document = mockDocuments.find { it.id == documentId }
-        return document?.relatedFormIds?.mapNotNull { relatedId ->
+    fun getRelatedForms(fileId: String): List<Form> {
+        val document = mockDocuments.find { it.id == fileId }
+        val form = mockForms.find { it.id == fileId }
+        
+        val relatedIds = document?.relatedFileIds ?: form?.relatedFileIds ?: emptyList()
+        
+        return relatedIds.mapNotNull { relatedId ->
             mockForms.find { it.id == relatedId }
-        } ?: emptyList()
-    }
-    
-    fun getRelatedDocumentsForForm(formId: String): List<Document> {
-        val form = mockForms.find { it.id == formId }
-        return form?.relatedDocumentIds?.mapNotNull { relatedId ->
-            mockDocuments.find { it.id == relatedId }
-        } ?: emptyList()
-    }
-    
-    fun getRelatedFormsForForm(formId: String): List<Form> {
-        val form = mockForms.find { it.id == formId }
-        return form?.relatedFormIds?.mapNotNull { relatedId ->
-            mockForms.find { it.id == relatedId }
-        } ?: emptyList()
+        }
     }
 
     // Mock search entities with relevance scores (higher score = more relevant)
     val mockSearchEntities = listOf(
         SearchEntity.TextEntity(
             text = "Starbucks receipt: $12.50 on 2024-01-15",
-            sourceDocument = "Lunch Receipt - Starbucks",
+            srcFileId = starbucksReceiptId,
             relevanceScore = 0.95f
         ),
         SearchEntity.DocumentEntity(
@@ -141,7 +155,7 @@ object MockData {
         ),
         SearchEntity.TextEntity(
             text = "Office supplies invoice: $1,245.50 due 2024-02-10",
-            sourceDocument = "Office Supply Invoice",
+            srcFileId = officeInvoiceId,
             relevanceScore = 0.88f
         ),
         SearchEntity.FormEntity(
@@ -154,17 +168,17 @@ object MockData {
         ),
         SearchEntity.TextEntity(
             text = "HR Department: hr@company.com",
-            sourceDocument = "Company Directory",
+            srcFileId = employmentContractId,
             relevanceScore = 0.75f
         ),
         SearchEntity.TextEntity(
             text = "Total Amount: $12.50",
-            sourceDocument = "Starbucks Receipt",
+            srcFileId = starbucksReceiptId,
             relevanceScore = 0.70f
         ),
         SearchEntity.TextEntity(
             text = "Invoice Number: INV-2024-0876",
-            sourceDocument = "Office Supply Invoice",
+            srcFileId = officeInvoiceId,
             relevanceScore = 0.68f
         ),
         SearchEntity.FormEntity(
@@ -183,10 +197,9 @@ object MockData {
         }
     )
 
-    // Text info generated from document extracted info
-    // Each item represents a key-value pair that was extracted from a document's extractedInfo
-    // All text info must have a source document
-    val MockTextInfo = generateFrequentlyUsedTextInfoFromDocuments()
+    // Text info generated from document and form extracted info
+    // Each item represents a key-value pair that was extracted from a document's or form's extractedInfo
+    val MockTextInfo = generateFrequentlyUsedTextInfoFromFiles()
 
     // Helper function to get text info grouped by category and usage
     fun getFrequentTextInfo(): Map<String, List<TextInfo>> {
@@ -196,11 +209,12 @@ object MockData {
             }
     }
 
-    // Helper function to generate text info from document extracted info
+    // Helper function to generate text info from document and form extracted info
     // This demonstrates how the system could automatically create text info
-    private fun generateFrequentlyUsedTextInfoFromDocuments(): List<TextInfo> {
+    private fun generateFrequentlyUsedTextInfoFromFiles(): List<TextInfo> {
         val generated = mutableListOf<TextInfo>()
         
+        // Generate from documents
         mockDocuments.forEach { document ->
             document.extractedInfo.forEach { (key, value) ->
                 // Determine category based on key or document type
@@ -213,12 +227,35 @@ object MockData {
                 
                 generated.add(
                     TextInfo(
-                        id = UUID.randomUUID().toString(),
                         key = key,
                         value = value,
                         category = category,
-                        sourceDocumentId = document.id,
+                        srcFileId = document.id,
                         usageCount = (1..10).random(), // Random usage count for demo
+                        lastUsed = "2024-01-${(15..20).random()}"
+                    )
+                )
+            }
+        }
+        
+        // Generate from forms
+        mockForms.forEach { form ->
+            form.extractedInfo.forEach { (key, value) ->
+                // Determine category based on key or form type
+                val category = when {
+                    key.contains("Form Type") -> "Form Information"
+                    key.contains("Company") || key.contains("Department") -> "Business Information"
+                    key.contains("Country") || key.contains("Travel") -> "Travel Information"
+                    else -> "General Information"
+                }
+                
+                generated.add(
+                    TextInfo(
+                        key = key,
+                        value = value,
+                        category = category,
+                        srcFileId = form.id,
+                        usageCount = (1..8).random(), // Random usage count for demo
                         lastUsed = "2024-01-${(15..20).random()}"
                     )
                 )

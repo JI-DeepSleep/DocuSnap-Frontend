@@ -47,9 +47,6 @@ fun LocalMediaScreen(
             }
         }
     )
-    
-    // Mock gallery images
-
 
     Column(
         modifier = Modifier.fillMaxSize()

@@ -70,6 +70,11 @@ dependencies {
     // Icons
     implementation("androidx.compose.material:material-icons-extended:1.6.3")
     
+    // HTTP Client for API calls
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    
+    // SharedPreferences for settings persistence (built into Android)
+    
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

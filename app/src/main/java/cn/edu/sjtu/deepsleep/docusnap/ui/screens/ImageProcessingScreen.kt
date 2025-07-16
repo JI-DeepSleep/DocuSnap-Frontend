@@ -38,6 +38,7 @@ import java.io.FileOutputStream
 import androidx.core.content.FileProvider
 import android.util.Log
 import android.widget.Toast
+import androidx.compose.material.icons.outlined.PhotoFilter
 
 @Composable
 fun ImageProcessingScreen(
@@ -79,6 +80,7 @@ fun ImageProcessingScreen(
         }
     }
 
+    // TODO: move this function to ImageProcService
     // Image processing functions
     // [ 用这个新函数替换旧的 processCurrentImage ]
     fun processCurrentImage(filterType: String) {
@@ -424,7 +426,7 @@ fun ImageProcessingScreen(
                     item {
                         FilterButton(
                             text = "Filter",
-                            icon = Icons.Outlined.Filter,
+                            icon = Icons.Outlined.PhotoFilter,
                             onClick = { showFilterToolbar = !showFilterToolbar },
                             isSelected = showFilterToolbar
                         )

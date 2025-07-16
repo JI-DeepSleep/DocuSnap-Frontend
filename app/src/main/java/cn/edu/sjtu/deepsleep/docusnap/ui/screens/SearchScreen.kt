@@ -11,6 +11,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
 import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchEntityCard
@@ -21,6 +22,8 @@ fun SearchScreen(
     onBackClick: () -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
+
+    // TODO: DeviceDBService.searchByQuery(searchQuery)
     val searchResults = remember { MockData.mockSearchResults }
 
     Column(
@@ -69,10 +72,17 @@ fun SearchScreen(
                         onClick = {
                             when (entity) {
                                 is cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity.TextEntity -> {
-                                    // For text entities, navigate to the source document if available
-                                    val sourceDoc = MockData.mockDocuments.find { it.name == entity.sourceDocument }
-                                    if (sourceDoc != null) {
-                                        onNavigate("document_detail?documentId=${sourceDoc.id}&fromImageProcessing=false")
+                                    // For text entities, navigate to the source file if available
+                                    if (entity.srcFileId != null) {
+                                        // Check if it's a document or form
+                                        val sourceDoc = MockData.mockDocuments.find { it.id == entity.srcFileId }
+                                        val sourceForm = MockData.mockForms.find { it.id == entity.srcFileId }
+                                        
+                                        when {
+                                            sourceDoc != null -> onNavigate("document_detail?documentId=${sourceDoc.id}&fromImageProcessing=false")
+                                            sourceForm != null -> onNavigate("form_detail?formId=${sourceForm.id}&fromImageProcessing=false")
+                                            else -> onNavigate("document_detail?fromImageProcessing=false")
+                                        }
                                     } else {
                                         onNavigate("document_detail?fromImageProcessing=false")
                                     }
