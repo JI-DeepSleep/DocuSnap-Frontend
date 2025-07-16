@@ -51,7 +51,8 @@ fun SearchBar(
         Button(
             onClick = onSearch,
             shape = RoundedCornerShape(12.dp),
-            modifier = Modifier.height(56.dp)
+            modifier = Modifier.height(56.dp),
+            enabled = query.isNotEmpty()
         ) {
             Icon(Icons.Default.Search, contentDescription = "Search")
         }
