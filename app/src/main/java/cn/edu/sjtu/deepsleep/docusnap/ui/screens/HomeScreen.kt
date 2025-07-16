@@ -148,21 +148,21 @@ fun HomeScreen(
             }
         }
 
-        Spacer(modifier = Modifier.height(4.dp))
-
-        Button(
-            onClick = { /* Not supported in demo */ },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-            ),
-            enabled = false
-        ) {
-            Icon(Icons.Default.Add, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("Online Form (Coming soon)")
-        }
+//        Spacer(modifier = Modifier.height(4.dp))
+//
+//        Button(
+//            onClick = { /* Not supported in demo */ },
+//            modifier = Modifier.fillMaxWidth(),
+//            colors = ButtonDefaults.buttonColors(
+//                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+//                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+//            ),
+//            enabled = false
+//        ) {
+//            Icon(Icons.Default.Add, contentDescription = null)
+//            Spacer(modifier = Modifier.width(8.dp))
+//            Text("Online Form (Coming soon)")
+//        }
 
         Spacer(modifier = Modifier.height(24.dp))
 
