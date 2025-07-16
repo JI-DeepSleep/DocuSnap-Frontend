@@ -200,66 +200,30 @@ rwIDAQAB
     }
 
     // Document Handler
-    // TODO: see comments for getResult
+    // TODO: submit job once and add job to db. Let the db polling worker do the polling job.
     suspend fun processDocument(images: List<Bitmap>): ProcessingResult {
         val base64Images = images.map { bitmapToBase64(it) }
         return process("doc", base64Images)
     }
 
     // Form Handler
-    // TODO: see comments for getResult
+    // TODO: submit job once and add job to db. Let the db polling worker do the polling job.
     suspend fun processForm(images: List<Bitmap>): ProcessingResult {
         val base64Images = images.map { bitmapToBase64(it) }
         return process("form", base64Images)
     }
 
     // Auto-fill form
-    // TODO: see comments for getResult
+    // TODO: submit job once and add job to db. Let the db polling worker do the polling job.
     suspend fun fillForm(): ProcessingResult {
         val formData = lastFormResult ?: return ProcessingResult.Error("No form result available")
         return process("fill", JSONObject(formData).toMap())
     }
 
-    // Get result from server
-    // TODO: this is just the logic copied form the webui, which is not gonna work in the frontend.
-    // the correct way is to have a record in db which files are being processed, the type of process and SHA256 of that process,
-    // and there should be some kind of multithread way to do this polling job in the background.
-    // So, really this is kind of the code of that polling worker, and you should modify the processDocument, processForm and processFill functions to let them register the task into the db and let the polling working behind the scene
-    suspend fun getResult(type: String, sha256: String): ProcessingResult {
-        val backendUrl = getBackendUrl()
+    // TODO: write a polling worker that runs whenever the app runs. It should check the db job table,
+    // and call the api.
+    // on result received should upload the db.
 
-        try {
-            val requestBody = JSONObject().apply {
-                // TODO: implement the line below
-//                put("client_id", settingsManager.getClientId())
-                put("type", type)
-                put("SHA256", sha256)
-                put("has_content", false)
-            }.toString().toRequestBody(jsonMediaType)
-
-            val request = Request.Builder()
-                .url("$backendUrl/process")
-                .post(requestBody)
-                .build()
-
-            val response = client.newCall(request).execute()
-            val responseBody =
-                response.body?.string() ?: return ProcessingResult.Error("Empty response")
-            val jsonResponse = JSONObject(responseBody)
-
-            return when (jsonResponse.getString("status")) {
-                "processing" -> ProcessingResult.Processing(sha256)
-                "completed" -> ProcessingResult.Success(
-                    jsonResponse.getString("result"),
-                    sha256
-                )
-
-                else -> ProcessingResult.Error("Error: ${jsonResponse.optString("error_detail")}")
-            }
-        } catch (e: Exception) {
-            return ProcessingResult.Error("Request failed: ${e.message}")
-        }
-    }
 
     // Decrypt result using cached AES key
     fun decryptResult(encryptedResult: String, sha256: String): String {
