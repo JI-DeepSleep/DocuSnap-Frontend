@@ -163,12 +163,12 @@ fun FormDetailScreen(
                         Text(
                             text = "${currentImageIndex + 1}/${imagesToShow.size}",
                             fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = MaterialTheme.colorScheme.onSurface,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier
                                 .padding(8.dp)
                                 .background(
-                                    Color.White.copy(alpha = 0.8f),
+                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
                                     RoundedCornerShape(4.dp)
                                 )
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
