@@ -49,19 +49,7 @@ class BackendApiService(private val context: Context) {
 
     // Get public key from settings
     private suspend fun getPublicKeyPem(): String {
-        return """-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqvRk6hI+G8RfuFC6nrxD
-X3K7LJrTorEhkBwWfZH2rqbK0sjMDHtOleiFKmgr3rgzVbyqFXy/eTlbIvozcVge
-brMcD9cRLXWfq/UerNpJKuZsjKHVeMop0Q1lS5AJkkZpFEQ0osGvKgJn1UTYiaS9
-4sfHEW/AONmzWbZvQMseU15sxF26QYaNrMb9kc8BzBW6L73Quq6LZRHSqeF71JjA
-Mw4OtvS9pxDaRbN1FzRYGLcA3iaxSEmbsloPXipBKZJntiO9zDNGI1EQOou2GUfB
-BIeNH+P2EW+6e8khrwpafawTMyUkxpqBK0QL8/qWgc7FblVzSDfE43aJc9jnNm3A
-rwIDAQAB
------END PUBLIC KEY-----
-
-        """.trimIndent()
-        // TODO: implement the line below and delete the one above
-//        return settingsManager.settings.first().publicKey
+        return settingsManager.settings.first().backendPublicKey
     }
 
     // Convert Bitmap to Base64 string
