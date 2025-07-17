@@ -28,18 +28,11 @@ import cn.edu.sjtu.deepsleep.docusnap.ui.components.DocumentCard
 import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
 import android.widget.Toast
 import androidx.lifecycle.viewmodel.compose.viewModel
-import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
-import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModelFactory
-
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DocumentGalleryScreen(
     onNavigate: (String) -> Unit,
-    viewModel: DocumentViewModel = viewModel(
-        factory = DocumentViewModelFactory(
-            AppModule.provideDocumentRepository(LocalContext.current)
-        )
-    )
+    viewModel: DocumentViewModel = viewModel()
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var isSelectionMode by remember { mutableStateOf(false) }

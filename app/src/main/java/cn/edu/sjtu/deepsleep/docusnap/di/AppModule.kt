@@ -1,31 +1,21 @@
 package cn.edu.sjtu.deepsleep.docusnap.di
 
-import android.content.Context
 import cn.edu.sjtu.deepsleep.docusnap.data.repository.DocumentRepository
+import cn.edu.sjtu.deepsleep.docusnap.service.BackendApiService
 import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
+import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
+import org.koin.android.ext.koin.androidContext
+import org.koin.androidx.viewmodel.dsl.viewModel
+import org.koin.dsl.module
 
-object AppModule {
+val appModule = module {
+    // Services
+    single { DeviceDBService(androidContext()) }
+    single { BackendApiService(androidContext()) }
     
-    private var deviceDBService: DeviceDBService? = null
-    private var documentRepository: DocumentRepository? = null
+    // Repository
+    single { DocumentRepository(get(), get()) }
     
-    fun provideDeviceDBService(context: Context): DeviceDBService {
-        if (deviceDBService == null) {
-            deviceDBService = DeviceDBService(context)
-        }
-        return deviceDBService!!
-    }
-    
-    fun provideDocumentRepository(context: Context): DocumentRepository {
-        if (documentRepository == null) {
-            val dbService = provideDeviceDBService(context)
-            documentRepository = DocumentRepository(dbService)
-        }
-        return documentRepository!!
-    }
-    
-    fun clear() {
-        deviceDBService = null
-        documentRepository = null
-    }
+    // ViewModels
+    viewModel { DocumentViewModel(get()) }
 } 

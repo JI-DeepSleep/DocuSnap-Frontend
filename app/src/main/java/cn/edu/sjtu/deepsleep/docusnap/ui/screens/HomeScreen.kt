@@ -9,19 +9,26 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
+import cn.edu.sjtu.deepsleep.docusnap.service.BackendApiService
+import cn.edu.sjtu.deepsleep.docusnap.service.JobPollingService
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.TextInfoItem
 import cn.edu.sjtu.deepsleep.docusnap.data.MockData
+import org.koin.core.context.GlobalContext
 
 @Composable
 fun HomeScreen(
     onNavigate: (String) -> Unit
 ) {
     var searchQuery by remember { mutableStateOf("") }
+    var jobPollingService by remember { mutableStateOf<JobPollingService?>(null) }
+    var isPollingActive by remember { mutableStateOf(false) }
+    val context = LocalContext.current
     
     // TODO: DeviceDBService.getFrequentTextInfo()
     val textInfoByCategory = remember { MockData.getFrequentTextInfo() }
@@ -148,21 +155,86 @@ fun HomeScreen(
             }
         }
 
-//        Spacer(modifier = Modifier.height(4.dp))
-//
-//        Button(
-//            onClick = { /* Not supported in demo */ },
-//            modifier = Modifier.fillMaxWidth(),
-//            colors = ButtonDefaults.buttonColors(
-//                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-//                contentColor = MaterialTheme.colorScheme.onSurfaceVariant
-//            ),
-//            enabled = false
-//        ) {
-//            Icon(Icons.Default.Add, contentDescription = null)
-//            Spacer(modifier = Modifier.width(8.dp))
-//            Text("Online Form (Coming soon)")
-//        }
+        Spacer(modifier = Modifier.height(24.dp))
+
+        // Development Section - Job Polling Service
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant
+            )
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "Development Tools",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(bottom = 12.dp)
+                )
+                
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Button(
+                        onClick = {
+                            if (!isPollingActive) {
+                                try {
+                                    val deviceDBService = GlobalContext.get().get<DeviceDBService>()
+                                    val backendApiService = GlobalContext.get().get<BackendApiService>()
+                                    jobPollingService = JobPollingService(context, deviceDBService, backendApiService)
+                                    jobPollingService?.startPolling()
+                                    isPollingActive = true
+                                } catch (e: Exception) {
+                                    // Handle error
+                                    e.printStackTrace()
+                                }
+                            } else {
+                                jobPollingService?.stopPolling()
+                                isPollingActive = false
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isPollingActive) 
+                                MaterialTheme.colorScheme.error 
+                            else 
+                                MaterialTheme.colorScheme.tertiary
+                        )
+                    ) {
+                        Icon(
+                            if (isPollingActive) Icons.Default.Stop else Icons.Default.PlayArrow,
+                            contentDescription = null
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(if (isPollingActive) "Stop Polling" else "Start Polling")
+                    }
+                    
+                    Button(
+                        onClick = { onNavigate("document_gallery") },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(Icons.Default.List, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("View Docs")
+                    }
+                }
+                
+                if (isPollingActive) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "✅ Job polling service is active",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(24.dp))
 

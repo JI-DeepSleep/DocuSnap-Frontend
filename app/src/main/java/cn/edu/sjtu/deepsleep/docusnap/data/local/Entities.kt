@@ -31,3 +31,18 @@ data class FormEntity(
     val sha256: String? = null,
     val isProcessed: Boolean = false
 )
+
+@Entity(tableName = "jobs")
+data class JobEntity(
+    @PrimaryKey val id: String,
+    val clientId: String,
+    val type: String, // "doc", "form", "fill"
+    val sha256: String,
+    val status: String, // "pending", "processing", "completed", "error"
+    val createdAt: Long,
+    val updatedAt: Long,
+    val result: String?, // JSON string of result when completed
+    val errorDetail: String?, // Error message if failed
+    val excludeType: String?, // FileType to exclude from file_lib
+    val excludeId: String? // ID to exclude from file_lib
+)

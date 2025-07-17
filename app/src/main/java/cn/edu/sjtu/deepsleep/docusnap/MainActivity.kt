@@ -21,14 +21,28 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import cn.edu.sjtu.deepsleep.docusnap.data.SettingsManager
+import cn.edu.sjtu.deepsleep.docusnap.di.appModule
+
 import cn.edu.sjtu.deepsleep.docusnap.navigation.Screen
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.BottomNavigation
 import cn.edu.sjtu.deepsleep.docusnap.ui.screens.*
 import cn.edu.sjtu.deepsleep.docusnap.ui.theme.DocuSnapTheme
+import org.koin.android.ext.koin.androidContext
+import org.koin.android.ext.koin.androidLogger
+import org.koin.core.context.startKoin
+import org.koin.core.logger.Level
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+//
+//        // Initialize Koin
+//        startKoin {
+//            androidLogger(Level.DEBUG)
+//            androidContext(this@MainActivity)
+//            modules(appModule)
+//        }
+
         enableEdgeToEdge()
         setContent {
             DocuSnapTheme {
@@ -46,6 +60,9 @@ fun DocuSnapApp() {
     
     var pinProtectionEnabled by remember { mutableStateOf(false) }
     var isPinVerified by remember { mutableStateOf(false) }
+    
+    // TODO: Initialize job polling service once Koin compilation issues are resolved
+    // For now, the backend integration is ready but the polling service needs to be started manually
     
     // Check PIN protection status
     LaunchedEffect(Unit) {

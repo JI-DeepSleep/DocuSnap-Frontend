@@ -5,6 +5,7 @@ import cn.edu.sjtu.deepsleep.docusnap.data.local.AppDatabase
 import cn.edu.sjtu.deepsleep.docusnap.data.local.DocumentEntity
 import cn.edu.sjtu.deepsleep.docusnap.data.local.FormEntity
 import cn.edu.sjtu.deepsleep.docusnap.data.FormField
+import cn.edu.sjtu.deepsleep.docusnap.data.local.JobEntity
 
 import kotlinx.coroutines.flow.first
 import org.json.JSONObject
@@ -34,6 +35,7 @@ class DeviceDBService(private val context: Context) {
     }
     private val documentDao get() = db.documentDao()
     private val formDao get() = db.formDao()
+    private val jobDao get() = db.jobDao()
 
     // Document storage operations
     suspend fun saveDocument(documentId: String, data: JSONObject) {
@@ -276,5 +278,39 @@ class DeviceDBService(private val context: Context) {
     suspend fun getFrequentTextInfo(): List<JSONObject> {
         // This would require a separate table or usage tracking, so here we return empty for now
         return emptyList()
+    }
+
+    // Job management operations
+    suspend fun saveJob(job: JobEntity) {
+        jobDao.insert(job)
+    }
+
+    suspend fun getJob(id: String): JobEntity? {
+        return jobDao.getById(id)
+    }
+
+    suspend fun getJobBySha256(sha256: String): JobEntity? {
+        return jobDao.getBySha256(sha256)
+    }
+
+    suspend fun updateJob(job: JobEntity) {
+        jobDao.update(job)
+    }
+
+    suspend fun getPendingJobs(): List<JobEntity> {
+        return jobDao.getPendingJobs().first()
+    }
+
+    suspend fun getAllJobs(): List<JobEntity> {
+        return jobDao.getAllJobs().first()
+    }
+
+    suspend fun deleteJob(id: String) {
+        jobDao.delete(id)
+    }
+
+    suspend fun cleanupOldJobs() {
+        val oneWeekAgo = System.currentTimeMillis() - (7 * 24 * 60 * 60 * 1000)
+        jobDao.deleteOldCompletedJobs(oneWeekAgo)
     }
 } 

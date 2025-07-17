@@ -1,151 +1,106 @@
-// TODO: This is the code that is refactored from the webui mockup in the backend repo.
-// Many things needs to be changed close to the end of this file.
-// But for the functions closed to the beginning of the file, I'd say they are good to go.
-
-
 package cn.edu.sjtu.deepsleep.docusnap.service
 
 import android.content.Context
 import android.graphics.Bitmap
 import android.util.Base64
-import cn.edu.sjtu.deepsleep.docusnap.data.SettingsManager
-import kotlinx.coroutines.flow.first
-import okhttp3.*
+import android.util.Log
+import cn.edu.sjtu.deepsleep.docusnap.data.FileType
+import cn.edu.sjtu.deepsleep.docusnap.data.FormField
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
 import org.json.JSONObject
-import java.io.ByteArrayOutputStream
-import java.security.KeyFactory
 import java.security.MessageDigest
-import java.security.PublicKey
-import java.security.SecureRandom
-import java.security.spec.X509EncodedKeySpec
+import java.util.UUID
 import javax.crypto.Cipher
-import javax.crypto.spec.IvParameterSpec
+import javax.crypto.KeyGenerator
 import javax.crypto.spec.SecretKeySpec
+import java.security.KeyFactory
+import java.security.spec.X509EncodedKeySpec
 
-
-// Manager of all interactions with backend server
-
-// Sealed class for processing results
-sealed class ProcessingResult {
-    data class Success(val result: String, val sha256: String) : ProcessingResult()
-    data class Processing(val sha256: String) : ProcessingResult()
-    data class Error(val message: String) : ProcessingResult()
-}
-
-// Manager of all interactions with backend server
 class BackendApiService(private val context: Context) {
-    private val settingsManager = SettingsManager(context)
     private val client = OkHttpClient()
-    private val jsonMediaType = "application/json".toMediaType()
+    private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
+    private val backendUrl = "https://docusnap.zjyang.dev/api/v1"
+    
+    // Cache for AES keys
     private val aesKeyCache = mutableMapOf<String, ByteArray>()
-    private var lastFormResult: String? = null
+    
+    // RSA public key (you'll need to get this from your backend)
+    private val publicKeyPem = """
+        -----BEGIN PUBLIC KEY-----
+        YOUR_PUBLIC_KEY_HERE
+        -----END PUBLIC KEY-----
+    """.trimIndent()
 
-    // Get the current backend URL from settings
-    private suspend fun getBackendUrl(): String {
-        return settingsManager.settings.first().backendUrl
+    sealed class ProcessingResult {
+        data class Processing(val sha256: String) : ProcessingResult()
+        data class Success(val result: String, val sha256: String) : ProcessingResult()
+        data class Error(val message: String) : ProcessingResult()
     }
 
-    // Get public key from settings
-    private suspend fun getPublicKeyPem(): String {
-        return settingsManager.settings.first().backendPublicKey
-    }
-
-    // Convert Bitmap to Base64 string
-    private fun bitmapToBase64(bitmap: Bitmap): String {
-        val byteArrayOutputStream = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, byteArrayOutputStream)
-        val byteArray = byteArrayOutputStream.toByteArray()
-        return Base64.encodeToString(byteArray, Base64.NO_WRAP)
-    }
-
-    // Generate random AES key (32 bytes)
-    private fun generateAesKey(): ByteArray {
-        val key = ByteArray(32)
-        SecureRandom().nextBytes(key)
-        return key
-    }
-
-    // Convert PEM string to PublicKey
-    private fun getPublicKey(publicKeyPem: String): PublicKey {
-        val pemContent = publicKeyPem
-            .replace("-----BEGIN PUBLIC KEY-----", "")
-            .replace("-----END PUBLIC KEY-----", "")
-            .replace("\\n", "")
-            .trim()
-
-        val keyBytes = Base64.decode(pemContent, Base64.NO_WRAP)
-        val keySpec = X509EncodedKeySpec(keyBytes)
-        val keyFactory = KeyFactory.getInstance("RSA")
-        return keyFactory.generatePublic(keySpec)
-    }
-
-    // RSA encryption
-    private fun rsaEncrypt(data: ByteArray, publicKey: PublicKey): ByteArray {
-        val cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding")
-        cipher.init(Cipher.ENCRYPT_MODE, publicKey)
-        return cipher.doFinal(data)
-    }
-
-    // AES-CBC encryption
-    private fun aesEncrypt(data: ByteArray, key: ByteArray): String {
-        val iv = ByteArray(16).apply { SecureRandom().nextBytes(this) }
-        val secretKey = SecretKeySpec(key, "AES")
-        val cipher = Cipher.getInstance("AES/CBC/PKCS7Padding")
-        cipher.init(Cipher.ENCRYPT_MODE, secretKey, IvParameterSpec(iv))
-
-        val encrypted = cipher.doFinal(data)
-        val combined = iv + encrypted
-        return Base64.encodeToString(combined, Base64.NO_WRAP)
-    }
-
-    // AES-CBC decryption
-    private fun aesDecrypt(encryptedData: String, key: ByteArray): String {
-        val combined = Base64.decode(encryptedData, Base64.NO_WRAP)
-        val iv = combined.copyOfRange(0, 16)
-        val ciphertext = combined.copyOfRange(16, combined.size)
-
-        val secretKey = SecretKeySpec(key, "AES")
-        val cipher = Cipher.getInstance("AES/CBC/PKCS7Padding")
-        cipher.init(Cipher.DECRYPT_MODE, secretKey, IvParameterSpec(iv))
-
-        return String(cipher.doFinal(ciphertext), Charsets.UTF_8)
-    }
-
-    // Compute SHA256 hash
-    private fun computeSHA256(data: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        val bytes = digest.digest(data.toByteArray(Charsets.UTF_8))
-        return bytes.joinToString("") { "%02x".format(it) }
-    }
-
-    // Main processing function called by the handlers
-    // TODO: modify the main logic here. It should return on the first response it gets.
-    // TODO: If complete, good. If error, do error handling, or actually it can just pretend the user never clicked the button.
-    // TODO: Most of the cases, the response will be processing, should add this job  to the job table and let the daemon to the rest of the work.
-    // TODO: I dont think this function needs a return type, since its whole job is to submit the job to the server.
-    // TODO: If very lucky there's result (status=completed), then it should not have return values as well but just writes those results to the db.
-    private suspend fun process(
-        type: String,
-        payload: Any
-    ): ProcessingResult {
-        val backendUrl = getBackendUrl()
-        val publicKeyPem = getPublicKeyPem()
-
+    // Check server status
+    suspend fun checkServerStatus(): Boolean = withContext(Dispatchers.IO) {
         try {
-            // Create payload
-            val innerPayload = mapOf(
-                "to_process" to payload,
-                // TODO: implement the line below
-//                "file_lib" to  xxx
-            )
-            val innerJson = JSONObject(innerPayload).toString()
+            val request = Request.Builder()
+                .url("$backendUrl/check_status")
+                .get()
+                .build()
+
+            val response = client.newCall(request).execute()
+            return@withContext response.isSuccessful
+        } catch (e: Exception) {
+            Log.e("BackendApiService", "Error checking server status: ${e.message}", e)
+            return@withContext false
+        }
+    }
+
+    // Submit a processing job
+    suspend fun submitJob(
+        type: String, // "doc", "form", "fill"
+        images: List<Bitmap>? = null,
+        formData: Map<String, Any>? = null,
+        excludeType: FileType? = null,
+        excludeId: String? = null,
+        fileLibJson: String? = null
+    ): ProcessingResult = withContext(Dispatchers.IO) {
+        try {
+            val clientId = UUID.randomUUID().toString()
+            
+            // Prepare the content payload
+            val contentPayload = JSONObject().apply {
+                when (type) {
+                    "doc", "form" -> {
+                        val base64Images = images?.map { bitmapToBase64(it) } ?: emptyList()
+                        put("to_process", JSONArray(base64Images))
+                    }
+                    "fill" -> {
+                        put("to_process", JSONObject(formData))
+                    }
+                }
+                
+                // Add file_lib if provided
+                if (fileLibJson != null) {
+                    put("file_lib", JSONObject(fileLibJson))
+                }
+            }
+
+            val contentJson = contentPayload.toString()
+            Log.d("BackendApiService", "Content payload: $contentJson")
 
             // Generate encryption keys
             val aesKey = generateAesKey()
-            val encryptedContent = aesEncrypt(innerJson.toByteArray(), aesKey)
+            val encryptedContent = aesEncrypt(contentJson.toByteArray(), aesKey)
+            val encryptedContentBase64 = Base64.encodeToString(encryptedContent, Base64.NO_WRAP)
+            
+            // Compute SHA256
             val sha256 = computeSHA256(encryptedContent)
+            
+            // Encrypt AES key with RSA
             val encryptedAesKey = rsaEncrypt(aesKey, getPublicKey(publicKeyPem))
             val encryptedAesKeyBase64 = Base64.encodeToString(encryptedAesKey, Base64.NO_WRAP)
 
@@ -154,13 +109,12 @@ class BackendApiService(private val context: Context) {
 
             // Build request
             val requestBody = JSONObject().apply {
-                // TODO: implement the line below
-//                put("client_id", settingsManager.getClientId())
+                put("client_id", clientId)
                 put("type", type)
                 put("SHA256", sha256)
                 put("has_content", true)
+                put("content", encryptedContentBase64)
                 put("aes_key", encryptedAesKeyBase64)
-                put("content", encryptedContent)
             }.toString().toRequestBody(jsonMediaType)
 
             val request = Request.Builder()
@@ -168,79 +122,115 @@ class BackendApiService(private val context: Context) {
                 .post(requestBody)
                 .build()
 
+            Log.d("BackendApiService", "Submitting job: type=$type, sha256=$sha256")
+
             // Execute request
             val response = client.newCall(request).execute()
-            val responseBody =
-                response.body?.string() ?: return ProcessingResult.Error("Empty response")
+            val responseBody = response.body?.string() ?: return@withContext ProcessingResult.Error("Empty response")
             val jsonResponse = JSONObject(responseBody)
 
-            return when (jsonResponse.getString("status")) {
-                "processing" -> {
-                    if (type == "form") lastFormResult = innerJson
-                    ProcessingResult.Processing(sha256)
+            Log.d("BackendApiService", "Response: $responseBody")
+
+            return@withContext when (jsonResponse.getString("status")) {
+                "processing" -> ProcessingResult.Processing(sha256)
+                "completed" -> {
+                    val result = jsonResponse.getString("result")
+                    ProcessingResult.Success(result, sha256)
                 }
-
-                "completed" -> ProcessingResult.Success(
-                    jsonResponse.getString("result"),
-                    sha256
-                )
-
                 else -> ProcessingResult.Error("Processing error: ${jsonResponse.optString("error_detail")}")
             }
         } catch (e: Exception) {
-            return ProcessingResult.Error("Processing failed: ${e.message}")
+            Log.e("BackendApiService", "Error submitting job: ${e.message}", e)
+            return@withContext ProcessingResult.Error("Job submission failed: ${e.message}")
         }
     }
 
+    // Poll job status
+    suspend fun pollJobStatus(sha256: String): ProcessingResult = withContext(Dispatchers.IO) {
+        try {
+            val requestBody = JSONObject().apply {
+                put("SHA256", sha256)
+            }.toString().toRequestBody(jsonMediaType)
 
-    // TODO: !!!!! IMPORTANT !!!!!! The function finger prints are not set yet.
-    // TODO: !!!!! IMPORTANT !!!!!! For example, the current processDocument is not that good
-    // TODO: !!!!! IMPORTANT !!!!!! It cannot satisfy the function that serializing db to skip the file being passed.
-    // TODO: !!!!! IMPORTANT !!!!!! You can change the arg and return type to anything make sense.
-    // TODO: !!!!! IMPORTANT !!!!!!  I would say that having an id as argument is probably the best choice.
-    //  Also, these three function handlers dont need a return type. Since they should be the sender in a async function call.
-    //  They just need to make sure that process() returns (so the job is submitted to the server).
+            val request = Request.Builder()
+                .url("$backendUrl/process")
+                .post(requestBody)
+                .build()
 
-    // Document Handler
-    // TODO: submit job once and add job to db. Let the db polling worker do the polling job.
-    suspend fun processDocument(images: List<Bitmap>): ProcessingResult {
-        val base64Images = images.map { bitmapToBase64(it) }
-        return process("doc", base64Images)
+            val response = client.newCall(request).execute()
+            val responseBody = response.body?.string() ?: return@withContext ProcessingResult.Error("Empty response")
+            val jsonResponse = JSONObject(responseBody)
+
+            return@withContext when (jsonResponse.getString("status")) {
+                "processing" -> ProcessingResult.Processing(sha256)
+                "completed" -> {
+                    val encryptedResult = jsonResponse.getString("result")
+                    val decryptedResult = decryptResult(encryptedResult, sha256)
+                    ProcessingResult.Success(decryptedResult, sha256)
+                }
+                else -> ProcessingResult.Error("Processing error: ${jsonResponse.optString("error_detail")}")
+            }
+        } catch (e: Exception) {
+            Log.e("BackendApiService", "Error polling job status: ${e.message}", e)
+            return@withContext ProcessingResult.Error("Status polling failed: ${e.message}")
+        }
     }
 
-    // Form Handler
-    // TODO: submit job once and add job to db. Let the db polling worker do the polling job.
-    suspend fun processForm(images: List<Bitmap>): ProcessingResult {
-        val base64Images = images.map { bitmapToBase64(it) }
-        return process("form", base64Images)
+    // Utility functions
+    private fun bitmapToBase64(bitmap: Bitmap): String {
+        val outputStream = java.io.ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 90, outputStream)
+        val byteArray = outputStream.toByteArray()
+        return Base64.encodeToString(byteArray, Base64.NO_WRAP)
     }
 
-    // Auto-fill form
-    // TODO: submit job once and add job to db. Let the db polling worker do the polling job.
-    suspend fun fillForm(): ProcessingResult {
-        val formData = lastFormResult ?: return ProcessingResult.Error("No form result available")
-        return process("fill", JSONObject(formData).toMap())
+    private fun generateAesKey(): ByteArray {
+        val keyGenerator = KeyGenerator.getInstance("AES")
+        keyGenerator.init(256)
+        return keyGenerator.generateKey().encoded
     }
 
+    private fun aesEncrypt(data: ByteArray, key: ByteArray): ByteArray {
+        val secretKey = SecretKeySpec(key, "AES")
+        val cipher = Cipher.getInstance("AES/ECB/PKCS5Padding")
+        cipher.init(Cipher.ENCRYPT_MODE, secretKey)
+        return cipher.doFinal(data)
+    }
 
-    // TODO: write a polling worker that runs whenever the app runs. It should check the db job table,
-    // and call the api.
-    // on result received should upload the db.
-    // It should be called when the app starts and it should take both latency and power saving in mind
+    private fun aesDecrypt(data: String, key: ByteArray): String {
+        val secretKey = SecretKeySpec(key, "AES")
+        val cipher = Cipher.getInstance("AES/ECB/PKCS5Padding")
+        cipher.init(Cipher.DECRYPT_MODE, secretKey)
+        val decryptedBytes = cipher.doFinal(Base64.decode(data, Base64.NO_WRAP))
+        return String(decryptedBytes)
+    }
 
+    private fun computeSHA256(data: ByteArray): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        val hash = digest.digest(data)
+        return hash.joinToString("") { "%02x".format(it) }
+    }
 
-    // Decrypt result using cached AES key
+    private fun getPublicKey(publicKeyPem: String): java.security.PublicKey {
+        val keyBytes = publicKeyPem
+            .replace("-----BEGIN PUBLIC KEY-----", "")
+            .replace("-----END PUBLIC KEY-----", "")
+            .replace("\n", "")
+            .replace(" ", "")
+        val decodedKey = Base64.decode(keyBytes, Base64.NO_WRAP)
+        val keySpec = X509EncodedKeySpec(decodedKey)
+        val keyFactory = KeyFactory.getInstance("RSA")
+        return keyFactory.generatePublic(keySpec)
+    }
+
+    private fun rsaEncrypt(data: ByteArray, publicKey: java.security.PublicKey): ByteArray {
+        val cipher = Cipher.getInstance("RSA/ECB/PKCS1Padding")
+        cipher.init(Cipher.ENCRYPT_MODE, publicKey)
+        return cipher.doFinal(data)
+    }
+
     fun decryptResult(encryptedResult: String, sha256: String): String {
         val aesKey = aesKeyCache[sha256] ?: throw IllegalStateException("AES key not found")
         return aesDecrypt(encryptedResult, aesKey)
-    }
-
-    // Extension function to convert JSONObject to Map
-    private fun JSONObject.toMap(): Map<String, Any> {
-        val map = mutableMapOf<String, Any>()
-        for (key in keys()) {
-            map[key] = get(key)
-        }
-        return map
     }
 }

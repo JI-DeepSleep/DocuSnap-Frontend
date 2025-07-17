@@ -8,6 +8,8 @@ import cn.edu.sjtu.deepsleep.docusnap.data.Form
 import cn.edu.sjtu.deepsleep.docusnap.data.FormField
 import cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity
 import cn.edu.sjtu.deepsleep.docusnap.data.TextInfo
+import cn.edu.sjtu.deepsleep.docusnap.data.local.JobEntity
+import cn.edu.sjtu.deepsleep.docusnap.service.BackendApiService
 import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
@@ -15,9 +17,12 @@ import org.json.JSONObject
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import android.graphics.Bitmap
+import java.util.UUID
 
 class DocumentRepository(
-    private val deviceDBService: DeviceDBService
+    private val deviceDBService: DeviceDBService,
+    private val backendApiService: BackendApiService
 ) {
     // Document operations
     suspend fun getAllDocuments(): List<Document> {
@@ -311,5 +316,260 @@ class DocumentRepository(
             android.util.Log.e("DocumentRepository", "Error adding test data: ${e.message}", e)
             throw e
         }
+    }
+
+    // Job submission and management
+    suspend fun submitDocumentJob(
+        images: List<Bitmap>,
+        excludeType: FileType? = null,
+        excludeId: String? = null
+    ): String {
+        val jobId = UUID.randomUUID().toString()
+        val clientId = UUID.randomUUID().toString()
+        
+        // Get file library JSON (excluding specified file if needed)
+        val fileLibJson = if (excludeType != null && excludeId != null) {
+            exportDatabaseToJson(excludeType, excludeId)
+        } else {
+            exportDatabaseToJson(FileType.DOCUMENT, "") // Export all
+        }
+        
+        // Submit job to backend
+        val result = backendApiService.submitJob(
+            type = "doc",
+            images = images,
+            excludeType = excludeType,
+            excludeId = excludeId,
+            fileLibJson = fileLibJson
+        )
+        
+        when (result) {
+            is BackendApiService.ProcessingResult.Processing -> {
+                // Save job to database for polling
+                val job = JobEntity(
+                    id = jobId,
+                    clientId = clientId,
+                    type = "doc",
+                    sha256 = result.sha256,
+                    status = "pending",
+                    createdAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis(),
+                    result = null,
+                    errorDetail = null,
+                    excludeType = excludeType?.name,
+                    excludeId = excludeId
+                )
+                deviceDBService.saveJob(job)
+                return result.sha256
+            }
+            is BackendApiService.ProcessingResult.Success -> {
+                // Job completed immediately
+                val job = JobEntity(
+                    id = jobId,
+                    clientId = clientId,
+                    type = "doc",
+                    sha256 = result.sha256,
+                    status = "completed",
+                    createdAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis(),
+                    result = result.result,
+                    errorDetail = null,
+                    excludeType = excludeType?.name,
+                    excludeId = excludeId
+                )
+                deviceDBService.saveJob(job)
+                return result.sha256
+            }
+            is BackendApiService.ProcessingResult.Error -> {
+                // Job failed
+                val job = JobEntity(
+                    id = jobId,
+                    clientId = clientId,
+                    type = "doc",
+                    sha256 = "",
+                    status = "error",
+                    createdAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis(),
+                    result = null,
+                    errorDetail = result.message,
+                    excludeType = excludeType?.name,
+                    excludeId = excludeId
+                )
+                deviceDBService.saveJob(job)
+                throw Exception("Job submission failed: ${result.message}")
+            }
+        }
+    }
+
+    suspend fun submitFormJob(
+        images: List<Bitmap>,
+        excludeType: FileType? = null,
+        excludeId: String? = null
+    ): String {
+        val jobId = UUID.randomUUID().toString()
+        val clientId = UUID.randomUUID().toString()
+        
+        // Get file library JSON (excluding specified file if needed)
+        val fileLibJson = if (excludeType != null && excludeId != null) {
+            exportDatabaseToJson(excludeType, excludeId)
+        } else {
+            exportDatabaseToJson(FileType.FORM, "") // Export all
+        }
+        
+        // Submit job to backend
+        val result = backendApiService.submitJob(
+            type = "form",
+            images = images,
+            excludeType = excludeType,
+            excludeId = excludeId,
+            fileLibJson = fileLibJson
+        )
+        
+        when (result) {
+            is BackendApiService.ProcessingResult.Processing -> {
+                // Save job to database for polling
+                val job = JobEntity(
+                    id = jobId,
+                    clientId = clientId,
+                    type = "form",
+                    sha256 = result.sha256,
+                    status = "pending",
+                    createdAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis(),
+                    result = null,
+                    errorDetail = null,
+                    excludeType = excludeType?.name,
+                    excludeId = excludeId
+                )
+                deviceDBService.saveJob(job)
+                return result.sha256
+            }
+            is BackendApiService.ProcessingResult.Success -> {
+                // Job completed immediately
+                val job = JobEntity(
+                    id = jobId,
+                    clientId = clientId,
+                    type = "form",
+                    sha256 = result.sha256,
+                    status = "completed",
+                    createdAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis(),
+                    result = result.result,
+                    errorDetail = null,
+                    excludeType = excludeType?.name,
+                    excludeId = excludeId
+                )
+                deviceDBService.saveJob(job)
+                return result.sha256
+            }
+            is BackendApiService.ProcessingResult.Error -> {
+                // Job failed
+                val job = JobEntity(
+                    id = jobId,
+                    clientId = clientId,
+                    type = "form",
+                    sha256 = "",
+                    status = "error",
+                    createdAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis(),
+                    result = null,
+                    errorDetail = result.message,
+                    excludeType = excludeType?.name,
+                    excludeId = excludeId
+                )
+                deviceDBService.saveJob(job)
+                throw Exception("Job submission failed: ${result.message}")
+            }
+        }
+    }
+
+    suspend fun submitFillJob(
+        formData: Map<String, Any>,
+        excludeType: FileType? = null,
+        excludeId: String? = null
+    ): String {
+        val jobId = UUID.randomUUID().toString()
+        val clientId = UUID.randomUUID().toString()
+        
+        // Get file library JSON (excluding specified file if needed)
+        val fileLibJson = if (excludeType != null && excludeId != null) {
+            exportDatabaseToJson(excludeType, excludeId)
+        } else {
+            exportDatabaseToJson(FileType.FORM, "") // Export all
+        }
+        
+        // Submit job to backend
+        val result = backendApiService.submitJob(
+            type = "fill",
+            formData = formData,
+            excludeType = excludeType,
+            excludeId = excludeId,
+            fileLibJson = fileLibJson
+        )
+        
+        when (result) {
+            is BackendApiService.ProcessingResult.Processing -> {
+                // Save job to database for polling
+                val job = JobEntity(
+                    id = jobId,
+                    clientId = clientId,
+                    type = "fill",
+                    sha256 = result.sha256,
+                    status = "pending",
+                    createdAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis(),
+                    result = null,
+                    errorDetail = null,
+                    excludeType = excludeType?.name,
+                    excludeId = excludeId
+                )
+                deviceDBService.saveJob(job)
+                return result.sha256
+            }
+            is BackendApiService.ProcessingResult.Success -> {
+                // Job completed immediately
+                val job = JobEntity(
+                    id = jobId,
+                    clientId = clientId,
+                    type = "fill",
+                    sha256 = result.sha256,
+                    status = "completed",
+                    createdAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis(),
+                    result = result.result,
+                    errorDetail = null,
+                    excludeType = excludeType?.name,
+                    excludeId = excludeId
+                )
+                deviceDBService.saveJob(job)
+                return result.sha256
+            }
+            is BackendApiService.ProcessingResult.Error -> {
+                // Job failed
+                val job = JobEntity(
+                    id = jobId,
+                    clientId = clientId,
+                    type = "fill",
+                    sha256 = "",
+                    status = "error",
+                    createdAt = System.currentTimeMillis(),
+                    updatedAt = System.currentTimeMillis(),
+                    result = null,
+                    errorDetail = result.message,
+                    excludeType = excludeType?.name,
+                    excludeId = excludeId
+                )
+                deviceDBService.saveJob(job)
+                throw Exception("Job submission failed: ${result.message}")
+            }
+        }
+    }
+
+    suspend fun getJobStatus(sha256: String): JobEntity? {
+        return deviceDBService.getJobBySha256(sha256)
+    }
+
+    suspend fun getAllJobs(): List<JobEntity> {
+        return deviceDBService.getAllJobs()
     }
 }
