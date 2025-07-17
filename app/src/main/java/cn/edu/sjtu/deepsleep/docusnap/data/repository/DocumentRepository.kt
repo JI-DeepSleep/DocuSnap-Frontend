@@ -1,7 +1,9 @@
 
+
 package cn.edu.sjtu.deepsleep.docusnap.data.repository
 
 import cn.edu.sjtu.deepsleep.docusnap.data.Document
+import cn.edu.sjtu.deepsleep.docusnap.data.FileType
 import cn.edu.sjtu.deepsleep.docusnap.data.Form
 import cn.edu.sjtu.deepsleep.docusnap.data.FormField
 import cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity
@@ -225,6 +227,38 @@ class DocumentRepository(
             map[key] = getString(key)
         }
         return map
+    }
+
+    suspend fun exportDatabaseToJson(excludeType: FileType, excludeId: String): String {
+        val docs = getAllDocuments().filterNot { excludeType == FileType.DOCUMENT && it.id == excludeId }
+        val forms = getAllForms().filterNot { excludeType == FileType.FORM && it.id == excludeId }
+
+        val docJsonList = docs.map { doc ->
+            mapOf(
+                "id" to doc.id,
+                "title" to doc.name,
+                "tag" to doc.tags,
+                "description" to doc.description,
+                "kv" to doc.extractedInfo,
+                "import date" to doc.uploadDate
+            )
+        }
+        val formJsonList = forms.map { form ->
+            mapOf(
+                "id" to form.id,
+                "title" to form.name,
+                "tag" to form.tags,
+                "description" to form.description,
+                "kv" to form.extractedInfo,
+                "fields" to form.formFields,
+                "import date" to form.uploadDate
+            )
+        }
+        val result = mapOf(
+            "doc" to docJsonList,
+            "form" to formJsonList
+        )
+        return Json.encodeToString(result)
     }
     
     // Development helper: Add test data to database
