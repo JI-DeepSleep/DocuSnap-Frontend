@@ -31,7 +31,7 @@ fun HomeScreen(
             .fillMaxSize()
             .padding(16.dp)
             .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally
+//        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // App Title with Settings Icon
         Row(
@@ -39,7 +39,7 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Spacer(modifier = Modifier.width(48.dp)) // Balance the settings icon
+//            Spacer(modifier = Modifier.width(48.dp)) // Balance the settings icon
             Text(
                 text = "DocuSnap",
                 fontSize = 28.sp,
