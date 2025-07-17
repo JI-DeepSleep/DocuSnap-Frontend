@@ -1,10 +1,8 @@
 package cn.edu.sjtu.deepsleep.docusnap.data.model
 
-import Document
-import RelatedResource
 import androidx.room.TypeConverter
+import cn.edu.sjtu.deepsleep.docusnap.data.Document
 import cn.edu.sjtu.deepsleep.docusnap.data.local.DocumentEntity
-
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -29,37 +27,27 @@ class Converters {
     fun toStringMap(value: String): Map<String, String> {
         return Json.decodeFromString(value)
     }
-
-    @TypeConverter
-    fun fromRelatedResourceList(value: List<RelatedResource>): String {
-        return Json.encodeToString(value)
-    }
-
-    @TypeConverter
-    fun toRelatedResourceList(value: String): List<RelatedResource> {
-        return Json.decodeFromString(value)
-    }
 }
 
 // Extension functions for model conversion
 fun DocumentEntity.toModel(): Document = Document(
     id = id,
-    title = title,
-    tags = Json.decodeFromString(tags),
+    name = title, // Map title to name
     description = description,
-    kv = Json.decodeFromString(kv),
-    related = Json.decodeFromString(related),
-    sha256 = sha256,
-    isProcessed = isProcessed
+    imageUris = emptyList(), // Default empty list for now
+    extractedInfo = Json.decodeFromString(kv), // Map kv to extractedInfo
+    tags = Json.decodeFromString(tags),
+    uploadDate = "2024-01-15", // Default date
+    relatedFileIds = emptyList() // Default empty list for now
 )
 
 fun Document.toEntity(): DocumentEntity = DocumentEntity(
     id = id,
-    title = title,
+    title = name, // Map name to title
     tags = Json.encodeToString(tags),
     description = description,
-    kv = Json.encodeToString(kv),
-    related = Json.encodeToString(related),
-    sha256 = sha256,
-    isProcessed = isProcessed
+    kv = Json.encodeToString(extractedInfo), // Map extractedInfo to kv
+    related = "[]", // Default empty JSON array
+    sha256 = "", // Default empty string
+    isProcessed = false
 )

@@ -2,6 +2,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("kotlin-kapt")
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -79,7 +81,10 @@ dependencies {
     // HTTP Client for API calls
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
-    // SharedPreferences for settings persistence (built into Android)
+    // Room Database
+    implementation("androidx.room:room-runtime:2.7.2")
+    implementation("androidx.room:room-ktx:2.7.2")
+    kapt("androidx.room:room-compiler:2.7.2")
 
     implementation(libs.androidx.room.common.jvm)
     implementation(libs.androidx.room.runtime.android)

@@ -4,6 +4,7 @@ import androidx.room.Room
 import cn.edu.sjtu.deepsleep.docusnap.data.local.AppDatabase
 import cn.edu.sjtu.deepsleep.docusnap.data.local.DocumentEntity
 import cn.edu.sjtu.deepsleep.docusnap.data.local.FormEntity
+import cn.edu.sjtu.deepsleep.docusnap.data.FormField
 
 import kotlinx.coroutines.flow.first
 import org.json.JSONObject
@@ -15,28 +16,43 @@ import kotlinx.serialization.json.Json
 
 class DeviceDBService(private val context: Context) {
     private val db: AppDatabase by lazy {
-        Room.databaseBuilder(
-            context.applicationContext,
-            AppDatabase::class.java,
-            "docusnap.db"
-        ).build()
+        android.util.Log.d("DeviceDBService", "Initializing Room database...")
+        try {
+            Room.databaseBuilder(
+                context.applicationContext,
+                AppDatabase::class.java,
+                "docusnap.db"
+            ).build().also {
+                android.util.Log.d("DeviceDBService", "Room database initialized successfully")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("DeviceDBService", "Error initializing database: ${e.message}", e)
+            throw e
+        }
     }
     private val documentDao get() = db.documentDao()
     private val formDao get() = db.formDao()
 
     // Document storage operations
     suspend fun saveDocument(documentId: String, data: JSONObject) {
-        val entity = DocumentEntity(
-            id = documentId,
-            title = data.optString("title"),
-            tags = data.optJSONArray("tags")?.toString() ?: "[]",
-            description = data.optString("description"),
-            kv = data.optJSONObject("kv")?.toString() ?: "{}",
-            related = data.optJSONArray("related")?.toString() ?: "[]",
-            sha256 = data.optString("sha256"),
-            isProcessed = data.optBoolean("isProcessed", false)
-        )
-        documentDao.insert(entity)
+        android.util.Log.d("DeviceDBService", "Saving document: $documentId")
+        try {
+            val entity = DocumentEntity(
+                id = documentId,
+                title = data.optString("title"),
+                tags = data.optJSONArray("tags")?.toString() ?: "[]",
+                description = data.optString("description"),
+                kv = data.optJSONObject("kv")?.toString() ?: "{}",
+                related = data.optJSONArray("related")?.toString() ?: "[]",
+                sha256 = data.optString("sha256"),
+                isProcessed = data.optBoolean("isProcessed", false)
+            )
+            documentDao.insert(entity)
+            android.util.Log.d("DeviceDBService", "Document saved successfully: $documentId")
+        } catch (e: Exception) {
+            android.util.Log.e("DeviceDBService", "Error saving document: ${e.message}", e)
+            throw e
+        }
     }
 
     suspend fun getDocument(documentId: String): JSONObject? {
@@ -47,7 +63,7 @@ class DeviceDBService(private val context: Context) {
             put("tags", Json.decodeFromString<List<String>>(entity.tags))
             put("description", entity.description)
             put("kv", JSONObject(entity.kv))
-            put("related", Json.decodeFromString<List<Any>>(entity.related))
+            put("related", Json.decodeFromString<List<String>>(entity.related))
             put("sha256", entity.sha256)
             put("isProcessed", entity.isProcessed)
         }
@@ -75,7 +91,7 @@ class DeviceDBService(private val context: Context) {
                 put("tags", Json.decodeFromString<List<String>>(entity.tags))
                 put("description", entity.description)
                 put("kv", JSONObject(entity.kv))
-                put("related", Json.decodeFromString<List<Any>>(entity.related))
+                put("related", Json.decodeFromString<List<String>>(entity.related))
                 put("sha256", entity.sha256)
                 put("isProcessed", entity.isProcessed)
             }
@@ -87,34 +103,49 @@ class DeviceDBService(private val context: Context) {
     }
 
     suspend fun getDocumentGallery(): List<JSONObject> {
-        return documentDao.getAll().first().map { entity ->
-            JSONObject().apply {
-                put("id", entity.id)
-                put("title", entity.title)
-                put("tags", Json.decodeFromString<List<String>>(entity.tags))
-                put("description", entity.description)
-                put("kv", JSONObject(entity.kv))
-                put("related", Json.decodeFromString<List<Any>>(entity.related))
-                put("sha256", entity.sha256)
-                put("isProcessed", entity.isProcessed)
+        android.util.Log.d("DeviceDBService", "Getting document gallery...")
+        try {
+            val entities = documentDao.getAll().first()
+            android.util.Log.d("DeviceDBService", "Found ${entities.size} documents in database")
+            return entities.map { entity ->
+                JSONObject().apply {
+                    put("id", entity.id)
+                    put("title", entity.title)
+                    put("tags", Json.decodeFromString<List<String>>(entity.tags))
+                    put("description", entity.description)
+                    put("kv", JSONObject(entity.kv))
+                    put("related", Json.decodeFromString<List<String>>(entity.related))
+                    put("sha256", entity.sha256)
+                    put("isProcessed", entity.isProcessed)
+                }
             }
+        } catch (e: Exception) {
+            android.util.Log.e("DeviceDBService", "Error getting document gallery: ${e.message}", e)
+            throw e
         }
     }
 
     // Form data storage operations
     suspend fun saveForm(formId: String, data: JSONObject) {
-        val entity = FormEntity(
-            id = formId,
-            title = data.optString("title"),
-            tags = data.optJSONArray("tags")?.toString() ?: "[]",
-            description = data.optString("description"),
-            kv = data.optJSONObject("kv")?.toString() ?: "{}",
-            fields = data.optJSONArray("fields")?.toString() ?: "[]",
-            related = data.optJSONArray("related")?.toString() ?: "[]",
-            sha256 = data.optString("sha256"),
-            isProcessed = data.optBoolean("isProcessed", false)
-        )
-        formDao.insert(entity)
+        android.util.Log.d("DeviceDBService", "Saving form: $formId")
+        try {
+            val entity = FormEntity(
+                id = formId,
+                title = data.optString("title"),
+                tags = data.optJSONArray("tags")?.toString() ?: "[]",
+                description = data.optString("description"),
+                kv = data.optJSONObject("kv")?.toString() ?: "{}",
+                fields = data.optJSONArray("fields")?.toString() ?: "[]",
+                related = data.optJSONArray("related")?.toString() ?: "[]",
+                sha256 = data.optString("sha256"),
+                isProcessed = data.optBoolean("isProcessed", false)
+            )
+            formDao.insert(entity)
+            android.util.Log.d("DeviceDBService", "Form saved successfully: $formId")
+        } catch (e: Exception) {
+            android.util.Log.e("DeviceDBService", "Error saving form: ${e.message}", e)
+            throw e
+        }
     }
 
     suspend fun getForm(formId: String): JSONObject? {
@@ -125,8 +156,8 @@ class DeviceDBService(private val context: Context) {
             put("tags", Json.decodeFromString<List<String>>(entity.tags))
             put("description", entity.description)
             put("kv", JSONObject(entity.kv))
-            put("fields", Json.decodeFromString<List<Any>>(entity.fields))
-            put("related", Json.decodeFromString<List<Any>>(entity.related))
+            put("fields", Json.decodeFromString<List<FormField>>(entity.fields))
+            put("related", Json.decodeFromString<List<String>>(entity.related))
             put("sha256", entity.sha256)
             put("isProcessed", entity.isProcessed)
         }
@@ -155,8 +186,8 @@ class DeviceDBService(private val context: Context) {
                 put("tags", Json.decodeFromString<List<String>>(entity.tags))
                 put("description", entity.description)
                 put("kv", JSONObject(entity.kv))
-                put("fields", Json.decodeFromString<List<Any>>(entity.fields))
-                put("related", Json.decodeFromString<List<Any>>(entity.related))
+                put("fields", Json.decodeFromString<List<FormField>>(entity.fields))
+                put("related", Json.decodeFromString<List<String>>(entity.related))
                 put("sha256", entity.sha256)
                 put("isProcessed", entity.isProcessed)
             }
@@ -175,8 +206,8 @@ class DeviceDBService(private val context: Context) {
                 put("tags", Json.decodeFromString<List<String>>(entity.tags))
                 put("description", entity.description)
                 put("kv", JSONObject(entity.kv))
-                put("fields", Json.decodeFromString<List<Any>>(entity.fields))
-                put("related", Json.decodeFromString<List<Any>>(entity.related))
+                put("fields", Json.decodeFromString<List<FormField>>(entity.fields))
+                put("related", Json.decodeFromString<List<String>>(entity.related))
                 put("sha256", entity.sha256)
                 put("isProcessed", entity.isProcessed)
             }
@@ -194,7 +225,7 @@ class DeviceDBService(private val context: Context) {
                 put("tags", Json.decodeFromString<List<String>>(entity.tags))
                 put("description", entity.description)
                 put("kv", JSONObject(entity.kv))
-                put("related", Json.decodeFromString<List<Any>>(entity.related))
+                put("related", Json.decodeFromString<List<String>>(entity.related))
                 put("sha256", entity.sha256)
                 put("isProcessed", entity.isProcessed)
             }
@@ -206,8 +237,8 @@ class DeviceDBService(private val context: Context) {
                 put("tags", Json.decodeFromString<List<String>>(entity.tags))
                 put("description", entity.description)
                 put("kv", JSONObject(entity.kv))
-                put("fields", Json.decodeFromString<List<Any>>(entity.fields))
-                put("related", Json.decodeFromString<List<Any>>(entity.related))
+                put("fields", Json.decodeFromString<List<FormField>>(entity.fields))
+                put("related", Json.decodeFromString<List<String>>(entity.related))
                 put("sha256", entity.sha256)
                 put("isProcessed", entity.isProcessed)
             }

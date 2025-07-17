@@ -3,6 +3,7 @@ package cn.edu.sjtu.deepsleep.docusnap.data.repository
 
 import cn.edu.sjtu.deepsleep.docusnap.data.Document
 import cn.edu.sjtu.deepsleep.docusnap.data.Form
+import cn.edu.sjtu.deepsleep.docusnap.data.FormField
 import cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity
 import cn.edu.sjtu.deepsleep.docusnap.data.TextInfo
 import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
@@ -18,22 +19,32 @@ class DocumentRepository(
 ) {
     // Document operations
     suspend fun getAllDocuments(): List<Document> {
-        val jsonList = deviceDBService.getDocumentGallery()
-        return jsonList.mapNotNull { json ->
-            try {
-                Document(
-                    id = json.getString("id"),
-                    name = json.getString("title"),
-                    description = json.getString("description"),
-                    imageUris = emptyList(), // TODO: Add imageUris to database
-                    extractedInfo = json.getJSONObject("kv").toMap(),
-                    tags = Json.decodeFromString(json.getString("tags")),
-                    uploadDate = "2024-01-15", // TODO: Add uploadDate to database
-                    relatedFileIds = emptyList() // TODO: Add relatedFileIds to database
-                )
-            } catch (e: Exception) {
-                null
+        android.util.Log.d("DocumentRepository", "Getting all documents...")
+        try {
+            val jsonList = deviceDBService.getDocumentGallery()
+            android.util.Log.d("DocumentRepository", "Got ${jsonList.size} documents from service")
+            val documents = jsonList.mapNotNull { json ->
+                try {
+                    Document(
+                        id = json.getString("id"),
+                        name = json.getString("title"),
+                        description = json.getString("description"),
+                        imageUris = emptyList(), // TODO: Add imageUris to database
+                        extractedInfo = json.getJSONObject("kv").toMap(),
+                        tags = Json.decodeFromString(json.getString("tags")),
+                        uploadDate = "2024-01-15", // TODO: Add uploadDate to database
+                        relatedFileIds = emptyList() // TODO: Add relatedFileIds to database
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.e("DocumentRepository", "Error converting JSON to Document: ${e.message}", e)
+                    null
+                }
             }
+            android.util.Log.d("DocumentRepository", "Converted ${documents.size} documents successfully")
+            return documents
+        } catch (e: Exception) {
+            android.util.Log.e("DocumentRepository", "Error getting all documents: ${e.message}", e)
+            throw e
         }
     }
 
@@ -206,5 +217,57 @@ class DocumentRepository(
             map[key] = getString(key)
         }
         return map
+    }
+    
+    // Development helper: Add test data to database
+    suspend fun addTestData() {
+        android.util.Log.d("DocumentRepository", "Adding test data...")
+        try {
+            val timestamp = System.currentTimeMillis()
+            val testDocument = Document(
+                id = "test-doc-$timestamp",
+                name = "Test Document $timestamp",
+                description = "A test document for development (created at $timestamp)",
+                imageUris = emptyList(),
+                extractedInfo = mapOf(
+                    "Vendor" to "Test Company",
+                    "Date" to "2024-01-15",
+                    "Amount" to "$25.00",
+                    "Created" to timestamp.toString()
+                ),
+                tags = listOf("Test", "Development"),
+                uploadDate = "2024-01-15",
+                relatedFileIds = emptyList()
+            )
+            
+            val testForm = Form(
+                id = "test-form-$timestamp",
+                name = "Test Form $timestamp",
+                description = "A test form for development (created at $timestamp)",
+                imageUris = emptyList(),
+                formFields = listOf(
+                    FormField("Name", "John Doe", true),
+                    FormField("Email", "john@example.com", true),
+                    FormField("Created", timestamp.toString(), true)
+                ),
+                extractedInfo = mapOf(
+                    "Form Type" to "Test Form",
+                    "Status" to "Completed",
+                    "Created" to timestamp.toString()
+                ),
+                tags = listOf("Test", "Form"),
+                uploadDate = "2024-01-15",
+                relatedFileIds = emptyList()
+            )
+            
+            android.util.Log.d("DocumentRepository", "Saving test document with ID: ${testDocument.id}")
+            saveDocument(testDocument)
+            android.util.Log.d("DocumentRepository", "Saving test form with ID: ${testForm.id}")
+            saveForm(testForm)
+            android.util.Log.d("DocumentRepository", "Test data added successfully!")
+        } catch (e: Exception) {
+            android.util.Log.e("DocumentRepository", "Error adding test data: ${e.message}", e)
+            throw e
+        }
     }
 }
