@@ -1,10 +1,9 @@
 package cn.edu.sjtu.deepsleep.docusnap.service
-
-import AppDatabase
-import DocumentEntity
-import FormEntity
 import android.content.Context
 import androidx.room.Room
+import cn.edu.sjtu.deepsleep.docusnap.data.local.AppDatabase
+import cn.edu.sjtu.deepsleep.docusnap.data.local.DocumentEntity
+import cn.edu.sjtu.deepsleep.docusnap.data.local.FormEntity
 
 import kotlinx.coroutines.flow.first
 import org.json.JSONObject

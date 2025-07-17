@@ -1,63 +1,210 @@
 
-import cn.edu.sjtu.deepsleep.docusnap.data.local.DocumentDao
-import cn.edu.sjtu.deepsleep.docusnap.data.remote.ProcessRequest
-import cn.edu.sjtu.deepsleep.docusnap.data.remote.ProcessResponse
-import cn.edu.sjtu.deepsleep.docusnap.util.CryptoUtil
-import cn.edu.sjtu.deepsleep.docusnap.util.JsonUtil
+package cn.edu.sjtu.deepsleep.docusnap.data.repository
+
+import cn.edu.sjtu.deepsleep.docusnap.data.Document
+import cn.edu.sjtu.deepsleep.docusnap.data.Form
+import cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity
+import cn.edu.sjtu.deepsleep.docusnap.data.TextInfo
+import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import org.json.JSONObject
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 
 class DocumentRepository(
-    private val documentDao: DocumentDao,
-    private val apiService: ApiService,
-    // You may inject these utils if using DI
-    private val jsonUtil: JsonUtil,         // JSON (de)serialization
-    private val cryptoUtil: CryptoUtil      // Encryption/AES/SHA256
+    private val deviceDBService: DeviceDBService
 ) {
-    fun getAllDocuments(): Flow<List<Document>> =
-        documentDao.getAll().map { entities -> entities.map { it.toModel() } }
-
-    suspend fun getDocument(id: String): Document? =
-        documentDao.getById(id)?.toModel()
-
-    suspend fun addDocument(doc: Document) {
-        documentDao.insert(doc.toEntity())
+    // Document operations
+    suspend fun getAllDocuments(): List<Document> {
+        val jsonList = deviceDBService.getDocumentGallery()
+        return jsonList.mapNotNull { json ->
+            try {
+                Document(
+                    id = json.getString("id"),
+                    name = json.getString("title"),
+                    description = json.getString("description"),
+                    imageUris = emptyList(), // TODO: Add imageUris to database
+                    extractedInfo = json.getJSONObject("kv").toMap(),
+                    tags = Json.decodeFromString(json.getString("tags")),
+                    uploadDate = "2024-01-15", // TODO: Add uploadDate to database
+                    relatedFileIds = emptyList() // TODO: Add relatedFileIds to database
+                )
+            } catch (e: Exception) {
+                null
+            }
+        }
     }
 
-    suspend fun processDocument(document: Document): Document {
-        // (1) Serialize Document to JSON
-        val documentJson = jsonUtil.toJson(document, Document::class.java)
-        // (2) Encrypt and encode as per backend contract
-        val (encryptedContent, aesKey) = cryptoUtil.encryptAndEncode(documentJson)
-        val sha256 = cryptoUtil.sha256(documentJson)
-
-        // (3) Build ProcessRequest
-        val request = ProcessRequest(
-            clientId = "your-client-id", // supply actual client id
-            type = "doc",
-            sha256 = sha256,
-            hasContent = true,
-            content = encryptedContent,
-            aesKey = aesKey
-        )
-
-        // (4) Call backend (mocked or real)
-        val response: ProcessResponse = apiService.processDocument(request)
-
-        // (5) Handle backend response
-        if (response.status == "completed" && response.result != null) {
-            // Decrypt and parse result JSON to Document
-            val resultJson = cryptoUtil.decryptAndDecode(response.result, aesKey)
-            val processedDoc = jsonUtil.fromJson(resultJson, Document::class.java)
-            if (processedDoc != null) {
-                documentDao.insert(processedDoc.copy(isProcessed = true).toEntity())
-                return processedDoc.copy(isProcessed = true)
-            } else {
-                throw Exception("Failed to parse processed document from backend result")
-            }
-        } else {
-            // Optionally handle "processing" or "error" status
-            throw Exception("Processing not completed or failed: ${response.errorDetail}")
+    suspend fun getDocument(id: String): Document? {
+        val json = deviceDBService.getDocument(id) ?: return null
+        return try {
+            Document(
+                id = json.getString("id"),
+                name = json.getString("title"),
+                description = json.getString("description"),
+                imageUris = emptyList(), // TODO: Add imageUris to database
+                extractedInfo = json.getJSONObject("kv").toMap(),
+                tags = Json.decodeFromString(json.getString("tags")),
+                uploadDate = "2024-01-15", // TODO: Add uploadDate to database
+                relatedFileIds = emptyList() // TODO: Add relatedFileIds to database
+            )
+        } catch (e: Exception) {
+            null
         }
+    }
+
+    suspend fun saveDocument(document: Document) {
+        val json = JSONObject().apply {
+            put("title", document.name)
+            put("description", document.description)
+            put("tags", Json.encodeToString(document.tags))
+            put("kv", JSONObject(document.extractedInfo))
+            put("related", org.json.JSONArray())              // Empty JSON array
+            put("sha256",  "")              // Avoid null ambiguity
+            put("isProcessed", document.extractedInfo.isNotEmpty())
+        }
+        deviceDBService.saveDocument(document.id, json)
+    }
+
+    suspend fun updateDocument(document: Document) {
+        val json = JSONObject().apply {
+            put("title", document.name)
+            put("description", document.description)
+            put("tags", Json.encodeToString(document.tags))  // Assuming tags is List<String>
+            put("kv", JSONObject(document.extractedInfo))     // Assuming extractedInfo is JSON string
+            put("related", org.json.JSONArray())              // Empty JSON array
+            put("sha256",  "")              // Avoid null ambiguity
+            put("isProcessed", document.extractedInfo.isNotEmpty())
+        }
+        deviceDBService.updateDocument(document.id, json)
+    }
+
+    suspend fun deleteDocuments(documentIds: List<String>) {
+        deviceDBService.deleteDocuments(documentIds)
+    }
+
+    // Form operations
+    suspend fun getAllForms(): List<Form> {
+        val jsonList = deviceDBService.getFormGallery()
+        return jsonList.mapNotNull { json ->
+            try {
+                Form(
+                    id = json.getString("id"),
+                    name = json.getString("title"),
+                    description = json.getString("description"),
+                    imageUris = emptyList(), // TODO: Add imageUris to database
+                    formFields = emptyList(), // TODO: Add formFields to database
+                    extractedInfo = json.getJSONObject("kv").toMap(),
+                    tags = Json.decodeFromString(json.getString("tags")),
+                    uploadDate = "2024-01-15", // TODO: Add uploadDate to database
+                    relatedFileIds = emptyList() // TODO: Add relatedFileIds to database
+                )
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
+    suspend fun getForm(id: String): Form? {
+        val json = deviceDBService.getForm(id) ?: return null
+        return try {
+            Form(
+                id = json.getString("id"),
+                name = json.getString("title"),
+                description = json.getString("description"),
+                imageUris = emptyList(), // TODO: Add imageUris to database
+                formFields = emptyList(), // TODO: Add formFields to database
+                extractedInfo = json.getJSONObject("kv").toMap(),
+                tags = Json.decodeFromString(json.getString("tags")),
+                uploadDate = "2024-01-15", // TODO: Add uploadDate to database
+                relatedFileIds = emptyList() // TODO: Add relatedFileIds to database
+            )
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    suspend fun saveForm(form: Form) {
+        val json = JSONObject().apply {
+            put("title", form.name)
+            put("description", form.description)
+            put("tags", Json.encodeToString(form.tags))
+            put("kv", JSONObject(form.extractedInfo))
+            put("fields", Json.encodeToString(form.formFields))
+            put("related", org.json.JSONArray())              // Empty JSON array
+            put("sha256", "")              // Avoid null ambiguity
+            put("isProcessed", form.extractedInfo.isNotEmpty())
+        }
+        deviceDBService.saveForm(form.id, json)
+    }
+
+    suspend fun updateForm(form: Form) {
+        val json = JSONObject().apply {
+            put("title", form.name)
+            put("description", form.description)
+            put("tags", Json.encodeToString(form.tags))
+            put("kv", JSONObject(form.extractedInfo))
+            put("fields", Json.encodeToString(form.formFields))
+            put("related", org.json.JSONArray())              // Empty JSON array
+            put("sha256",  "")              // Avoid null ambiguity
+            put("isProcessed", form.extractedInfo.isNotEmpty())
+        }
+        deviceDBService.updateForm(form.id, json)
+    }
+
+    suspend fun deleteForms(formIds: List<String>) {
+        deviceDBService.deleteForms(formIds)
+    }
+
+    // Search operations
+    suspend fun searchByQuery(query: String): List<SearchEntity> {
+        val jsonList = deviceDBService.searchByQuery(query)
+        return jsonList.mapNotNull { json ->
+            try {
+                // For now, return DocumentEntity - you can enhance this to distinguish between docs and forms
+                val document = Document(
+                    id = json.getString("id"),
+                    name = json.getString("title"),
+                    description = json.getString("description"),
+                    imageUris = emptyList(),
+                    extractedInfo = json.getJSONObject("kv").toMap(),
+                    tags = Json.decodeFromString(json.getString("tags")),
+                    uploadDate = "2024-01-15",
+                    relatedFileIds = emptyList()
+                )
+                SearchEntity.DocumentEntity(document, 10.0F)
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
+    suspend fun getFrequentTextInfo(): List<TextInfo> {
+        val jsonList = deviceDBService.getFrequentTextInfo()
+        return jsonList.mapNotNull { json ->
+            try {
+                TextInfo(
+                    key = json.getString("key"),
+                    value = json.getString("value"),
+                    category = json.getString("category"),
+                    srcFileId = json.getString("srcFileId"),
+                    usageCount = json.getInt("usageCount"),
+                    lastUsed = json.getString("lastUsed")
+                )
+            } catch (e: Exception) {
+                null
+            }
+        }
+    }
+
+    // Helper function to convert JSONObject to Map
+    private fun JSONObject.toMap(): Map<String, String> {
+        val map = mutableMapOf<String, String>()
+        for (key in keys()) {
+            map[key] = getString(key)
+        }
+        return map
     }
 }

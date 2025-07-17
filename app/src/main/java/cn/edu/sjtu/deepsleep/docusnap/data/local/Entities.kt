@@ -1,3 +1,5 @@
+package cn.edu.sjtu.deepsleep.docusnap.data.local
+
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 

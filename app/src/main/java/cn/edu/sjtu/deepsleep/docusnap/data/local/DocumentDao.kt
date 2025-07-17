@@ -1,6 +1,5 @@
 package cn.edu.sjtu.deepsleep.docusnap.data.local
 
-import DocumentEntity
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
