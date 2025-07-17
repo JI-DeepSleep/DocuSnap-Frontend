@@ -2,7 +2,10 @@ package cn.edu.sjtu.deepsleep.docusnap.data.model
 
 import androidx.room.TypeConverter
 import cn.edu.sjtu.deepsleep.docusnap.data.Document
+import cn.edu.sjtu.deepsleep.docusnap.data.Form
 import cn.edu.sjtu.deepsleep.docusnap.data.local.DocumentEntity
+import cn.edu.sjtu.deepsleep.docusnap.data.FormField
+import cn.edu.sjtu.deepsleep.docusnap.data.local.FormEntity
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -27,27 +30,61 @@ class Converters {
     fun toStringMap(value: String): Map<String, String> {
         return Json.decodeFromString(value)
     }
+
+    @TypeConverter
+    fun fromFormFieldList(value: List<FormField>): String = Json.encodeToString(value)
+
+    @TypeConverter
+    fun toFormFieldList(value: String): List<FormField> = Json.decodeFromString(value)
 }
 
 // Extension functions for model conversion
 fun DocumentEntity.toModel(): Document = Document(
     id = id,
-    name = title, // Map title to name
+    name = name,
     description = description,
-    imageUris = emptyList(), // Default empty list for now
-    extractedInfo = Json.decodeFromString(kv), // Map kv to extractedInfo
+    imageUris = Json.decodeFromString(imageUris),
+    extractedInfo = Json.decodeFromString(extractedInfo),
     tags = Json.decodeFromString(tags),
-    uploadDate = "2024-01-15", // Default date
-    relatedFileIds = emptyList() // Default empty list for now
+    uploadDate = uploadDate,
+    relatedFileIds = Json.decodeFromString(relatedFileIds)
 )
 
 fun Document.toEntity(): DocumentEntity = DocumentEntity(
     id = id,
-    title = name, // Map name to title
-    tags = Json.encodeToString(tags),
+    name = name,
     description = description,
-    kv = Json.encodeToString(extractedInfo), // Map extractedInfo to kv
-    related = "[]", // Default empty JSON array
-    sha256 = "", // Default empty string
+    imageUris = Json.encodeToString(imageUris),
+    extractedInfo = Json.encodeToString(extractedInfo),
+    tags = Json.encodeToString(tags),
+    uploadDate = uploadDate,
+    relatedFileIds = Json.encodeToString(relatedFileIds),
+    sha256 = null,
+    isProcessed = false
+)
+
+fun FormEntity.toModel(): Form = Form(
+    id = id,
+    name = name,
+    description = description,
+    imageUris = Json.decodeFromString(imageUris),
+    formFields = Json.decodeFromString(formFields),
+    extractedInfo = Json.decodeFromString(extractedInfo),
+    tags = Json.decodeFromString(tags),
+    uploadDate = uploadDate,
+    relatedFileIds = Json.decodeFromString(relatedFileIds)
+)
+
+fun Form.toEntity(): FormEntity = FormEntity(
+    id = id,
+    name = name,
+    description = description,
+    imageUris = Json.encodeToString(imageUris),
+    formFields = Json.encodeToString(formFields),
+    extractedInfo = Json.encodeToString(extractedInfo),
+    tags = Json.encodeToString(tags),
+    uploadDate = uploadDate,
+    relatedFileIds = Json.encodeToString(relatedFileIds),
+    sha256 = null,
     isProcessed = false
 )

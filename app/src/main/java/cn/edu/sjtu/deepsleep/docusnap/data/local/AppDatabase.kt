@@ -5,7 +5,7 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 import cn.edu.sjtu.deepsleep.docusnap.data.model.Converters
 
-@Database(entities = [DocumentEntity::class, FormEntity::class], version = 1)
+@Database(entities = [DocumentEntity::class, FormEntity::class], version = 2)
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun documentDao(): DocumentDao

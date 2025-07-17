@@ -27,13 +27,13 @@ class DocumentRepository(
                 try {
                     Document(
                         id = json.getString("id"),
-                        name = json.getString("title"),
+                        name = json.getString("name"),
                         description = json.getString("description"),
-                        imageUris = emptyList(), // TODO: Add imageUris to database
-                        extractedInfo = json.getJSONObject("kv").toMap(),
+                        imageUris = Json.decodeFromString(json.getString("imageUris")),
+                        extractedInfo = json.getJSONObject("extractedInfo").toMap(),
                         tags = Json.decodeFromString(json.getString("tags")),
-                        uploadDate = "2024-01-15", // TODO: Add uploadDate to database
-                        relatedFileIds = emptyList() // TODO: Add relatedFileIds to database
+                        uploadDate = json.getString("uploadDate"),
+                        relatedFileIds = Json.decodeFromString(json.getString("relatedFileIds"))
                     )
                 } catch (e: Exception) {
                     android.util.Log.e("DocumentRepository", "Error converting JSON to Document: ${e.message}", e)
@@ -53,13 +53,13 @@ class DocumentRepository(
         return try {
             Document(
                 id = json.getString("id"),
-                name = json.getString("title"),
+                name = json.getString("name"),
                 description = json.getString("description"),
-                imageUris = emptyList(), // TODO: Add imageUris to database
-                extractedInfo = json.getJSONObject("kv").toMap(),
+                imageUris = Json.decodeFromString(json.getString("imageUris")),
+                extractedInfo = json.getJSONObject("extractedInfo").toMap(),
                 tags = Json.decodeFromString(json.getString("tags")),
-                uploadDate = "2024-01-15", // TODO: Add uploadDate to database
-                relatedFileIds = emptyList() // TODO: Add relatedFileIds to database
+                uploadDate = json.getString("uploadDate"),
+                relatedFileIds = Json.decodeFromString(json.getString("relatedFileIds"))
             )
         } catch (e: Exception) {
             null
@@ -68,12 +68,14 @@ class DocumentRepository(
 
     suspend fun saveDocument(document: Document) {
         val json = JSONObject().apply {
-            put("title", document.name)
+            put("name", document.name)
             put("description", document.description)
+            put("imageUris", Json.encodeToString(document.imageUris))
+            put("extractedInfo", JSONObject(document.extractedInfo))
             put("tags", Json.encodeToString(document.tags))
-            put("kv", JSONObject(document.extractedInfo))
-            put("related", org.json.JSONArray())              // Empty JSON array
-            put("sha256",  "")              // Avoid null ambiguity
+            put("uploadDate", document.uploadDate)
+            put("relatedFileIds", Json.encodeToString(document.relatedFileIds))
+            put("sha256",  "")
             put("isProcessed", document.extractedInfo.isNotEmpty())
         }
         deviceDBService.saveDocument(document.id, json)
@@ -81,12 +83,14 @@ class DocumentRepository(
 
     suspend fun updateDocument(document: Document) {
         val json = JSONObject().apply {
-            put("title", document.name)
+            put("name", document.name)
             put("description", document.description)
-            put("tags", Json.encodeToString(document.tags))  // Assuming tags is List<String>
-            put("kv", JSONObject(document.extractedInfo))     // Assuming extractedInfo is JSON string
-            put("related", org.json.JSONArray())              // Empty JSON array
-            put("sha256",  "")              // Avoid null ambiguity
+            put("imageUris", Json.encodeToString(document.imageUris))
+            put("extractedInfo", JSONObject(document.extractedInfo))
+            put("tags", Json.encodeToString(document.tags))
+            put("uploadDate", document.uploadDate)
+            put("relatedFileIds", Json.encodeToString(document.relatedFileIds))
+            put("sha256",  "")
             put("isProcessed", document.extractedInfo.isNotEmpty())
         }
         deviceDBService.updateDocument(document.id, json)
@@ -103,14 +107,14 @@ class DocumentRepository(
             try {
                 Form(
                     id = json.getString("id"),
-                    name = json.getString("title"),
+                    name = json.getString("name"),
                     description = json.getString("description"),
-                    imageUris = emptyList(), // TODO: Add imageUris to database
-                    formFields = emptyList(), // TODO: Add formFields to database
-                    extractedInfo = json.getJSONObject("kv").toMap(),
+                    imageUris = Json.decodeFromString(json.getString("imageUris")),
+                    formFields = Json.decodeFromString(json.getString("formFields")),
+                    extractedInfo = json.getJSONObject("extractedInfo").toMap(),
                     tags = Json.decodeFromString(json.getString("tags")),
-                    uploadDate = "2024-01-15", // TODO: Add uploadDate to database
-                    relatedFileIds = emptyList() // TODO: Add relatedFileIds to database
+                    uploadDate = json.getString("uploadDate"),
+                    relatedFileIds = Json.decodeFromString(json.getString("relatedFileIds"))
                 )
             } catch (e: Exception) {
                 null
@@ -123,14 +127,14 @@ class DocumentRepository(
         return try {
             Form(
                 id = json.getString("id"),
-                name = json.getString("title"),
+                name = json.getString("name"),
                 description = json.getString("description"),
-                imageUris = emptyList(), // TODO: Add imageUris to database
-                formFields = emptyList(), // TODO: Add formFields to database
-                extractedInfo = json.getJSONObject("kv").toMap(),
+                imageUris = Json.decodeFromString(json.getString("imageUris")),
+                formFields = Json.decodeFromString(json.getString("formFields")),
+                extractedInfo = json.getJSONObject("extractedInfo").toMap(),
                 tags = Json.decodeFromString(json.getString("tags")),
-                uploadDate = "2024-01-15", // TODO: Add uploadDate to database
-                relatedFileIds = emptyList() // TODO: Add relatedFileIds to database
+                uploadDate = json.getString("uploadDate"),
+                relatedFileIds = Json.decodeFromString(json.getString("relatedFileIds"))
             )
         } catch (e: Exception) {
             null
@@ -139,13 +143,15 @@ class DocumentRepository(
 
     suspend fun saveForm(form: Form) {
         val json = JSONObject().apply {
-            put("title", form.name)
+            put("name", form.name)
             put("description", form.description)
+            put("imageUris", Json.encodeToString(form.imageUris))
+            put("formFields", Json.encodeToString(form.formFields))
+            put("extractedInfo", JSONObject(form.extractedInfo))
             put("tags", Json.encodeToString(form.tags))
-            put("kv", JSONObject(form.extractedInfo))
-            put("fields", Json.encodeToString(form.formFields))
-            put("related", org.json.JSONArray())              // Empty JSON array
-            put("sha256", "")              // Avoid null ambiguity
+            put("uploadDate", form.uploadDate)
+            put("relatedFileIds", Json.encodeToString(form.relatedFileIds))
+            put("sha256", "")
             put("isProcessed", form.extractedInfo.isNotEmpty())
         }
         deviceDBService.saveForm(form.id, json)
@@ -153,13 +159,15 @@ class DocumentRepository(
 
     suspend fun updateForm(form: Form) {
         val json = JSONObject().apply {
-            put("title", form.name)
+            put("name", form.name)
             put("description", form.description)
+            put("imageUris", Json.encodeToString(form.imageUris))
+            put("formFields", Json.encodeToString(form.formFields))
+            put("extractedInfo", JSONObject(form.extractedInfo))
             put("tags", Json.encodeToString(form.tags))
-            put("kv", JSONObject(form.extractedInfo))
-            put("fields", Json.encodeToString(form.formFields))
-            put("related", org.json.JSONArray())              // Empty JSON array
-            put("sha256",  "")              // Avoid null ambiguity
+            put("uploadDate", form.uploadDate)
+            put("relatedFileIds", Json.encodeToString(form.relatedFileIds))
+            put("sha256", "")
             put("isProcessed", form.extractedInfo.isNotEmpty())
         }
         deviceDBService.updateForm(form.id, json)
@@ -177,7 +185,7 @@ class DocumentRepository(
                 // For now, return DocumentEntity - you can enhance this to distinguish between docs and forms
                 val document = Document(
                     id = json.getString("id"),
-                    name = json.getString("title"),
+                    name = json.getString("name"),
                     description = json.getString("description"),
                     imageUris = emptyList(),
                     extractedInfo = json.getJSONObject("kv").toMap(),

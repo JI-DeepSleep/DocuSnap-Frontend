@@ -22,7 +22,9 @@ class DeviceDBService(private val context: Context) {
                 context.applicationContext,
                 AppDatabase::class.java,
                 "docusnap.db"
-            ).build().also {
+            )
+            .fallbackToDestructiveMigration()
+            .build().also {
                 android.util.Log.d("DeviceDBService", "Room database initialized successfully")
             }
         } catch (e: Exception) {
@@ -39,11 +41,13 @@ class DeviceDBService(private val context: Context) {
         try {
             val entity = DocumentEntity(
                 id = documentId,
-                title = data.optString("title"),
-                tags = data.optJSONArray("tags")?.toString() ?: "[]",
+                name = data.optString("name"),
                 description = data.optString("description"),
-                kv = data.optJSONObject("kv")?.toString() ?: "{}",
-                related = data.optJSONArray("related")?.toString() ?: "[]",
+                imageUris = data.optJSONArray("imageUris")?.toString() ?: "[]",
+                extractedInfo = data.optJSONObject("extractedInfo")?.toString() ?: "{}",
+                tags = data.optJSONArray("tags")?.toString() ?: "[]",
+                uploadDate = data.optString("uploadDate"),
+                relatedFileIds = data.optJSONArray("relatedFileIds")?.toString() ?: "[]",
                 sha256 = data.optString("sha256"),
                 isProcessed = data.optBoolean("isProcessed", false)
             )
@@ -59,11 +63,13 @@ class DeviceDBService(private val context: Context) {
         val entity = documentDao.getById(documentId) ?: return null
         return JSONObject().apply {
             put("id", entity.id)
-            put("title", entity.title)
-            put("tags", Json.decodeFromString<List<String>>(entity.tags))
+            put("name", entity.name)
             put("description", entity.description)
-            put("kv", JSONObject(entity.kv))
-            put("related", Json.decodeFromString<List<String>>(entity.related))
+            put("imageUris", Json.decodeFromString<List<String>>(entity.imageUris))
+            put("extractedInfo", JSONObject(entity.extractedInfo))
+            put("tags", Json.decodeFromString<List<String>>(entity.tags))
+            put("uploadDate", entity.uploadDate)
+            put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
             put("sha256", entity.sha256)
             put("isProcessed", entity.isProcessed)
         }
@@ -72,11 +78,13 @@ class DeviceDBService(private val context: Context) {
     suspend fun updateDocument(documentId: String, updates: JSONObject) {
         val entity = documentDao.getById(documentId) ?: return
         val updated = entity.copy(
-            title = updates.optString("title", entity.title),
-            tags = updates.optJSONArray("tags")?.toString() ?: entity.tags,
+            name = updates.optString("name", entity.name),
             description = updates.optString("description", entity.description),
-            kv = updates.optJSONObject("kv")?.toString() ?: entity.kv,
-            related = updates.optJSONArray("related")?.toString() ?: entity.related,
+            imageUris = updates.optJSONArray("imageUris")?.toString() ?: entity.imageUris,
+            extractedInfo = updates.optJSONObject("extractedInfo")?.toString() ?: entity.extractedInfo,
+            tags = updates.optJSONArray("tags")?.toString() ?: entity.tags,
+            uploadDate = updates.optString("uploadDate", entity.uploadDate),
+            relatedFileIds = updates.optJSONArray("relatedFileIds")?.toString() ?: entity.relatedFileIds,
             sha256 = updates.optString("sha256", entity.sha256),
             isProcessed = updates.optBoolean("isProcessed", entity.isProcessed)
         )
@@ -87,11 +95,13 @@ class DeviceDBService(private val context: Context) {
         return documentDao.getByIds(documentIds).map { entity ->
             JSONObject().apply {
                 put("id", entity.id)
-                put("title", entity.title)
-                put("tags", Json.decodeFromString<List<String>>(entity.tags))
+                put("name", entity.name)
                 put("description", entity.description)
-                put("kv", JSONObject(entity.kv))
-                put("related", Json.decodeFromString<List<String>>(entity.related))
+                put("imageUris", Json.decodeFromString<List<String>>(entity.imageUris))
+                put("extractedInfo", JSONObject(entity.extractedInfo))
+                put("tags", Json.decodeFromString<List<String>>(entity.tags))
+                put("uploadDate", entity.uploadDate)
+                put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
                 put("sha256", entity.sha256)
                 put("isProcessed", entity.isProcessed)
             }
@@ -110,11 +120,13 @@ class DeviceDBService(private val context: Context) {
             return entities.map { entity ->
                 JSONObject().apply {
                     put("id", entity.id)
-                    put("title", entity.title)
-                    put("tags", Json.decodeFromString<List<String>>(entity.tags))
+                    put("name", entity.name)
                     put("description", entity.description)
-                    put("kv", JSONObject(entity.kv))
-                    put("related", Json.decodeFromString<List<String>>(entity.related))
+                    put("imageUris", Json.decodeFromString<List<String>>(entity.imageUris))
+                    put("extractedInfo", JSONObject(entity.extractedInfo))
+                    put("tags", Json.decodeFromString<List<String>>(entity.tags))
+                    put("uploadDate", entity.uploadDate)
+                    put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
                     put("sha256", entity.sha256)
                     put("isProcessed", entity.isProcessed)
                 }
@@ -131,12 +143,14 @@ class DeviceDBService(private val context: Context) {
         try {
             val entity = FormEntity(
                 id = formId,
-                title = data.optString("title"),
-                tags = data.optJSONArray("tags")?.toString() ?: "[]",
+                name = data.optString("name"),
                 description = data.optString("description"),
-                kv = data.optJSONObject("kv")?.toString() ?: "{}",
-                fields = data.optJSONArray("fields")?.toString() ?: "[]",
-                related = data.optJSONArray("related")?.toString() ?: "[]",
+                imageUris = data.optJSONArray("imageUris")?.toString() ?: "[]",
+                formFields = data.optJSONArray("formFields")?.toString() ?: "[]",
+                extractedInfo = data.optJSONObject("extractedInfo")?.toString() ?: "{}",
+                tags = data.optJSONArray("tags")?.toString() ?: "[]",
+                uploadDate = data.optString("uploadDate"),
+                relatedFileIds = data.optJSONArray("relatedFileIds")?.toString() ?: "[]",
                 sha256 = data.optString("sha256"),
                 isProcessed = data.optBoolean("isProcessed", false)
             )
@@ -152,12 +166,14 @@ class DeviceDBService(private val context: Context) {
         val entity = formDao.getById(formId) ?: return null
         return JSONObject().apply {
             put("id", entity.id)
-            put("title", entity.title)
-            put("tags", Json.decodeFromString<List<String>>(entity.tags))
+            put("name", entity.name)
             put("description", entity.description)
-            put("kv", JSONObject(entity.kv))
-            put("fields", Json.decodeFromString<List<FormField>>(entity.fields))
-            put("related", Json.decodeFromString<List<String>>(entity.related))
+            put("imageUris", Json.decodeFromString<List<String>>(entity.imageUris))
+            put("formFields", Json.decodeFromString<List<FormField>>(entity.formFields))
+            put("extractedInfo", JSONObject(entity.extractedInfo))
+            put("tags", Json.decodeFromString<List<String>>(entity.tags))
+            put("uploadDate", entity.uploadDate)
+            put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
             put("sha256", entity.sha256)
             put("isProcessed", entity.isProcessed)
         }
@@ -166,12 +182,14 @@ class DeviceDBService(private val context: Context) {
     suspend fun updateForm(formId: String, updates: JSONObject) {
         val entity = formDao.getById(formId) ?: return
         val updated = entity.copy(
-            title = updates.optString("title", entity.title),
-            tags = updates.optJSONArray("tags")?.toString() ?: entity.tags,
+            name = updates.optString("name", entity.name),
             description = updates.optString("description", entity.description),
-            kv = updates.optJSONObject("kv")?.toString() ?: entity.kv,
-            fields = updates.optJSONArray("fields")?.toString() ?: entity.fields,
-            related = updates.optJSONArray("related")?.toString() ?: entity.related,
+            imageUris = updates.optJSONArray("imageUris")?.toString() ?: entity.imageUris,
+            formFields = updates.optJSONArray("formFields")?.toString() ?: entity.formFields,
+            extractedInfo = updates.optJSONObject("extractedInfo")?.toString() ?: entity.extractedInfo,
+            tags = updates.optJSONArray("tags")?.toString() ?: entity.tags,
+            uploadDate = updates.optString("uploadDate", entity.uploadDate),
+            relatedFileIds = updates.optJSONArray("relatedFileIds")?.toString() ?: entity.relatedFileIds,
             sha256 = updates.optString("sha256", entity.sha256),
             isProcessed = updates.optBoolean("isProcessed", entity.isProcessed)
         )
@@ -182,12 +200,14 @@ class DeviceDBService(private val context: Context) {
         return formDao.getByIds(formIds).map { entity ->
             JSONObject().apply {
                 put("id", entity.id)
-                put("title", entity.title)
-                put("tags", Json.decodeFromString<List<String>>(entity.tags))
+                put("name", entity.name)
                 put("description", entity.description)
-                put("kv", JSONObject(entity.kv))
-                put("fields", Json.decodeFromString<List<FormField>>(entity.fields))
-                put("related", Json.decodeFromString<List<String>>(entity.related))
+                put("imageUris", Json.decodeFromString<List<String>>(entity.imageUris))
+                put("formFields", Json.decodeFromString<List<FormField>>(entity.formFields))
+                put("extractedInfo", JSONObject(entity.extractedInfo))
+                put("tags", Json.decodeFromString<List<String>>(entity.tags))
+                put("uploadDate", entity.uploadDate)
+                put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
                 put("sha256", entity.sha256)
                 put("isProcessed", entity.isProcessed)
             }
@@ -202,12 +222,14 @@ class DeviceDBService(private val context: Context) {
         return formDao.getAll().first().map { entity ->
             JSONObject().apply {
                 put("id", entity.id)
-                put("title", entity.title)
-                put("tags", Json.decodeFromString<List<String>>(entity.tags))
+                put("name", entity.name)
                 put("description", entity.description)
-                put("kv", JSONObject(entity.kv))
-                put("fields", Json.decodeFromString<List<FormField>>(entity.fields))
-                put("related", Json.decodeFromString<List<String>>(entity.related))
+                put("imageUris", Json.decodeFromString<List<String>>(entity.imageUris))
+                put("formFields", Json.decodeFromString<List<FormField>>(entity.formFields))
+                put("extractedInfo", JSONObject(entity.extractedInfo))
+                put("tags", Json.decodeFromString<List<String>>(entity.tags))
+                put("uploadDate", entity.uploadDate)
+                put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
                 put("sha256", entity.sha256)
                 put("isProcessed", entity.isProcessed)
             }
@@ -221,11 +243,13 @@ class DeviceDBService(private val context: Context) {
         val docJsons = docResults.map { entity ->
             JSONObject().apply {
                 put("id", entity.id)
-                put("title", entity.title)
-                put("tags", Json.decodeFromString<List<String>>(entity.tags))
+                put("name", entity.name)
                 put("description", entity.description)
-                put("kv", JSONObject(entity.kv))
-                put("related", Json.decodeFromString<List<String>>(entity.related))
+                put("imageUris", Json.decodeFromString<List<String>>(entity.imageUris))
+                put("extractedInfo", JSONObject(entity.extractedInfo))
+                put("tags", Json.decodeFromString<List<String>>(entity.tags))
+                put("uploadDate", entity.uploadDate)
+                put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
                 put("sha256", entity.sha256)
                 put("isProcessed", entity.isProcessed)
             }
@@ -233,12 +257,14 @@ class DeviceDBService(private val context: Context) {
         val formJsons = formResults.map { entity ->
             JSONObject().apply {
                 put("id", entity.id)
-                put("title", entity.title)
-                put("tags", Json.decodeFromString<List<String>>(entity.tags))
+                put("name", entity.name)
                 put("description", entity.description)
-                put("kv", JSONObject(entity.kv))
-                put("fields", Json.decodeFromString<List<FormField>>(entity.fields))
-                put("related", Json.decodeFromString<List<String>>(entity.related))
+                put("imageUris", Json.decodeFromString<List<String>>(entity.imageUris))
+                put("formFields", Json.decodeFromString<List<FormField>>(entity.formFields))
+                put("extractedInfo", JSONObject(entity.extractedInfo))
+                put("tags", Json.decodeFromString<List<String>>(entity.tags))
+                put("uploadDate", entity.uploadDate)
+                put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
                 put("sha256", entity.sha256)
                 put("isProcessed", entity.isProcessed)
             }
