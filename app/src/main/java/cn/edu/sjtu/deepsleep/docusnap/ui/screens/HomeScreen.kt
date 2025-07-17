@@ -74,7 +74,7 @@ fun HomeScreen(
 
         // Document Upload Section
         Text(
-            text = "Upload Document",
+            text = "Import Document",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 12.dp)
@@ -113,7 +113,7 @@ fun HomeScreen(
 
         // Form Upload Section
         Text(
-            text = "Upload Form",
+            text = "Import Form",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 12.dp)
