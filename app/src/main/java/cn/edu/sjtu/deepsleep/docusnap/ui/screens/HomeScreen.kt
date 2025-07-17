@@ -42,7 +42,7 @@ fun HomeScreen(
 //            Spacer(modifier = Modifier.width(48.dp)) // Balance the settings icon
             Text(
                 text = "DocuSnap",
-                fontSize = 28.sp,
+                fontSize = 36.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
