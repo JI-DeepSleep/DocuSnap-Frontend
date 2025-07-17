@@ -1,4 +1,5 @@
 
+import cn.edu.sjtu.deepsleep.docusnap.data.local.DocumentDao
 import cn.edu.sjtu.deepsleep.docusnap.data.remote.ProcessRequest
 import cn.edu.sjtu.deepsleep.docusnap.data.remote.ProcessResponse
 import cn.edu.sjtu.deepsleep.docusnap.util.CryptoUtil
