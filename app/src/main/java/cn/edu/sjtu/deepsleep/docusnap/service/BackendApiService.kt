@@ -120,7 +120,12 @@ class BackendApiService(private val context: Context) {
         return bytes.joinToString("") { "%02x".format(it) }
     }
 
-    // Main processing function
+    // Main processing function called by the handlers
+    // TODO: modify the main logic here. It should return on the first response it gets.
+    // TODO: If complete, good. If error, do error handling, or actually it can just pretend the user never clicked the button.
+    // TODO: Most of the cases, the response will be processing, should add this job  to the job table and let the daemon to the rest of the work.
+    // TODO: I dont think this function needs a return type, since its whole job is to submit the job to the server.
+    // TODO: If very lucky there's result (status=completed), then it should not have return values as well but just writes those results to the db.
     private suspend fun process(
         type: String,
         payload: Any
@@ -187,6 +192,15 @@ class BackendApiService(private val context: Context) {
         }
     }
 
+
+    // TODO: !!!!! IMPORTANT !!!!!! The function finger prints are not set yet.
+    // TODO: !!!!! IMPORTANT !!!!!! For example, the current processDocument is not that good
+    // TODO: !!!!! IMPORTANT !!!!!! It cannot satisfy the function that serializing db to skip the file being passed.
+    // TODO: !!!!! IMPORTANT !!!!!! You can change the arg and return type to anything make sense.
+    // TODO: !!!!! IMPORTANT !!!!!!  I would say that having an id as argument is probably the best choice.
+    //  Also, these three function handlers dont need a return type. Since they should be the sender in a async function call.
+    //  They just need to make sure that process() returns (so the job is submitted to the server).
+
     // Document Handler
     // TODO: submit job once and add job to db. Let the db polling worker do the polling job.
     suspend fun processDocument(images: List<Bitmap>): ProcessingResult {
@@ -208,9 +222,11 @@ class BackendApiService(private val context: Context) {
         return process("fill", JSONObject(formData).toMap())
     }
 
+
     // TODO: write a polling worker that runs whenever the app runs. It should check the db job table,
     // and call the api.
     // on result received should upload the db.
+    // It should be called when the app starts and it should take both latency and power saving in mind
 
 
     // Decrypt result using cached AES key
