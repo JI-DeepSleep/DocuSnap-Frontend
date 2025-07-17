@@ -56,7 +56,11 @@ fun DocumentGalleryScreen(
     ) {
         // Top Bar
         TopAppBar(
-            title = { Text("Documents") },
+            title = { Text(
+                text = "Documents",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold
+            )  },
             actions = {
                 if (isSelectionMode) {
                     // Select All text button

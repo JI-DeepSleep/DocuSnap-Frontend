@@ -44,7 +44,11 @@ fun FormGalleryScreen(
     ) {
         // Top Bar
         TopAppBar(
-            title = { Text("Forms") },
+            title = { Text(
+                text = "Forms",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Bold
+            ) },
             actions = {
                 if (isSelectionMode) {
                     // Select All text button
