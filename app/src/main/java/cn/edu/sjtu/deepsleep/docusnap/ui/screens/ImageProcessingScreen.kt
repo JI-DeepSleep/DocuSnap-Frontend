@@ -39,6 +39,11 @@ import androidx.core.content.FileProvider
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.material.icons.outlined.PhotoFilter
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.collectAsState
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
 
 @Composable
 fun ImageProcessingScreen(
@@ -47,15 +52,20 @@ fun ImageProcessingScreen(
     photoUris: String? = null, // Changed from originalImageUri to photoUris
     source: String = "document"
 ) {
-    var isProcessing by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val viewModel: ImageProcessingViewModel = viewModel(
+        factory = ImageProcessingViewModelFactory(context)
+    )
+    val uiState by viewModel.uiState.collectAsState()
+
+//    var isProcessing by remember { mutableStateOf(false) }
     var isSaving by remember { mutableStateOf(false) }
     var selectedFilter by remember { mutableStateOf("Original") }
     var showFilterToolbar by remember { mutableStateOf(false) }
     var currentImageIndex by remember { mutableStateOf(0) }
     var processedImages by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
     val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-    var processedBitmap by remember { mutableStateOf<Bitmap?>(null) }
+//    var processedBitmap by remember { mutableStateOf<Bitmap?>(null) }
 
     // Parse photoUris string into list
     val imageUris = remember(photoUris) {
@@ -80,51 +90,6 @@ fun ImageProcessingScreen(
         }
     }
 
-    // TODO: move this function to ImageProcService
-    // Image processing functions
-    // [ 用这个新函数替换旧的 processCurrentImage ]
-    fun processCurrentImage(filterType: String) {
-        if (currentImageUri == null) return
-
-        isProcessing = true
-        // [1. CHANGE] Use IO dispatcher for file operations as it can be slow.
-        scope.launch(Dispatchers.IO) {
-            val inputBitmap = uriToBitmap(context, currentImageUri)
-
-            if (inputBitmap != null) {
-                val outputBitmap = when (filterType) {
-                    "Black & White" -> applyBlackAndWhiteFilter(inputBitmap)
-                    else -> inputBitmap
-                }
-
-                // [2. ADD] Save the processed bitmap and get the new Uri.
-                val newUri = saveBitmapToCache(context, outputBitmap)
-
-                // [3. CHANGE] Switch back to the Main thread for UI and state updates.
-                launch(Dispatchers.Main) {
-                    if (newUri != null) {
-                        // [KEY CHANGE] Store the URI of the NEW, saved file.
-                        processedImages = processedImages + (currentImageIndex to newUri.toString())
-                        Log.d("ImageSaveDebug", "Map updated for index $currentImageIndex. New URI: $newUri. Map now has ${processedImages.size} items.")
-                    } else {
-                    // [ADD THIS LOG] Log an error if saving failed.
-                    // 【添加这行日志】如果保存失败，就打印一条错误日志。
-                    Log.e("ImageSaveDebug", "saveBitmapToCache failed, newUri is null!")
-                }
-
-                    // We still use processedBitmap for live preview on this screen.
-                    processedBitmap = outputBitmap
-                    selectedFilter = filterType
-                    isProcessing = false
-                }
-            } else {
-                launch(Dispatchers.Main) {
-                    isProcessing = false
-                    Toast.makeText(context, "Failed to load image", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
 
     // Function to create new document or form and navigate to it
     fun createAndNavigateToDetail() {
@@ -232,33 +197,24 @@ fun ImageProcessingScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     // Priority 1: Show a loading spinner if processing.
-                    if (isProcessing || isSaving) {
+                    if (uiState.isProcessing) {
                         CircularProgressIndicator()
-                        // Processing status
-                        if (isProcessing) {
-                            Text(
-                                text = "Processing image...",
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        } else if (isSaving) {
-                            Text(
-                                text = "Saving to gallery...",
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        }
+                        Text(
+                            text = "Processing image...",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
                     }
-                    // Priority 2: If we have a processed Bitmap, display it.
-                    else if (processedBitmap != null) {
+// Priority 2: If we have a processed Bitmap from the ViewModel, display it.
+                    else if (uiState.processedImageForPreview != null) {
                         Image(
-                            bitmap = processedBitmap!!.asImageBitmap(),
+                            bitmap = uiState.processedImageForPreview!!.asImageBitmap(),
                             contentDescription = "Processed Image",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
                     }
-                    // Priority 3: Otherwise, display the original image from its Uri.
+// Priority 3: Otherwise, display the original image from its Uri.
                     else if (currentImageUri != null) {
                         AsyncImage(
                             model = currentImageUri,
@@ -267,7 +223,7 @@ fun ImageProcessingScreen(
                             contentScale = ContentScale.Crop
                         )
                     }
-                    // Priority 4: If there is no image at all, show a placeholder.
+// Priority 4: If there is no image at all, show a placeholder.
                     else {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
@@ -355,8 +311,8 @@ fun ImageProcessingScreen(
                                 text = "Original",
                                 icon = Icons.Default.Refresh,
                                 onClick = {
-                                    selectedFilter = "Original"
-                                    processCurrentImage("Original")
+//                                    selectedFilter = "Original"
+//                                    processCurrentImage("Original")
                                 },
                                 isSelected = selectedFilter == "Original"
                             )
@@ -366,8 +322,7 @@ fun ImageProcessingScreen(
                                 text = "Black & White",
                                 icon = Icons.Default.Tonality,
                                 onClick = {
-                                    selectedFilter = "Black & White"
-                                    processCurrentImage("Black & White")
+                                    viewModel.applyBinarization(currentImageUri)
                                 },
                                 isSelected = selectedFilter == "Black & White"
                             )
@@ -377,8 +332,8 @@ fun ImageProcessingScreen(
                                 text = "High Contrast",
                                 icon = Icons.Default.Contrast,
                                 onClick = {
-                                    selectedFilter = "High Contrast"
-                                    processCurrentImage("High Contrast")
+//                                    selectedFilter = "High Contrast"
+//                                    processCurrentImage("High Contrast")
                                 },
                                 isSelected = selectedFilter == "High Contrast"
                             )
@@ -388,8 +343,8 @@ fun ImageProcessingScreen(
                                 text = "Color Enhancement",
                                 icon = Icons.Outlined.ColorLens,
                                 onClick = {
-                                    selectedFilter = "Color Enhancement"
-                                    processCurrentImage("Color Enhancement")
+//                                    selectedFilter = "Color Enhancement"
+//                                    processCurrentImage("Color Enhancement")
                                 },
                                 isSelected = selectedFilter == "Color Enhancement"
                             )
@@ -418,8 +373,8 @@ fun ImageProcessingScreen(
                             text = "Auto",
                             icon = Icons.Default.AutoFixHigh,
                             onClick = {
-                                showFilterToolbar = false
-                                processCurrentImage("Auto Processed")
+//                                showFilterToolbar = false
+//                                processCurrentImage("Auto Processed")
                             }
                         )
                     }
@@ -436,8 +391,8 @@ fun ImageProcessingScreen(
                             text = "Perspective",
                             icon = Icons.Default.Transform,
                             onClick = {
-                                showFilterToolbar = false
-                                processCurrentImage("Perspective Corrected")
+//                                showFilterToolbar = false
+//                                processCurrentImage("Perspective Corrected")
                             }
                         )
                     }
@@ -447,11 +402,11 @@ fun ImageProcessingScreen(
                             icon = Icons.Default.Refresh,
                             onClick = {
                                 // [ADD THIS] Clear the processed bitmap to revert to the original.
-                                processedBitmap = null
-                                selectedFilter = "Original"
-                                // The line below is now less relevant but we can keep it for now.
-                                processedImages = processedImages - currentImageIndex
-                                showFilterToolbar = false
+//                                processedBitmap = null
+//                                selectedFilter = "Original"
+//                                // The line below is now less relevant but we can keep it for now.
+//                                processedImages = processedImages - currentImageIndex
+//                                showFilterToolbar = false
                             }
                         )
                     }
