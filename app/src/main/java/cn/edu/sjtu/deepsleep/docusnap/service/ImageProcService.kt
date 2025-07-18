@@ -2,6 +2,7 @@ package cn.edu.sjtu.deepsleep.docusnap.service
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapRegionDecoder
 import android.graphics.ImageDecoder
 import android.net.Uri
 import androidx.core.content.FileProvider
@@ -17,15 +18,18 @@ import java.io.FileOutputStream
 class ImageProcService(private val context: Context) {
 
     // TODO: correct perspective, return four points of the file
-    suspend fun correctPerspective(image: Bitmap) {
+    suspend fun correctPerspective(image: Bitmap): Bitmap {
+        return image
     }
     
     // TODO: Color Enhancement
-    suspend fun enhanceColors(image: Bitmap) {
+    suspend fun enhanceColors(image: Bitmap): Bitmap {
+        return image
     }
     
     // TODO: Black & White High Contrast
-    suspend fun applyHighContrast(image: Bitmap) {
+    suspend fun applyHighContrast(image: Bitmap): Bitmap {
+        return image
     }
 
     /**
@@ -111,7 +115,8 @@ class ImageProcService(private val context: Context) {
 
 
     // TODO: Auto-enhance image, perspective correction + B&W threshold filter
-    suspend fun autoProcessing(image: Bitmap) {
+    suspend fun autoProcessing(image: Bitmap): Bitmap {
+        return image
     }
 
     // TODO: todo
