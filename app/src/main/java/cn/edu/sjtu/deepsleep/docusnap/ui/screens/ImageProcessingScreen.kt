@@ -532,13 +532,22 @@ private fun uriToBitmap(context: Context, uriString: String): Bitmap? {
 
 private fun applyBlackAndWhiteFilter(bitmap: Bitmap): Bitmap {
     val newBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
-    for (x in 0 until newBitmap.width) {
-        for (y in 0 until newBitmap.height) {
-            val pixel = newBitmap.getPixel(x, y)
-            val gray = (AndroidColor.red(pixel) * 0.3 + AndroidColor.green(pixel) * 0.59 + AndroidColor.blue(pixel) * 0.11).toInt()
-            newBitmap.setPixel(x, y, AndroidColor.rgb(gray, gray, gray))
-        }
+    val width = newBitmap.width
+    val height = newBitmap.height
+    val pixels = IntArray(width * height)
+
+    newBitmap.getPixels(pixels, 0, width, 0, 0, width, height)
+
+    for (i in pixels.indices) {
+        val pixel = pixels[i]
+        val r = (pixel shr 16) and 0xFF
+        val g = (pixel shr 8) and 0xFF
+        val b = pixel and 0xFF
+        val gray = (r * 0.3 + g * 0.59 + b * 0.11).toInt()
+        pixels[i] = 0xFF000000.toInt() or (gray shl 16) or (gray shl 8) or gray
     }
+
+    newBitmap.setPixels(pixels, 0, width, 0, 0, width, height)
     return newBitmap
 }
 

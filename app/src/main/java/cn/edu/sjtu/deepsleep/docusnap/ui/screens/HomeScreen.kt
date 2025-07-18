@@ -31,7 +31,7 @@ fun HomeScreen(
             .fillMaxSize()
             .padding(16.dp)
             .verticalScroll(rememberScrollState()),
-        horizontalAlignment = Alignment.CenterHorizontally
+//        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         // App Title with Settings Icon
         Row(
@@ -39,22 +39,34 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Spacer(modifier = Modifier.width(48.dp)) // Balance the settings icon
+//            Spacer(modifier = Modifier.width(48.dp)) // Balance the settings icon
             Text(
                 text = "DocuSnap",
-                fontSize = 28.sp,
+                fontSize = 36.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-            IconButton(
-                onClick = { onNavigate("settings") },
-                modifier = Modifier.size(48.dp)
-            ) {
-                Icon(
-                    Icons.Default.Settings,
-                    contentDescription = "Settings",
-                    modifier = Modifier.size(24.dp)
-                )
+            Row {
+                IconButton(
+                    onClick = { onNavigate("job_status") },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        Icons.Default.List,
+                        contentDescription = "Job Status",
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+                IconButton(
+                    onClick = { onNavigate("settings") },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Settings,
+                        contentDescription = "Settings",
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
         }
         Text(
@@ -74,7 +86,7 @@ fun HomeScreen(
 
         // Document Upload Section
         Text(
-            text = "Upload Document",
+            text = "Import Document",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 12.dp)
@@ -113,7 +125,7 @@ fun HomeScreen(
 
         // Form Upload Section
         Text(
-            text = "Upload Form",
+            text = "Import Form",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 12.dp)

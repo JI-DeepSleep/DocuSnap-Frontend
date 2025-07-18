@@ -1,6 +1,9 @@
 package cn.edu.sjtu.deepsleep.docusnap.data
 
+import kotlinx.serialization.Serializable
+
 // UID structure for unique identification
+@Serializable
 data class UID(
     val fileType: FileType,
     val id: String
@@ -8,11 +11,13 @@ data class UID(
     override fun toString(): String = "${fileType.name}_$id"
 }
 
+@Serializable
 enum class FileType {
     DOCUMENT,
     FORM
 }
 
+@Serializable
 data class Document(
     val id: String,
     val name: String,
@@ -24,6 +29,7 @@ data class Document(
     val relatedFileIds: List<String> = emptyList() // Combined relatedDocumentIds and relatedFormIds
 )
 
+@Serializable
 data class Form(
     val id: String,
     val name: String,
@@ -36,6 +42,7 @@ data class Form(
     val relatedFileIds: List<String> = emptyList() // Combined relatedDocumentIds and relatedFormIds
 )
 
+@Serializable
 data class FormField(
     val name: String,
     val value: String? = null,
@@ -44,29 +51,35 @@ data class FormField(
 )
 
 // Unified search entity that can represent text, document, or form
+@Serializable
 sealed class SearchEntity {
+    @Serializable
     data class TextEntity(
         val text: String,
         val srcFileId: String? = null, // Changed from sourceDocument to srcFileId
         val relevanceScore: Float = 0.0f
     ) : SearchEntity()
     
+    @Serializable
     data class DocumentEntity(
         val document: Document,
         val relevanceScore: Float = 0.0f
     ) : SearchEntity()
     
+    @Serializable
     data class FormEntity(
         val form: Form,
         val relevanceScore: Float = 0.0f
     ) : SearchEntity()
 }
 
+@Serializable
 data class SearchResult(
     val entities: List<SearchEntity> = emptyList()
 )
 
 // Data class for frequently used text info extracted from documents and forms
+@Serializable
 data class TextInfo(
     val key: String, // The key/label of the information
     val value: String, // The actual value extracted from the document or form
