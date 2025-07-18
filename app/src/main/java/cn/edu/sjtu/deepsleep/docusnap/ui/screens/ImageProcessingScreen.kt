@@ -58,51 +58,21 @@ fun ImageProcessingScreen(
     )
     val uiState by viewModel.uiState.collectAsState()
 
-//    var isProcessing by remember { mutableStateOf(false) }
-    var isSaving by remember { mutableStateOf(false) }
-    var selectedFilter by remember { mutableStateOf("Original") }
-    var showFilterToolbar by remember { mutableStateOf(false) }
-    var currentImageIndex by remember { mutableStateOf(0) }
-    var processedImages by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
-    val scope = rememberCoroutineScope()
-//    var processedBitmap by remember { mutableStateOf<Bitmap?>(null) }
-
-    // Parse photoUris string into list
-    val imageUris = remember(photoUris) {
-        photoUris?.split(",")?.filter { it.isNotEmpty() } ?: emptyList()
+    LaunchedEffect(key1 = photoUris) {
+        viewModel.setInitialPhotos(photoUris)
     }
 
-    // Current image URI
-    val currentImageUri = remember(currentImageIndex, imageUris, processedImages) {
-        processedImages[currentImageIndex] ?: imageUris.getOrNull(currentImageIndex)
-    }
-
-    // Navigation functions
-    fun goToPreviousImage() {
-        if (currentImageIndex > 0) {
-            currentImageIndex--
-        }
-    }
-
-    fun goToNextImage() {
-        if (currentImageIndex < imageUris.size - 1) {
-            currentImageIndex++
-        }
-    }
 
 
     // Function to create new document or form and navigate to it
     fun createAndNavigateToDetail() {
-        Log.d("ImageSaveDebug", "Create/Navigate called. Current processedImages map: $processedImages")    
-        val processedImageUris = if (processedImages.isNotEmpty()) {
-            processedImages.values.toList()
-        } else {
-            imageUris
+         val finalUris = uiState.originalImageUris.mapIndexed { index, originalUri ->
+            uiState.processedImageUris[index] ?: originalUri
         }
 
         // [1. PREPARE DATA] Convert the list of Uris into a single, URL-safe string.
         // 第一步：准备数据。将 URI 列表转换成一个 URL 安全的字符串。
-        val urisString = processedImageUris.joinToString(",")
+        val urisString = finalUris.joinToString(",")
         val encodedUris = java.net.URLEncoder.encode(urisString, "UTF-8")
 
         when (source) {
@@ -112,7 +82,7 @@ fun ImageProcessingScreen(
                     id = UUID.randomUUID().toString(),
                     name = "New Document ${System.currentTimeMillis()}",
                     description = "A new document created by user",
-                    imageUris = processedImageUris,
+                    imageUris = finalUris,
                     extractedInfo = emptyMap(),
                     tags = listOf("New", "Document"),
                     uploadDate = "2024-01-15"
@@ -128,7 +98,7 @@ fun ImageProcessingScreen(
                     id = UUID.randomUUID().toString(),
                     name = "New Form ${System.currentTimeMillis()}",
                     description = "A new form uploaded by user",
-                    imageUris = processedImageUris,
+                    imageUris = finalUris,
                     formFields = emptyList(),
                     extractedInfo = emptyMap(),
                     uploadDate = "2024-01-15"
@@ -176,13 +146,16 @@ fun ImageProcessingScreen(
                 ),
             contentAlignment = Alignment.Center
         ) {
+            // --- 1. Get the current display URI from the ViewModel state ---
+            val currentDisplayUri = uiState.currentDisplayUri
+
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Image index display
-                if (imageUris.isNotEmpty()) {
+                // --- 2. CONNECT Image index display to ViewModel state ---
+                if (uiState.originalImageUris.isNotEmpty()) {
                     Text(
-                        text = "${currentImageIndex + 1}/${imageUris.size}",
+                        text = "${uiState.currentImageIndex + 1}/${uiState.originalImageUris.size}",
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Medium,
@@ -190,7 +163,7 @@ fun ImageProcessingScreen(
                     )
                 }
 
-                // Image placeholder or loaded image
+                // --- 3. REBUILD Image placeholder/loaded image logic with ViewModel state ---
                 Box(
                     modifier = Modifier
                         .size(300.dp),
@@ -205,50 +178,40 @@ fun ImageProcessingScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
-// Priority 2: If we have a processed Bitmap from the ViewModel, display it.
-                    else if (uiState.processedImageForPreview != null) {
-                        Image(
-                            bitmap = uiState.processedImageForPreview!!.asImageBitmap(),
-                            contentDescription = "Processed Image",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
+                    // Priority 2: If we have a live preview Bitmap, display it.
+                    else if (uiState.livePreviewBitmap != null) {
+                        uiState.livePreviewBitmap?.let { bitmapToShow ->
+                            Image(
+                                bitmap = bitmapToShow.asImageBitmap(),
+                                contentDescription = "Processed Image",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
                     }
-// Priority 3: Otherwise, display the original image from its Uri.
-                    else if (currentImageUri != null) {
+                    // Priority 3: Otherwise, display the image from its Uri.
+                    else if (currentDisplayUri != null) {
                         AsyncImage(
-                            model = currentImageUri,
-                            contentDescription = "Original Image",
+                            model = currentDisplayUri,
+                            contentDescription = "Document Image",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
                     }
-// Priority 4: If there is no image at all, show a placeholder.
+                    // Priority 4: If there is no image at all, show a placeholder.
                     else {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(
-                                text = "📄",
-                                fontSize = 48.sp
-                            )
+                            Text(text = "📄", fontSize = 48.sp)
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Document Image",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = "Filter: $selectedFilter",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Text(text = "Document Image", fontSize = 16.sp, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
             }
 
-            // Navigation arrows
+            // --- 4. CONNECT Navigation arrows to ViewModel functions ---
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -256,44 +219,44 @@ fun ImageProcessingScreen(
             ) {
                 // Previous arrow
                 IconButton(
-                    onClick = { goToPreviousImage() },
-                    enabled = currentImageIndex > 0,
+                    onClick = { viewModel.goToPreviousImage() },
+                    enabled = uiState.currentImageIndex > 0,
                     modifier = Modifier
                         .size(48.dp)
                         .background(
-                            if (currentImageIndex > 0) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f),
+                            if (uiState.currentImageIndex > 0) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f),
                             CircleShape
                         )
                 ) {
                     Icon(
                         Icons.Default.ChevronLeft,
                         contentDescription = "Previous image",
-                        tint = if (currentImageIndex > 0) Color.Black else Color.Gray
+                        tint = if (uiState.currentImageIndex > 0) Color.Black else Color.Gray
                     )
                 }
 
                 // Next arrow
                 IconButton(
-                    onClick = { goToNextImage() },
-                    enabled = currentImageIndex < imageUris.size - 1,
+                    onClick = { viewModel.goToNextImage() },
+                    enabled = uiState.currentImageIndex < uiState.originalImageUris.size - 1,
                     modifier = Modifier
                         .size(48.dp)
                         .background(
-                            if (currentImageIndex < imageUris.size - 1) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f),
+                            if (uiState.currentImageIndex < uiState.originalImageUris.size - 1) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f),
                             CircleShape
                         )
                 ) {
                     Icon(
                         Icons.Default.ChevronRight,
                         contentDescription = "Next image",
-                        tint = if (currentImageIndex < imageUris.size - 1) Color.Black else Color.Gray
+                        tint = if (uiState.currentImageIndex < uiState.originalImageUris.size - 1) Color.Black else Color.Gray
                     )
                 }
             }
         }
 
         // Secondary Filter Toolbar (appears when Filter button is clicked)
-        if (showFilterToolbar) {
+        if (uiState.isFilterToolbarVisible) { // showFilterToolbar
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.surface,
@@ -314,7 +277,7 @@ fun ImageProcessingScreen(
 //                                    selectedFilter = "Original"
 //                                    processCurrentImage("Original")
                                 },
-                                isSelected = selectedFilter == "Original"
+                                isSelected = false // selectedFilter == "Original"
                             )
                         }
                         item {
@@ -322,9 +285,9 @@ fun ImageProcessingScreen(
                                 text = "Black & White",
                                 icon = Icons.Default.Tonality,
                                 onClick = {
-                                    viewModel.applyBinarization(currentImageUri)
+                                    viewModel.applyBinarization(uiState.currentDisplayUri)
                                 },
-                                isSelected = selectedFilter == "Black & White"
+                                isSelected = false // selectedFilter == "Black & White"
                             )
                         }
                         item {
@@ -335,7 +298,7 @@ fun ImageProcessingScreen(
 //                                    selectedFilter = "High Contrast"
 //                                    processCurrentImage("High Contrast")
                                 },
-                                isSelected = selectedFilter == "High Contrast"
+                                isSelected = false // selectedFilter == "High Contrast"
                             )
                         }
                         item {
@@ -346,7 +309,7 @@ fun ImageProcessingScreen(
 //                                    selectedFilter = "Color Enhancement"
 //                                    processCurrentImage("Color Enhancement")
                                 },
-                                isSelected = selectedFilter == "Color Enhancement"
+                                isSelected = false // selectedFilter == "Color Enhancement"
                             )
                         }
                     }
@@ -382,8 +345,8 @@ fun ImageProcessingScreen(
                         FilterButton(
                             text = "Filter",
                             icon = Icons.Outlined.PhotoFilter,
-                            onClick = { showFilterToolbar = !showFilterToolbar },
-                            isSelected = showFilterToolbar
+                            onClick = { viewModel.toggleFilterToolbar() }, // showFilterToolbar = !showFilterToolbar
+                            isSelected = uiState.isFilterToolbarVisible // isSelected = false // showFilterToolbar
                         )
                     }
                     item {

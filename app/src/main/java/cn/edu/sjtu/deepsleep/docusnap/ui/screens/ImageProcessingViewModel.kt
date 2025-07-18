@@ -19,61 +19,111 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.FileOutputStream
 
-// This data class represents everything the UI needs to know for now.
+// This data class now represents ALL state for the screen.
 data class ImageProcessingUiState(
     val isProcessing: Boolean = false,
-    val processedImageForPreview: Bitmap? = null,
-)
+    val originalImageUris: List<String> = emptyList(),
+    val currentImageIndex: Int = 0,
+    // This map now stores the URI of the PROCESSED image file.
+    val processedImageUris: Map<Int, String> = emptyMap(),
+    // This is only for the live preview bitmap, which doesn't need to be saved.
+    val livePreviewBitmap: Bitmap? = null,
+    val isFilterToolbarVisible: Boolean = false
+) {
+    // A helper property to get the URI that should be displayed now.
+    // It prioritizes the processed URI if it exists for the current index.
+    val currentDisplayUri: String?
+        get() = processedImageUris[currentImageIndex] ?: originalImageUris.getOrNull(currentImageIndex)
+}
 
 class ImageProcessingViewModel(
-    private val context: Context, // We need context for file operations.
+    private val context: Context,
     private val imageProcService: ImageProcService
 ) : ViewModel() {
 
-    // Private mutable state for the ViewModel to modify.
     private val _uiState = MutableStateFlow(ImageProcessingUiState())
-    // Public read-only state for the UI to observe.
     val uiState = _uiState.asStateFlow()
 
-    // We will store the final Uri internally in the ViewModel.
-    var finalProcessedUri: Uri? = null
-        private set
-
     /**
-     * The function the UI will call to apply the filter.
+     * Call this ONCE when the screen is first created to set the initial images.
+     */
+    fun setInitialPhotos(photoUris: String?) {
+        val uris = photoUris?.split(",")?.filter { it.isNotEmpty() } ?: emptyList()
+        _uiState.update { it.copy(originalImageUris = uris) }
+    }
+    /**
+     * Applies the posterization filter to the given image URI.
      */
     fun applyBinarization(imageUri: String?) {
+        // If the URI is null, do nothing.
+        if (imageUri == null) return
+
         viewModelScope.launch {
-            _uiState.update { it.copy(isProcessing = true, processedImageForPreview = null) }
-
-            // Perform all logic in background threads.
+            _uiState.update { it.copy(isProcessing = true, livePreviewBitmap = null) }
             withContext(Dispatchers.IO) {
-                // 1. Decode bitmap with downsampling for performance.
-                val inputBitmap = uriToBitmap(imageUri) ?: run {
-                    _uiState.update { it.copy(isProcessing = false) }
-                    return@withContext
-                }
+                val inputBitmap = uriToBitmap(imageUri) ?: return@withContext
+                // You mentioned you are using 4 levels, so I'll use 4. Change to 8 if you wish.
+                val outputBitmap = imageProcService.applyThresholdFilter(inputBitmap, 4)
+                val newUri = saveBitmapToCache(outputBitmap)
 
-                // 2. Call the service to perform the binarization.
-                val outputBitmap = imageProcService.applyThresholdFilter(inputBitmap,4)
+                newUri?.let { savedUri ->
+                    _uiState.update {
+                        it.copy(
+                            isProcessing = false,
+                            livePreviewBitmap = outputBitmap,
+                            // This is the key fix: update the map with the new URI.
+                            processedImageUris = it.processedImageUris + (it.currentImageIndex to savedUri.toString())
+                        )
+                    }
+                } ?: _uiState.update { it.copy(isProcessing = false) } // Handle save failure
+            }
+        }
+    }
+    /**
+     * Resets the CURRENT image to its original state.
+     */
+    fun resetToOriginal() {
+        _uiState.update {
+            it.copy(
+                // Remove the live preview.
+                livePreviewBitmap = null,
+                // Remove the processed URI for the current index from the map.
+                processedImageUris = it.processedImageUris - it.currentImageIndex
+            )
+        }
+    }
 
-                // 3. Save the processed bitmap and get its new URI.
-                finalProcessedUri = saveBitmapToCache(outputBitmap)
-
-                // 4. Update the UI with the bitmap for preview.
-                _uiState.update {
-                    it.copy(
-                        isProcessing = false,
-                        processedImageForPreview = outputBitmap
-                    )
-                }
+    /**
+     * Navigates to the next image.
+     */
+    fun goToNextImage() {
+        val currentState = _uiState.value
+        if (currentState.currentImageIndex < currentState.originalImageUris.size - 1) {
+            _uiState.update {
+                it.copy(
+                    currentImageIndex = it.currentImageIndex + 1,
+                    livePreviewBitmap = null // Clear preview when switching images.
+                )
             }
         }
     }
 
     /**
-     * Decodes a bitmap from a URI string, with downsampling.
+     * Navigates to the previous image.
      */
+    fun goToPreviousImage() {
+        val currentState = _uiState.value
+        if (currentState.currentImageIndex > 0) {
+            _uiState.update {
+                it.copy(
+                    currentImageIndex = it.currentImageIndex - 1,
+                    livePreviewBitmap = null // Clear preview when switching images.
+                )
+            }
+        }
+    }
+
+    // --- Private Helper Functions (uriToBitmap, saveBitmapToCache) remain the same ---
     private fun uriToBitmap(uriString: String?): Bitmap? {
         if (uriString == null) return null
         return try {
@@ -95,9 +145,6 @@ class ImageProcessingViewModel(
         }
     }
 
-    /**
-     * Saves a bitmap to the app's cache directory and returns its content URI.
-     */
     private fun saveBitmapToCache(bitmap: Bitmap): Uri? {
         return try {
             val cachePath = File(context.cacheDir, "images")
@@ -112,10 +159,15 @@ class ImageProcessingViewModel(
             null
         }
     }
+    fun toggleFilterToolbar() {
+        _uiState.update {
+            it.copy(isFilterToolbarVisible = !it.isFilterToolbarVisible)
+        }
+    }
 }
 
 
-// The factory now also needs to provide the context to the ViewModel.
+// The Factory class remains exactly the same as before.
 class ImageProcessingViewModelFactory(
     private val context: Context
 ) : ViewModelProvider.Factory {
@@ -123,7 +175,6 @@ class ImageProcessingViewModelFactory(
         if (modelClass.isAssignableFrom(ImageProcessingViewModel::class.java)) {
             val service = AppModule.provideImageProcService(context.applicationContext)
             @Suppress("UNCHECKED_CAST")
-            // Provide both context and service to the ViewModel.
             return ImageProcessingViewModel(context.applicationContext, service) as T
         }
         throw IllegalArgumentException("Unknown ViewModel class")
