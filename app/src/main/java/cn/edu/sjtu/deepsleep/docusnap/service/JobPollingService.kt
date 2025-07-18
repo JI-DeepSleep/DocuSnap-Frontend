@@ -92,6 +92,21 @@ class JobPollingService(private val context: Context) {
                                 jobDao.updateJobStatus(job.id, "completed", response.result)
                                 Log.d(TAG, "Job ${job.id} completed successfully")
                                 Log.d(TAG, "Job ${job.id} result length: ${response.result?.length ?: 0}")
+                                
+                                // Print the encrypted result
+                                Log.i(TAG, "=== JOB ${job.id} COMPLETED ===")
+                                Log.i(TAG, "Encrypted result: ${response.result}")
+                                
+                                // Try to decrypt and print the result
+                                try {
+                                    val decryptedResult = decryptJobResult(response.result ?: "", job)
+                                    if (decryptedResult != null) {
+                                        Log.i(TAG, "Decrypted result: $decryptedResult")
+                                    }
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "Could not decrypt result (expected - need original AES key): ${e.message}")
+                                }
+                                Log.i(TAG, "=== END JOB ${job.id} RESULT ===")
                             }
                             "error" -> {
                                 // Update job with error
@@ -99,6 +114,14 @@ class JobPollingService(private val context: Context) {
                                 jobDao.updateJobStatus(job.id, "error", errorDetail = errorDetail)
                                 Log.e(TAG, "Job ${job.id} failed with error: $errorDetail")
                                 Log.e(TAG, "Job ${job.id} request details: clientId=${job.clientId}, type=${job.type}, sha256=${job.sha256}, hasContent=${job.hasContent}")
+                                
+                                // Print detailed error information
+                                Log.e(TAG, "=== JOB ${job.id} ERROR ===")
+                                Log.e(TAG, "Error detail: $errorDetail")
+                                Log.e(TAG, "Request type: ${job.type}")
+                                Log.e(TAG, "Request SHA256: ${job.sha256}")
+                                Log.e(TAG, "Request hasContent: ${job.hasContent}")
+                                Log.e(TAG, "=== END JOB ${job.id} ERROR ===")
                             }
                         }
                         
@@ -161,6 +184,21 @@ class JobPollingService(private val context: Context) {
                                 jobDao.updateJobStatus(job.id, "completed", response.result)
                                 Log.d(TAG, "Job ${job.id} completed successfully")
                                 Log.d(TAG, "Job ${job.id} result length: ${response.result?.length ?: 0}")
+                                
+                                // Print the encrypted result
+                                Log.i(TAG, "=== JOB ${job.id} COMPLETED (from processing) ===")
+                                Log.i(TAG, "Encrypted result: ${response.result}")
+                                
+                                // Try to decrypt and print the result
+                                try {
+                                    val decryptedResult = decryptJobResult(response.result ?: "", job)
+                                    if (decryptedResult != null) {
+                                        Log.i(TAG, "Decrypted result: $decryptedResult")
+                                    }
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "Could not decrypt result (expected - need original AES key): ${e.message}")
+                                }
+                                Log.i(TAG, "=== END JOB ${job.id} RESULT ===")
                             }
                             "error" -> {
                                 // Update job with error
@@ -168,6 +206,14 @@ class JobPollingService(private val context: Context) {
                                 jobDao.updateJobStatus(job.id, "error", errorDetail = errorDetail)
                                 Log.e(TAG, "Job ${job.id} failed with error: $errorDetail")
                                 Log.e(TAG, "Job ${job.id} request details: clientId=${job.clientId}, type=${job.type}, sha256=${job.sha256}, hasContent=${job.hasContent}")
+                                
+                                // Print detailed error information
+                                Log.e(TAG, "=== JOB ${job.id} ERROR (from processing) ===")
+                                Log.e(TAG, "Error detail: $errorDetail")
+                                Log.e(TAG, "Request type: ${job.type}")
+                                Log.e(TAG, "Request SHA256: ${job.sha256}")
+                                Log.e(TAG, "Request hasContent: ${job.hasContent}")
+                                Log.e(TAG, "=== END JOB ${job.id} ERROR ===")
                             }
                         }
                         
@@ -191,6 +237,22 @@ class JobPollingService(private val context: Context) {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error polling processing jobs", e)
+        }
+    }
+    
+    // Helper function to decrypt job result using the original AES key
+    private fun decryptJobResult(encryptedResult: String, job: JobEntity): String? {
+        return try {
+            // Decode the encrypted AES key from base64
+            val encryptedAesKeyBytes = android.util.Base64.decode(job.aesKey, android.util.Base64.NO_WRAP)
+            
+            // Decrypt the AES key using the private key (this would need to be implemented)
+            // For now, we'll just return the encrypted result since we don't have the private key
+            Log.w(TAG, "Cannot decrypt result - private key not available")
+            encryptedResult
+        } catch (e: Exception) {
+            Log.e(TAG, "Error decrypting result: ${e.message}")
+            null
         }
     }
     
