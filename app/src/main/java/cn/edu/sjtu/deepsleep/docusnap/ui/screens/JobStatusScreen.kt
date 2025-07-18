@@ -31,6 +31,7 @@ fun JobStatusScreen(
     var jobs by remember { mutableStateOf<List<JobEntity>>(emptyList()) }
     var cleanupMessage by remember { mutableStateOf<String?>(null) }
     var lastRefreshTime by remember { mutableStateOf("Never") }
+    var isPollingActive by remember { mutableStateOf(false) }
     
     // Function to refresh jobs
     val refreshJobs = {
@@ -48,9 +49,15 @@ fun JobStatusScreen(
         }
     }
     
+    // Function to check polling status
+    val checkPollingStatus = {
+        isPollingActive = jobPollingService.isPollingActive()
+    }
+    
     // Collect jobs from database
     LaunchedEffect(Unit) {
         refreshJobs()
+        checkPollingStatus()
     }
     
     Column(
@@ -75,6 +82,11 @@ fun JobStatusScreen(
                 Text(
                     text = "Last refresh: $lastRefreshTime",
                     style = MaterialTheme.typography.bodySmall
+                )
+                Text(
+                    text = "Polling: ${if (isPollingActive) "Active" else "Inactive"}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (isPollingActive) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
                 )
                 IconButton(onClick = { refreshJobs() }) {
                     Icon(Icons.Default.Refresh, contentDescription = "Refresh")
@@ -170,6 +182,7 @@ fun JobStatusScreen(
                 onClick = {
                     jobPollingService.startPolling()
                     cleanupMessage = "Started polling service"
+                    checkPollingStatus()
                 }
             ) {
                 Text("Start Polling")
@@ -179,9 +192,28 @@ fun JobStatusScreen(
                 onClick = {
                     jobPollingService.stopPolling()
                     cleanupMessage = "Stopped polling service"
+                    checkPollingStatus()
                 }
             ) {
                 Text("Stop Polling")
+            }
+            
+            Button(
+                onClick = {
+                    coroutineScope.launch {
+                        try {
+                            // Manually trigger a single polling cycle
+                            jobPollingService.pollPendingJobs()
+                            jobPollingService.pollProcessingJobs()
+                            cleanupMessage = "Manual polling cycle completed"
+                            refreshJobs()
+                        } catch (e: Exception) {
+                            cleanupMessage = "Manual polling error: ${e.message}"
+                        }
+                    }
+                }
+            ) {
+                Text("Manual Poll")
             }
         }
         
