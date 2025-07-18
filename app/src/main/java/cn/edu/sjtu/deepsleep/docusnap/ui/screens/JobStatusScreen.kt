@@ -21,7 +21,6 @@ import kotlinx.coroutines.launch
 import android.util.Base64
 import cn.edu.sjtu.deepsleep.docusnap.util.CryptoUtil
 import org.json.JSONObject
-import javax.crypto.Cipher.PRIVATE_KEY
 
 @Composable
 fun JobStatusScreen(
@@ -456,8 +455,14 @@ fun StatusChip(status: String) {
 
 // Add this helper function after imports
 private fun tryDecryptJobResult(job: JobEntity, privateKeyPem: String): String? {
-    return try {
+    try {
         if (job.result == null || job.aesKey == null) return null
+        // Debug: Print PEM info
+        android.util.Log.d("JobStatusScreen", "PRIVATE_KEY first 100: ${privateKeyPem.take(100)}")
+        android.util.Log.d("JobStatusScreen", "PRIVATE_KEY length: ${privateKeyPem.length}")
+        android.util.Log.d("JobStatusScreen", "PRIVATE_KEY contains BEGIN: ${privateKeyPem.contains("BEGIN")}, END: ${privateKeyPem.contains("END")}")
+        android.util.Log.d("JobStatusScreen", "AES key base64 length: ${job.aesKey.length}")
+        android.util.Log.d("JobStatusScreen", "Result base64 length: ${job.result.length}")
         val privateKey = getPrivateKeyFromPem(privateKeyPem)
         val encryptedAesKeyBytes = Base64.decode(job.aesKey, Base64.NO_WRAP)
         val aesKeyBytes = rsaDecrypt(encryptedAesKeyBytes, privateKey)
@@ -469,23 +474,42 @@ private fun tryDecryptJobResult(job: JobEntity, privateKeyPem: String): String? 
             decrypted
         }
     } catch (e: Exception) {
-        "[Decryption failed: ${e.message}]"
+        android.util.Log.e("JobStatusScreen", "Decryption failed: ${e.message}", e)
+        return "[Decryption failed: ${e.message}\n" +
+            "PEM first 100: ${privateKeyPem.take(100)}\n" +
+            "PEM length: ${privateKeyPem.length}\n" +
+            "PEM contains BEGIN: ${privateKeyPem.contains("BEGIN")}, END: ${privateKeyPem.contains("END")}" +
+            "\nAES key base64 length: ${job.aesKey?.length ?: 0}\n" +
+            "Result base64 length: ${job.result?.length ?: 0}\n" +
+            "Stacktrace: ${e.stackTraceToString()}]"
     }
 }
 
 // Add these helpers after the above function
 private fun getPrivateKeyFromPem(pem: String): java.security.PrivateKey {
-    val privateKeyPEM = pem.replace("-----BEGIN PRIVATE KEY-----", "")
-        .replace("-----END PRIVATE KEY-----", "")
-        .replace("\n", "")
-        .replace("\r", "")
-    val encoded = Base64.decode(privateKeyPEM, Base64.DEFAULT)
-    val keySpec = java.security.spec.PKCS8EncodedKeySpec(encoded)
-    val kf = java.security.KeyFactory.getInstance("RSA")
-    return kf.generatePrivate(keySpec)
+    try {
+        // Remove header and footer, and all whitespace
+        val privateKeyPEM = pem
+            .replace("-----BEGIN PRIVATE KEY-----", "")
+            .replace("-----END PRIVATE KEY-----", "")
+            .replace("\\s".toRegex(), "") // Remove all whitespace including newlines
+        
+        android.util.Log.d("JobStatusScreen", "Cleaned PEM length: ${privateKeyPEM.length}")
+        android.util.Log.d("JobStatusScreen", "Cleaned PEM first 50 chars: ${privateKeyPEM.take(50)}")
+        
+        val encoded = Base64.decode(privateKeyPEM, Base64.DEFAULT)
+        android.util.Log.d("JobStatusScreen", "Decoded bytes length: ${encoded.size}")
+        
+        val keySpec = java.security.spec.PKCS8EncodedKeySpec(encoded)
+        val kf = java.security.KeyFactory.getInstance("RSA")
+        return kf.generatePrivate(keySpec)
+    } catch (e: Exception) {
+        android.util.Log.e("JobStatusScreen", "Failed to parse private key: ${e.message}", e)
+        throw e
+    }
 }
 private fun rsaDecrypt(data: ByteArray, privateKey: java.security.PrivateKey): ByteArray {
-    val cipher = javax.crypto.Cipher.getInstance("RSA/ECB/PKCS1Padding")
+    val cipher = javax.crypto.Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding")
     cipher.init(javax.crypto.Cipher.DECRYPT_MODE, privateKey)
     return cipher.doFinal(data)
 } 
