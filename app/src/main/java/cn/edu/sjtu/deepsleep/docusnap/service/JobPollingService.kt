@@ -6,6 +6,8 @@ import cn.edu.sjtu.deepsleep.docusnap.data.local.AppDatabase
 import cn.edu.sjtu.deepsleep.docusnap.data.local.JobEntity
 import kotlinx.coroutines.*
 import java.util.*
+import retrofit2.HttpException
+import org.json.JSONObject
 
 class JobPollingService(private val context: Context) {
     private val TAG = "JobPollingService"
@@ -62,24 +64,40 @@ class JobPollingService(private val context: Context) {
                             aes_key = job.aesKey
                         )
                         
-                        val response = backendApi.processDocument(request)
-                        
-                        when (response.status) {
-                            "processing" -> {
-                                // Update job status to processing
-                                jobDao.updateJobStatus(job.id, "processing")
-                                Log.d(TAG, "Job ${job.id} is now processing")
+                        try {
+                            val response = backendApi.processDocument(request)
+                            
+                            when (response.status) {
+                                "processing" -> {
+                                    // Update job status to processing
+                                    jobDao.updateJobStatus(job.id, "processing")
+                                    Log.d(TAG, "Job ${job.id} is now processing")
+                                }
+                                "completed" -> {
+                                    // Update job with result
+                                    jobDao.updateJobStatus(job.id, "completed", response.result)
+                                    Log.d(TAG, "Job ${job.id} completed successfully")
+                                    Log.d(TAG, "Job ${job.id} result length: ${response.result?.length ?: 0}")
+                                }
+                                "error" -> {
+                                    // Update job with error
+                                    val errorDetail = response.error_detail ?: "Unknown error"
+                                    jobDao.updateJobStatus(job.id, "error", errorDetail = errorDetail)
+                                    Log.e(TAG, "Job ${job.id} failed with error: $errorDetail")
+                                    Log.e(TAG, "Job ${job.id} request details: clientId=${job.clientId}, type=${job.type}, sha256=${job.sha256}, hasContent=${job.hasContent}")
+                                }
                             }
-                            "completed" -> {
-                                // Update job with result
-                                jobDao.updateJobStatus(job.id, "completed", response.result)
-                                Log.d(TAG, "Job ${job.id} completed successfully")
+                            
+                        } catch (e: HttpException) {
+                            val errorBody = e.response()?.errorBody()?.string()
+                            val errorDetail = try {
+                                errorBody?.let { JSONObject(it).optString("error_detail", "Unknown error") } ?: "HTTP ${e.code()}: ${e.message()}"
+                            } catch (jsonEx: Exception) {
+                                "HTTP ${e.code()}: ${e.message()}"
                             }
-                            "error" -> {
-                                // Update job with error
-                                jobDao.updateJobStatus(job.id, "error", errorDetail = response.error_detail)
-                                Log.e(TAG, "Job ${job.id} failed: ${response.error_detail}")
-                            }
+                            jobDao.updateJobStatus(job.id, "error", errorDetail = errorDetail)
+                            Log.e(TAG, "Job ${job.id} failed with HTTP error: $errorDetail")
+                            Log.e(TAG, "Job ${job.id} request details: clientId=${job.clientId}, type=${job.type}, sha256=${job.sha256}, hasContent=${job.hasContent}")
                         }
                         
                         // Small delay between requests to avoid overwhelming the server
@@ -113,23 +131,39 @@ class JobPollingService(private val context: Context) {
                             has_content = false
                         )
                         
-                        val response = backendApi.processDocument(request)
-                        
-                        when (response.status) {
-                            "processing" -> {
-                                // Still processing, no update needed
-                                Log.d(TAG, "Job ${job.id} still processing")
+                        try {
+                            val response = backendApi.processDocument(request)
+                            
+                            when (response.status) {
+                                "processing" -> {
+                                    // Still processing, no update needed
+                                    Log.d(TAG, "Job ${job.id} still processing")
+                                }
+                                "completed" -> {
+                                    // Update job with result
+                                    jobDao.updateJobStatus(job.id, "completed", response.result)
+                                    Log.d(TAG, "Job ${job.id} completed successfully")
+                                    Log.d(TAG, "Job ${job.id} result length: ${response.result?.length ?: 0}")
+                                }
+                                "error" -> {
+                                    // Update job with error
+                                    val errorDetail = response.error_detail ?: "Unknown error"
+                                    jobDao.updateJobStatus(job.id, "error", errorDetail = errorDetail)
+                                    Log.e(TAG, "Job ${job.id} failed with error: $errorDetail")
+                                    Log.e(TAG, "Job ${job.id} request details: clientId=${job.clientId}, type=${job.type}, sha256=${job.sha256}, hasContent=${job.hasContent}")
+                                }
                             }
-                            "completed" -> {
-                                // Update job with result
-                                jobDao.updateJobStatus(job.id, "completed", response.result)
-                                Log.d(TAG, "Job ${job.id} completed successfully")
+                            
+                        } catch (e: HttpException) {
+                            val errorBody = e.response()?.errorBody()?.string()
+                            val errorDetail = try {
+                                errorBody?.let { JSONObject(it).optString("error_detail", "Unknown error") } ?: "HTTP ${e.code()}: ${e.message()}"
+                            } catch (jsonEx: Exception) {
+                                "HTTP ${e.code()}: ${e.message()}"
                             }
-                            "error" -> {
-                                // Update job with error
-                                jobDao.updateJobStatus(job.id, "error", errorDetail = response.error_detail)
-                                Log.e(TAG, "Job ${job.id} failed: ${response.error_detail}")
-                            }
+                            jobDao.updateJobStatus(job.id, "error", errorDetail = errorDetail)
+                            Log.e(TAG, "Job ${job.id} failed with HTTP error: $errorDetail")
+                            Log.e(TAG, "Job ${job.id} request details: clientId=${job.clientId}, type=${job.type}, sha256=${job.sha256}, hasContent=${job.hasContent}")
                         }
                         
                         delay(1000)
@@ -144,25 +178,40 @@ class JobPollingService(private val context: Context) {
         }
     }
     
-    // Helper function to create a new job
+    // Helper function to create a new job with proper encryption and SHA256
     suspend fun createJob(
         type: String,
-        sha256: String,
-        hasContent: Boolean,
-        content: String? = null,
-        aesKey: String? = null
+        payload: Any,
+        hasContent: Boolean = true
     ): Long {
         try {
+            // Create the inner payload structure
+            val innerPayload = mapOf(
+                "to_process" to payload,
+                // TODO: implement file_lib when available
+                // "file_lib" to fileLibrary
+            )
+            val innerJson = org.json.JSONObject(innerPayload).toString()
+            
+            // Generate encryption keys
+            val aesKey = cn.edu.sjtu.deepsleep.docusnap.util.CryptoUtil.generateAesKey()
+            val encryptedContent = cn.edu.sjtu.deepsleep.docusnap.util.CryptoUtil.aesEncrypt(innerJson.toByteArray(), aesKey)
+            val sha256 = cn.edu.sjtu.deepsleep.docusnap.util.CryptoUtil.computeSHA256(encryptedContent)
+            
+            // For testing, we'll use a mock encrypted AES key
+            // In production, this should use the real backend public key for RSA encryption
+            val encryptedAesKeyBase64 = android.util.Base64.encodeToString(aesKey, android.util.Base64.NO_WRAP)
+            
             val job = JobEntity(
                 clientId = clientId,
                 type = type,
                 sha256 = sha256,
                 hasContent = hasContent,
-                content = content,
-                aesKey = aesKey
+                content = encryptedContent,
+                aesKey = encryptedAesKeyBase64
             )
             val jobId = jobDao.insertJob(job)
-            Log.d(TAG, "Created job with ID: $jobId")
+            Log.d(TAG, "Created job with ID: $jobId, SHA256: $sha256")
             return jobId
         } catch (e: Exception) {
             Log.e(TAG, "Error creating job", e)
