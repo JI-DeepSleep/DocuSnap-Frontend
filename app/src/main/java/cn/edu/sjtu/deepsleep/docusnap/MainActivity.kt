@@ -22,6 +22,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import cn.edu.sjtu.deepsleep.docusnap.data.SettingsManager
 import cn.edu.sjtu.deepsleep.docusnap.navigation.Screen
+import cn.edu.sjtu.deepsleep.docusnap.service.JobPollingService
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.BottomNavigation
 import cn.edu.sjtu.deepsleep.docusnap.ui.screens.*
 import cn.edu.sjtu.deepsleep.docusnap.ui.theme.DocuSnapTheme
@@ -43,9 +44,15 @@ fun DocuSnapApp() {
     val navController = rememberNavController()
     val context = LocalContext.current
     val settingsManager = remember { SettingsManager(context) }
+    val jobPollingService = remember { JobPollingService(context) }
     
     var pinProtectionEnabled by remember { mutableStateOf(false) }
     var isPinVerified by remember { mutableStateOf(false) }
+    
+    // Start job polling service when app starts
+    LaunchedEffect(Unit) {
+        jobPollingService.startPolling()
+    }
     
     // Check PIN protection status
     LaunchedEffect(Unit) {
@@ -201,6 +208,13 @@ fun DocuSnapApp() {
             
             composable(Screen.Settings.route) {
                 SettingsScreen(
+                    onNavigate = { route -> navController.navigate(route) },
+                    onBackClick = { navController.popBackStack() }
+                )
+            }
+            
+            composable("job_status") {
+                JobStatusScreen(
                     onNavigate = { route -> navController.navigate(route) },
                     onBackClick = { navController.popBackStack() }
                 )
