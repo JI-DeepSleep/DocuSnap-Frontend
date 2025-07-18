@@ -18,6 +18,10 @@ import cn.edu.sjtu.deepsleep.docusnap.data.local.AppDatabase
 import cn.edu.sjtu.deepsleep.docusnap.data.local.JobEntity
 import cn.edu.sjtu.deepsleep.docusnap.service.JobPollingService
 import kotlinx.coroutines.launch
+import android.util.Base64
+import cn.edu.sjtu.deepsleep.docusnap.util.CryptoUtil
+import org.json.JSONObject
+import javax.crypto.Cipher.PRIVATE_KEY
 
 @Composable
 fun JobStatusScreen(
@@ -27,7 +31,37 @@ fun JobStatusScreen(
     val context = LocalContext.current
     val jobPollingService = remember { JobPollingService(context) }
     val coroutineScope = rememberCoroutineScope()
-    
+    val PRIVATE_KEY = "-----BEGIN PRIVATE KEY-----\n" +
+            "MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQCq9GTqEj4bxF+4\n" +
+            "ULqevENfcrssmtOisSGQHBZ9kfaupsrSyMwMe06V6IUqaCveuDNVvKoVfL95OVsi\n" +
+            "+jNxWB5usxwP1xEtdZ+r9R6s2kkq5myModV4yinRDWVLkAmSRmkURDSiwa8qAmfV\n" +
+            "RNiJpL3ix8cRb8A42bNZtm9Ayx5TXmzEXbpBho2sxv2RzwHMFbovvdC6rotlEdKp\n" +
+            "4XvUmMAzDg629L2nENpFs3UXNFgYtwDeJrFISZuyWg9eKkEpkme2I73MM0YjURA6\n" +
+            "i7YZR8EEh40f4/YRb7p7ySGvClp9rBMzJSTGmoErRAvz+paBzsVuVXNIN8Tjdolz\n" +
+            "2Oc2bcCvAgMBAAECggEAEF7/GvtMP1R65ie092aH/Sf7jLX29mmIEUjfTn8f5HHM\n" +
+            "korwH3HfgLOXrQv0x4tUPy2mDBC6NV2swJi9PGl34Jn+YfXyiyvscocyvNLaluUi\n" +
+            "GAWXb83MW1yxCp9sizl67pnpgHyTza4VS3MgWW4RURpYke7ltYwDhN/Xn5jT+p+z\n" +
+            "/POmI9ePqMX4E04NwOb/xbbfVENbq3idSaQjHUyROE1I5Z3LjSivSsZo59Ei7K34\n" +
+            "81sy53NisThscOjIPZ7pFHvSs0dIi0l2L0rbWbfN3MfPDQWTLsY8+vfxL2AlarDt\n" +
+            "qp4os6tvBJh6X3i78OThOPDZ82IcEn2KF+4ytCoVwQKBgQDneDkgQjvAgdm4AP8C\n" +
+            "W+QIN0AY1dmq0h11TEkqvl11eCHnzev0Sym0IrGmg7Z9H5WvDThbGDLPjgNSstuP\n" +
+            "NINy069EQw8nsopOXyQ853yk8CFKgkQOg7A+Q8UL6kVD1by2JI78Byn3h74EHRYE\n" +
+            "AEfPrNcwVERAITbqQzXoK0q/FwKBgQC9EmYQ9ml+//LyoLcndJGbQxxuga7dCEGC\n" +
+            "T6sMqefQUuL3T+EXOsWE9JmPV4c09s8u2G4psy1jsawqbB0121BGKeH9PlUTE9sX\n" +
+            "pivPz0dK4hPe4+vt5xo2f+60Y6J3S312XZBQKIKJ9sGgZbIEKbaESNUbyN/MXLJM\n" +
+            "5ZIVTNvKKQKBgQC4NZlg7tUWs0BNi51mhzLGxxGfsjD0HRuMihWAitdd8SkqjVrG\n" +
+            "pDqgPSwcVJ4andRF58N925g0TdSfL/BD24rxCz5kmOmqshAXpuf0AFXV/bTA00LO\n" +
+            "Okc8hjp+7QYKokL4wcd5E0p2z/SM2Yj3zjFYOTlYIPfgAY7uiGaSSkHGKQKBgBxC\n" +
+            "18bJTlORZnsl0rqvDeSrT2ClOcIILeKQjfzCmMfm284jvn1+Z2/ML/fhGXCtQ6K4\n" +
+            "7x6EjdBNCnL83hDiy0jxkboMyyKi4SjTydCyJvHmgRnb77QLyztCPCfyjKJQQlyi\n" +
+            "96NDqt98ZszW5pkAsytqx4/zoqAlavFbj05nwqKhAoGBAJaHFN/1ciLRsuMjMz/O\n" +
+            "elS3lnpyZG3gPPr6SpnWKKiwCjcN8lDaiaPdZAwRCIfUbH0GENLimfDHt1m4HMC7\n" +
+            "ch/TIvalMQDnL3LoIHSQfVFBCSwfFuinGW6Gpw+zFQ4hp5dz2bZNhWzko7KL6i3m\n" +
+            "i45uR6NUXOLhlMNgLRDP9h1i\n" +
+            "-----END PRIVATE KEY-----"
+
+
+
     var jobs by remember { mutableStateOf<List<JobEntity>>(emptyList()) }
     var cleanupMessage by remember { mutableStateOf<String?>(null) }
     var lastRefreshTime by remember { mutableStateOf("Never") }
@@ -249,14 +283,14 @@ fun JobStatusScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(jobs) { job ->
-                JobCard(job = job)
+                JobCard(job = job, privateKeyPem = PRIVATE_KEY)
             }
         }
     }
 }
 
 @Composable
-fun JobCard(job: JobEntity) {
+fun JobCard(job: JobEntity, privateKeyPem: String) {
     var expanded by remember { mutableStateOf(false) }
     
     Card(
@@ -389,6 +423,31 @@ fun JobCard(job: JobEntity) {
                         )
                     }
                 }
+                // Show decrypted content for completed jobs
+                if (job.status == "completed") {
+                    val decrypted = tryDecryptJobResult(job, privateKeyPem)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Card(
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                        )
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Text(
+                                text = "Decrypted Content:",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = decrypted ?: "[No decrypted content]",
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -415,4 +474,40 @@ fun StatusChip(status: String) {
             style = MaterialTheme.typography.labelSmall
         )
     }
+} 
+
+// Add this helper function after imports
+private fun tryDecryptJobResult(job: JobEntity, privateKeyPem: String): String? {
+    return try {
+        if (job.result == null || job.aesKey == null) return null
+        val privateKey = getPrivateKeyFromPem(privateKeyPem)
+        val encryptedAesKeyBytes = Base64.decode(job.aesKey, Base64.NO_WRAP)
+        val aesKeyBytes = rsaDecrypt(encryptedAesKeyBytes, privateKey)
+        val decrypted = CryptoUtil.aesDecrypt(job.result, aesKeyBytes)
+        return try {
+            val json = JSONObject(decrypted)
+            json.toString(2)
+        } catch (e: Exception) {
+            decrypted
+        }
+    } catch (e: Exception) {
+        "[Decryption failed: ${e.message}]"
+    }
+}
+
+// Add these helpers after the above function
+private fun getPrivateKeyFromPem(pem: String): java.security.PrivateKey {
+    val privateKeyPEM = pem.replace("-----BEGIN PRIVATE KEY-----", "")
+        .replace("-----END PRIVATE KEY-----", "")
+        .replace("\n", "")
+        .replace("\r", "")
+    val encoded = Base64.decode(privateKeyPEM, Base64.DEFAULT)
+    val keySpec = java.security.spec.PKCS8EncodedKeySpec(encoded)
+    val kf = java.security.KeyFactory.getInstance("RSA")
+    return kf.generatePrivate(keySpec)
+}
+private fun rsaDecrypt(data: ByteArray, privateKey: java.security.PrivateKey): ByteArray {
+    val cipher = javax.crypto.Cipher.getInstance("RSA/ECB/PKCS1Padding")
+    cipher.init(javax.crypto.Cipher.DECRYPT_MODE, privateKey)
+    return cipher.doFinal(data)
 } 
