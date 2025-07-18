@@ -45,6 +45,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.asImageBitmap
 
+
 @Composable
 fun ImageProcessingScreen(
     onNavigate: (String) -> Unit,
@@ -57,6 +58,12 @@ fun ImageProcessingScreen(
         factory = ImageProcessingViewModelFactory(context)
     )
     val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(key1 = true) {
+        viewModel.events.collect { eventMessage ->
+            Toast.makeText(context, eventMessage, Toast.LENGTH_SHORT).show()
+        }
+    }
 
     LaunchedEffect(key1 = photoUris) {
         viewModel.setInitialPhotosAndLoadFirst(photoUris)
@@ -266,7 +273,8 @@ fun ImageProcessingScreen(
                                 onClick = {
                                      viewModel.resetToOriginal()
                                 },
-                                isSelected = false // selectedFilter == "Original"
+                                isSelected = uiState.appliedFilters.isEmpty(),
+                                enabled = true
                             )
                         }
                         item {
@@ -276,7 +284,8 @@ fun ImageProcessingScreen(
                                 onClick = {
                                     viewModel.applyBinarizationFilter()
                                 },
-                                isSelected = false // selectedFilter == "Black & White"
+                                isSelected = uiState.appliedFilters.contains("Black & White"),
+                                enabled = !uiState.appliedFilters.contains("Black & White")
                             )
                         }
                         item {
@@ -286,7 +295,8 @@ fun ImageProcessingScreen(
                                 onClick = {
                                     viewModel.applyHighContrastFilter()
                                 },
-                                isSelected = false // selectedFilter == "High Contrast"
+                                isSelected = uiState.appliedFilters.contains("High Contrast"),
+                                enabled = !uiState.appliedFilters.contains("High Contrast")
                             )
                         }
                         item {
@@ -296,7 +306,8 @@ fun ImageProcessingScreen(
                                 onClick = {
                                     viewModel.applyColorEnhancementFilter()
                                 },
-                                isSelected = false // selectedFilter == "Color Enhancement"
+                                isSelected = uiState.appliedFilters.contains("Color Enhancement"),
+                                enabled = !uiState.appliedFilters.contains("Color Enhancement")
                             )
                         }
                     }
@@ -324,7 +335,9 @@ fun ImageProcessingScreen(
                             icon = Icons.Default.AutoFixHigh,
                             onClick = {
                                 viewModel.applyAutoFilter()
-                            }
+                            },
+                            isSelected = uiState.appliedFilters.contains("Auto"),
+                            enabled = !uiState.appliedFilters.contains("Auto")
                         )
                     }
                     item {
@@ -350,7 +363,9 @@ fun ImageProcessingScreen(
                             icon = Icons.Default.Refresh,
                             onClick = {
                                 viewModel.resetToOriginal()
-                            }
+                            },
+                            isSelected = false,
+                            enabled = true
                         )
                     }
                 }
@@ -393,10 +408,12 @@ private fun FilterButton(
     text: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
-    isSelected: Boolean = false
+    isSelected: Boolean = false,
+    enabled: Boolean = true
 ) {
     OutlinedButton(
         onClick = onClick,
+        enabled = enabled,
         colors = ButtonDefaults.outlinedButtonColors(
             containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
         ),

@@ -20,6 +20,8 @@ import java.io.File
 import java.io.FileOutputStream
 import android.util.Log
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 // --- 1. REDEFINE THE UI STATE ---
 // It's simpler now. It mainly holds the "canvas" (editingBitmap).
@@ -29,7 +31,8 @@ data class ImageProcessingUiState(
     val currentImageIndex: Int = 0,
     // This is the "canvas". It holds the current state of the image being edited.
     val editingBitmap: Bitmap? = null,
-    val isFilterToolbarVisible: Boolean = false
+    val isFilterToolbarVisible: Boolean = false,
+    val appliedFilters: Set<String> = emptySet()
 )
 
 class ImageProcessingViewModel(
@@ -39,6 +42,9 @@ class ImageProcessingViewModel(
 
     private val _uiState = MutableStateFlow(ImageProcessingUiState())
     val uiState = _uiState.asStateFlow()
+
+    private val _events = MutableSharedFlow<String>()
+    val events = _events.asSharedFlow()
 
     // --- 2. Keep track of the original bitmap and the final saved URIs ---
     private var originalBitmap: Bitmap? = null
@@ -57,53 +63,64 @@ class ImageProcessingViewModel(
      * A generic function that applies any service filter to the current "canvas".
      * @param filter The service function to apply, e.g., imageProcService::applyHighContrast
      */
-    private fun applyFilter(filter: suspend (Bitmap) -> Bitmap) {
+    private fun applyFilter(filterName: String, filter: suspend (Bitmap) -> Bitmap) {
         val currentCanvas = _uiState.value.editingBitmap
-        if (currentCanvas == null) return
+
+        if (currentCanvas == null || _uiState.value.appliedFilters.contains(filterName)) {
+            return
+        }
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            // Give the current canvas to the service.
-            val newCanvas = filter(currentCanvas)
-            // Update the canvas with the new result.
-            _uiState.update { it.copy(isLoading = false, editingBitmap = newCanvas) }
 
-            Log.d(
-                "DebugDocuSnap",
-                "Filter Applied on index: ${_uiState.value.currentImageIndex}. " +
-                        "Canvas updated. Current processedImageUris map: ${processedImageUris}"
-            )
+            val newCanvas = filter(currentCanvas)
+
+
+            _uiState.update { currentState ->
+                currentState.copy(
+                    isLoading = false,
+                    editingBitmap = newCanvas,
+
+                    appliedFilters = currentState.appliedFilters + filterName
+                )
+            }
         }
     }
-
     // --- 4. CREATE PUBLIC FUNCTIONS that call the generic applyFilter ---
     // These are what the UI buttons will call.
 
     fun applyBinarizationFilter() {
-        // We wrap the service call in a simple lambda.
-        // The lambda matches the type `suspend (Bitmap) -> Bitmap`.
-        applyFilter { bitmap -> imageProcService.applyThresholdFilter(bitmap, 4) }
+        applyFilter("Black & White") { bitmap ->
+            imageProcService.applyThresholdFilter(bitmap, 4)
+        }
     }
 
     fun applyHighContrastFilter() {
-        // For functions with one parameter, the syntax is even simpler.
-        applyFilter { bitmap -> imageProcService.applyHighContrast(bitmap) }
-        // Or using the shorter 'it' syntax:
-        // applyFilter { imageProcService.applyHighContrast(it) }
+        applyFilter("High Contrast") { bitmap ->
+            imageProcService.applyHighContrast(bitmap)
+        }
     }
 
     fun applyAutoFilter() {
-        applyFilter { bitmap -> imageProcService.autoProcessing(bitmap) }
+        applyFilter("Auto") { bitmap ->
+            imageProcService.autoProcessing(bitmap)
+        }
     }
 
     fun applyColorEnhancementFilter() {
-        applyFilter { bitmap -> imageProcService.enhanceColors(bitmap) }
+        applyFilter("Color Enhancement") { bitmap ->
+            imageProcService.enhanceColors(bitmap)
+        }
     }
 
     fun resetToOriginal() {
         // Simply put the stored original bitmap back onto the canvas. No I/O needed.
-        _uiState.update { it.copy(editingBitmap = originalBitmap) }
+        _uiState.update { it.copy(
+            editingBitmap = originalBitmap,
+            appliedFilters = emptySet()
+        )}
     }
+
 
     // --- 5. REWORK NAVIGATION and INITIALIZATION ---
 
@@ -150,7 +167,7 @@ class ImageProcessingViewModel(
                 val loadedBitmap = uriToBitmap(uriToLoad)
                 originalBitmap = loadedBitmap // Always store the first loaded version for reset.
                 _uiState.update {
-                    it.copy(isLoading = false, editingBitmap = loadedBitmap)
+                    it.copy(isLoading = false, editingBitmap = loadedBitmap,  appliedFilters = emptySet())
                 }
             }
         }
@@ -215,6 +232,7 @@ class ImageProcessingViewModel(
             ImageDecoder.decodeBitmap(source, listener).copy(Bitmap.Config.ARGB_8888, true)
         } catch (e: Exception) {
             e.printStackTrace()
+            viewModelScope.launch { _events.emit("Failed to load image") }
             null
         }
     }
