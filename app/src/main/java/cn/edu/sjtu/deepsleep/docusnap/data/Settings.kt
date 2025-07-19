@@ -10,15 +10,16 @@ import kotlinx.coroutines.flow.asStateFlow
 object AppConstants {
     const val DEFAULT_BACKEND_URL = "https://docusnap.zjyang.dev/api/v1/"
     const val BACKEND_GITHUB_URL = "https://github.com/JI-DeepSleep/DocuSnap-Backend"
-    const val DEFAULT_BACKEND_PUBLIC_KEY = "-----BEGIN PUBLIC KEY-----\n" +
-            "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqvRk6hI+G8RfuFC6nrxD\n" +
-            "X3K7LJrTorEhkBwWfZH2rqbK0sjMDHtOleiFKmgr3rgzVbyqFXy/eTlbIvozcVge\n" +
-            "brMcD9cRLXWfq/UerNpJKuZsjKHVeMop0Q1lS5AJkkZpFEQ0osGvKgJn1UTYiaS9\n" +
-            "4sfHEW/AONmzWbZvQMseU15sxF26QYaNrMb9kc8BzBW6L73Quq6LZRHSqeF71JjA\n" +
-            "Mw4OtvS9pxDaRbN1FzRYGLcA3iaxSEmbsloPXipBKZJntiO9zDNGI1EQOou2GUfB\n" +
-            "BIeNH+P2EW+6e8khrwpafawTMyUkxpqBK0QL8/qWgc7FblVzSDfE43aJc9jnNm3A\n" +
-            "rwIDAQAB\n" +
-            "-----END PUBLIC KEY-----"
+    const val DEFAULT_BACKEND_PUBLIC_KEY = """-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAjtGbqgL4BcM/mWUhCI3Z
+2Zd+sTrtZT5H9SLI7khSREELR4gh3mxqq1qSLcnWt99ERK7qpjihAmjY0iRuuizc
+pj9YH08XolZKv5WWV40ORtgfb7ROSGf3xlmdKa+FTwJCYEa759DMyADx9ciOEIqU
+MEuy/pYc8fo0SPpK9+ANEvLHXPwIW1/WZKwjcmSWhVBznUUf9yMWF2Hp3aFSrQ++
+ZNaS7vqDz+6RdhYFYY7Toc/zvf9725iV0gRNqRtWo5ywWs4ySFAiq097zS1FAU1s
+Ij0GKrIiO3KcSZrxeJBntuyOHyWBVrg6J9yiDTZbMj+9uImxla4qgeoxHr5OY2x7
+1QIDAQAB
+-----END PUBLIC KEY-----
+"""
 }
 
 data class AppSettings(

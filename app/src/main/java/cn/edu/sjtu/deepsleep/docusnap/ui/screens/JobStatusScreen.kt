@@ -3,6 +3,8 @@ package cn.edu.sjtu.deepsleep.docusnap.ui.screens
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -30,17 +32,11 @@ fun JobStatusScreen(
     val context = LocalContext.current
     val jobPollingService = remember { JobPollingService(context) }
     val coroutineScope = rememberCoroutineScope()
-    val privateKeyPem = context.assets.open("private_key.pem")
-        .bufferedReader()
-        .use { it.readText() }
-
-
-
     var jobs by remember { mutableStateOf<List<JobEntity>>(emptyList()) }
     var cleanupMessage by remember { mutableStateOf<String?>(null) }
     var lastRefreshTime by remember { mutableStateOf("Never") }
     var isPollingActive by remember { mutableStateOf(false) }
-    
+
     // Function to refresh jobs
     val refreshJobs = {
         coroutineScope.launch {
@@ -56,21 +52,23 @@ fun JobStatusScreen(
             }
         }
     }
-    
+
     // Function to check polling status
     val checkPollingStatus = {
         isPollingActive = jobPollingService.isPollingActive()
     }
+
     // Collect jobs from database
     LaunchedEffect(Unit) {
         refreshJobs()
         checkPollingStatus()
     }
-    
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
+            .verticalScroll(rememberScrollState())
     ) {
         // Header
         Row(
@@ -103,24 +101,21 @@ fun JobStatusScreen(
                 }
             }
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         // Test buttons
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             Button(
                 onClick = {
                     coroutineScope.launch {
                         try {
                             // Create a test job with proper payload
-
                             val testBase64Image = context.assets.open("test_image_base64.txt")
                                 .bufferedReader()
                                 .use { it.readText() }
-
                             val testImages = listOf(testBase64Image)
                             val jobId = jobPollingService.createJob(
                                 type = "doc",
@@ -137,7 +132,6 @@ fun JobStatusScreen(
             ) {
                 Text("Create Test Job")
             }
-            
             Button(
                 onClick = {
                     coroutineScope.launch {
@@ -162,7 +156,6 @@ fun JobStatusScreen(
             ) {
                 Text("Create Invalid Job")
             }
-            
             Button(
                 onClick = {
                     coroutineScope.launch {
@@ -182,13 +175,12 @@ fun JobStatusScreen(
                 Text("Cleanup Old Jobs")
             }
         }
-        
+
         Spacer(modifier = Modifier.height(8.dp))
-        
+
         // Polling control buttons
-        Row(
+        Column(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             Button(
                 onClick = {
@@ -199,7 +191,6 @@ fun JobStatusScreen(
             ) {
                 Text("Start Polling")
             }
-            
             Button(
                 onClick = {
                     jobPollingService.stopPolling()
@@ -209,7 +200,6 @@ fun JobStatusScreen(
             ) {
                 Text("Stop Polling")
             }
-            
             Button(
                 onClick = {
                     coroutineScope.launch {
@@ -228,48 +218,47 @@ fun JobStatusScreen(
                 Text("Manual Poll")
             }
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
-        
+
         // Cleanup message
         cleanupMessage?.let { message ->
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = if (message.startsWith("Error")) 
-                        MaterialTheme.colorScheme.errorContainer 
-                    else 
+                    containerColor = if (message.startsWith("Error"))
+                        MaterialTheme.colorScheme.errorContainer
+                    else
                         MaterialTheme.colorScheme.secondaryContainer
                 )
             ) {
                 Text(
                     text = message,
                     modifier = Modifier.padding(16.dp),
-                    color = if (message.startsWith("Error")) 
-                        MaterialTheme.colorScheme.onErrorContainer 
-                    else 
+                    color = if (message.startsWith("Error"))
+                        MaterialTheme.colorScheme.onErrorContainer
+                    else
                         MaterialTheme.colorScheme.onSecondaryContainer
                 )
             }
             Spacer(modifier = Modifier.height(8.dp))
         }
-        
-        // Jobs list
-        LazyColumn(
-            modifier = Modifier.weight(1f),
+
+        // Jobs list - Now using regular Column since the parent is scrollable
+        Column(
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(jobs) { job ->
-                JobCard(job = job, privateKeyPem = privateKeyPem)
+            jobs.forEach { job ->
+                JobCard(job = job)
             }
         }
     }
 }
 
 @Composable
-fun JobCard(job: JobEntity, privateKeyPem: String) {
+fun JobCard(job: JobEntity) {
     var expanded by remember { mutableStateOf(false) }
-    
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -301,36 +290,29 @@ fun JobCard(job: JobEntity, privateKeyPem: String) {
                     }
                 }
             }
-            
             Spacer(modifier = Modifier.height(8.dp))
-            
             Text("Type: ${job.type}")
             Text("SHA256: ${job.sha256.take(16)}...")
             Text("Created: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(java.util.Date(job.createdAt))}")
             Text("Updated: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(java.util.Date(job.updatedAt))}")
-            
             if (expanded) {
                 Spacer(modifier = Modifier.height(8.dp))
-                
                 // Full SHA256
                 Text(
                     text = "Full SHA256: ${job.sha256}",
                     style = MaterialTheme.typography.bodySmall,
                     fontFamily = FontFamily.Monospace
                 )
-                
                 // Client ID
                 Text(
                     text = "Client ID: ${job.clientId}",
                     style = MaterialTheme.typography.bodySmall
                 )
-                
                 // Content info
                 Text(
                     text = "Has Content: ${job.hasContent}",
                     style = MaterialTheme.typography.bodySmall
                 )
-                
                 if (job.content != null) {
                     Text(
                         text = "Content (first 100 chars): ${job.content.take(100)}...",
@@ -338,7 +320,6 @@ fun JobCard(job: JobEntity, privateKeyPem: String) {
                         fontFamily = FontFamily.Monospace
                     )
                 }
-                
                 if (job.aesKey != null) {
                     Text(
                         text = "AES Key (first 50 chars): ${job.aesKey.take(50)}...",
@@ -347,7 +328,6 @@ fun JobCard(job: JobEntity, privateKeyPem: String) {
                     )
                 }
             }
-            
             // Error details with better formatting
             if (job.errorDetail != null) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -374,7 +354,6 @@ fun JobCard(job: JobEntity, privateKeyPem: String) {
                     }
                 }
             }
-            
             // Result details
             if (job.result != null) {
                 Spacer(modifier = Modifier.height(8.dp))
@@ -400,31 +379,6 @@ fun JobCard(job: JobEntity, privateKeyPem: String) {
                         )
                     }
                 }
-                // Show decrypted content for completed jobs
-                if (job.status == "completed") {
-                    val decrypted = tryDecryptJobResult(job, privateKeyPem)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Card(
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer
-                        )
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(
-                                text = "Decrypted Content:",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onTertiaryContainer
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = decrypted ?: "[No decrypted content]",
-                                color = MaterialTheme.colorScheme.onTertiaryContainer,
-                                style = MaterialTheme.typography.bodySmall,
-                                fontFamily = FontFamily.Monospace
-                            )
-                        }
-                    }
-                }
             }
         }
     }
@@ -439,7 +393,6 @@ fun StatusChip(status: String) {
         "error" -> MaterialTheme.colorScheme.error to MaterialTheme.colorScheme.onError
         else -> MaterialTheme.colorScheme.surface to MaterialTheme.colorScheme.onSurface
     }
-    
     Surface(
         color = backgroundColor,
         shape = MaterialTheme.shapes.small
@@ -451,41 +404,9 @@ fun StatusChip(status: String) {
             style = MaterialTheme.typography.labelSmall
         )
     }
-} 
-
-// Add this helper function after imports
-private fun tryDecryptJobResult(job: JobEntity, privateKeyPem: String): String? {
-    try {
-        if (job.result == null || job.aesKey == null) return null
-        // Debug: Print PEM info
-        android.util.Log.d("JobStatusScreen", "PRIVATE_KEY first 100: ${privateKeyPem.take(100)}")
-        android.util.Log.d("JobStatusScreen", "PRIVATE_KEY length: ${privateKeyPem.length}")
-        android.util.Log.d("JobStatusScreen", "PRIVATE_KEY contains BEGIN: ${privateKeyPem.contains("BEGIN")}, END: ${privateKeyPem.contains("END")}")
-        android.util.Log.d("JobStatusScreen", "AES key base64 length: ${job.aesKey.length}")
-        android.util.Log.d("JobStatusScreen", "Result base64 length: ${job.result.length}")
-        val privateKey = getPrivateKeyFromPem(privateKeyPem)
-        val encryptedAesKeyBytes = Base64.decode(job.aesKey, Base64.NO_WRAP)
-        val aesKeyBytes = rsaDecrypt(encryptedAesKeyBytes, privateKey)
-        val decrypted = CryptoUtil.aesDecrypt(job.result, aesKeyBytes)
-        return try {
-            val json = JSONObject(decrypted)
-            json.toString(2)
-        } catch (e: Exception) {
-            decrypted
-        }
-    } catch (e: Exception) {
-        android.util.Log.e("JobStatusScreen", "Decryption failed: ${e.message}", e)
-        return "[Decryption failed: ${e.message}\n" +
-            "PEM first 100: ${privateKeyPem.take(100)}\n" +
-            "PEM length: ${privateKeyPem.length}\n" +
-            "PEM contains BEGIN: ${privateKeyPem.contains("BEGIN")}, END: ${privateKeyPem.contains("END")}" +
-            "\nAES key base64 length: ${job.aesKey?.length ?: 0}\n" +
-            "Result base64 length: ${job.result?.length ?: 0}\n" +
-            "Stacktrace: ${e.stackTraceToString()}]"
-    }
 }
 
-// Add these helpers after the above function
+
 private fun getPrivateKeyFromPem(pem: String): java.security.PrivateKey {
     try {
         // Remove header and footer, and all whitespace
@@ -493,13 +414,10 @@ private fun getPrivateKeyFromPem(pem: String): java.security.PrivateKey {
             .replace("-----BEGIN PRIVATE KEY-----", "")
             .replace("-----END PRIVATE KEY-----", "")
             .replace("\\s".toRegex(), "") // Remove all whitespace including newlines
-        
         android.util.Log.d("JobStatusScreen", "Cleaned PEM length: ${privateKeyPEM.length}")
         android.util.Log.d("JobStatusScreen", "Cleaned PEM first 50 chars: ${privateKeyPEM.take(50)}")
-        
         val encoded = Base64.decode(privateKeyPEM, Base64.DEFAULT)
         android.util.Log.d("JobStatusScreen", "Decoded bytes length: ${encoded.size}")
-        
         val keySpec = java.security.spec.PKCS8EncodedKeySpec(encoded)
         val kf = java.security.KeyFactory.getInstance("RSA")
         return kf.generatePrivate(keySpec)
@@ -508,8 +426,9 @@ private fun getPrivateKeyFromPem(pem: String): java.security.PrivateKey {
         throw e
     }
 }
+
 private fun rsaDecrypt(data: ByteArray, privateKey: java.security.PrivateKey): ByteArray {
     val cipher = javax.crypto.Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding")
     cipher.init(javax.crypto.Cipher.DECRYPT_MODE, privateKey)
     return cipher.doFinal(data)
-} 
+}
