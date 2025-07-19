@@ -279,7 +279,7 @@ fun ImageProcessingScreen(
                         }
                         item {
                             FilterButton(
-                                text = "Black & White",
+                                text = "Monochrome",
                                 icon = Icons.Default.Tonality,
                                 onClick = {
                                     viewModel.applyBinarizationFilter()
