@@ -264,12 +264,15 @@ class JobPollingService(private val context: Context) {
     ): Long {
         try {
             // Create the inner payload structure
-            val innerPayload = mapOf(
-                "to_process" to payload,
-                // TODO: implement file_lib when available
-                // "file_lib" to fileLibrary
+            val innerPayload = mutableMapOf<String, Any>(
+                "to_process" to payload
             )
-            val innerJson = org.json.JSONObject(innerPayload).toString()
+            // Always include file_lib, default to empty arrays
+            innerPayload["file_lib"] = mapOf(
+                "docs" to emptyList<Any>(),
+                "forms" to emptyList<Any>()
+            )
+            val innerJson = org.json.JSONObject(innerPayload as Map<*, *>?).toString()
             
             // Generate encryption keys
             val aesKey = cn.edu.sjtu.deepsleep.docusnap.util.CryptoUtil.generateAesKey()
