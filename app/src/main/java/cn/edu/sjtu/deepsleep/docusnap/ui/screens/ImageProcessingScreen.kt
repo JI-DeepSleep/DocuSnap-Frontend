@@ -39,6 +39,12 @@ import androidx.core.content.FileProvider
 import android.util.Log
 import android.widget.Toast
 import androidx.compose.material.icons.outlined.PhotoFilter
+import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.compose.runtime.collectAsState
+import androidx.compose.foundation.Image
+import androidx.compose.ui.graphics.asImageBitmap
+
 
 @Composable
 fun ImageProcessingScreen(
@@ -47,133 +53,70 @@ fun ImageProcessingScreen(
     photoUris: String? = null, // Changed from originalImageUri to photoUris
     source: String = "document"
 ) {
-    var isProcessing by remember { mutableStateOf(false) }
-    var isSaving by remember { mutableStateOf(false) }
-    var selectedFilter by remember { mutableStateOf("Original") }
-    var showFilterToolbar by remember { mutableStateOf(false) }
-    var currentImageIndex by remember { mutableStateOf(0) }
-    var processedImages by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    var processedBitmap by remember { mutableStateOf<Bitmap?>(null) }
+    val viewModel: ImageProcessingViewModel = viewModel(
+        factory = ImageProcessingViewModelFactory(context)
+    )
+    val uiState by viewModel.uiState.collectAsState()
 
-    // Parse photoUris string into list
-    val imageUris = remember(photoUris) {
-        photoUris?.split(",")?.filter { it.isNotEmpty() } ?: emptyList()
-    }
-
-    // Current image URI
-    val currentImageUri = remember(currentImageIndex, imageUris, processedImages) {
-        processedImages[currentImageIndex] ?: imageUris.getOrNull(currentImageIndex)
-    }
-
-    // Navigation functions
-    fun goToPreviousImage() {
-        if (currentImageIndex > 0) {
-            currentImageIndex--
+    LaunchedEffect(key1 = true) {
+        viewModel.events.collect { eventMessage ->
+            Toast.makeText(context, eventMessage, Toast.LENGTH_SHORT).show()
         }
     }
 
-    fun goToNextImage() {
-        if (currentImageIndex < imageUris.size - 1) {
-            currentImageIndex++
-        }
+    LaunchedEffect(key1 = photoUris) {
+        viewModel.setInitialPhotosAndLoadFirst(photoUris)
     }
 
-    // TODO: move this function to ImageProcService
-    // Image processing functions
-    // [ 用这个新函数替换旧的 processCurrentImage ]
-    fun processCurrentImage(filterType: String) {
-        if (currentImageUri == null) return
 
-        isProcessing = true
-        // [1. CHANGE] Use IO dispatcher for file operations as it can be slow.
-        scope.launch(Dispatchers.IO) {
-            val inputBitmap = uriToBitmap(context, currentImageUri)
-
-            if (inputBitmap != null) {
-                val outputBitmap = when (filterType) {
-                    "Black & White" -> applyBlackAndWhiteFilter(inputBitmap)
-                    else -> inputBitmap
-                }
-
-                // [2. ADD] Save the processed bitmap and get the new Uri.
-                val newUri = saveBitmapToCache(context, outputBitmap)
-
-                // [3. CHANGE] Switch back to the Main thread for UI and state updates.
-                launch(Dispatchers.Main) {
-                    if (newUri != null) {
-                        // [KEY CHANGE] Store the URI of the NEW, saved file.
-                        processedImages = processedImages + (currentImageIndex to newUri.toString())
-                        Log.d("ImageSaveDebug", "Map updated for index $currentImageIndex. New URI: $newUri. Map now has ${processedImages.size} items.")
-                    } else {
-                    // [ADD THIS LOG] Log an error if saving failed.
-                    // 【添加这行日志】如果保存失败，就打印一条错误日志。
-                    Log.e("ImageSaveDebug", "saveBitmapToCache failed, newUri is null!")
-                }
-
-                    // We still use processedBitmap for live preview on this screen.
-                    processedBitmap = outputBitmap
-                    selectedFilter = filterType
-                    isProcessing = false
-                }
-            } else {
-                launch(Dispatchers.Main) {
-                    isProcessing = false
-                    Toast.makeText(context, "Failed to load image", Toast.LENGTH_SHORT).show()
-                }
-            }
-        }
-    }
+    val scope = rememberCoroutineScope()
 
     // Function to create new document or form and navigate to it
     fun createAndNavigateToDetail() {
-        Log.d("ImageSaveDebug", "Create/Navigate called. Current processedImages map: $processedImages")
-        val processedImageUris = if (processedImages.isNotEmpty()) {
-            processedImages.values.toList()
-        } else {
-            imageUris
-        }
+        scope.launch{
+            val finalUris = viewModel.getFinalUris()
 
-        // [1. PREPARE DATA] Convert the list of Uris into a single, URL-safe string.
-        // 第一步：准备数据。将 URI 列表转换成一个 URL 安全的字符串。
-        val urisString = processedImageUris.joinToString(",")
-        val encodedUris = java.net.URLEncoder.encode(urisString, "UTF-8")
+            // [1. PREPARE DATA] Convert the list of Uris into a single, URL-safe string.
+            // 第一步：准备数据。将 URI 列表转换成一个 URL 安全的字符串。
+            val urisString = finalUris.joinToString(",")
+            val encodedUris = java.net.URLEncoder.encode(urisString, "UTF-8")
 
-        when (source) {
-            "document" -> {
-                // Create a new document object (this part is unchanged)
-                val newDocument = Document(
-                    id = UUID.randomUUID().toString(),
-                    name = "New Document ${System.currentTimeMillis()}",
-                    description = "A new document created by user",
-                    imageUris = processedImageUris,
-                    extractedInfo = emptyMap(),
-                    tags = listOf("New", "Document"),
-                    uploadDate = "2024-01-15"
-                )
-                // TODO: Save the document to the database/storage
+            when (source) {
+                "document" -> {
+                    // Create a new document object (this part is unchanged)
+                    val newDocument = Document(
+                        id = UUID.randomUUID().toString(),
+                        name = "New Document ${System.currentTimeMillis()}",
+                        description = "A new document created by user",
+                        imageUris = finalUris,
+                        extractedInfo = emptyMap(),
+                        tags = listOf("New", "Document"),
+                        uploadDate = "2024-01-15"
+                    )
+                    // TODO: Save the document to the database/storage
 
-                // [2. MODIFY NAVIGATION] Add the encodedUris to the navigation route.
-                onNavigate("document_detail?documentId=${newDocument.id}&fromImageProcessing=true&photoUris=$encodedUris")
+                    // [2. MODIFY NAVIGATION] Add the encodedUris to the navigation route.
+                    onNavigate("document_detail?documentId=${newDocument.id}&fromImageProcessing=true&photoUris=$encodedUris")
+                }
+                "form" -> {
+                    // Create a new form object (this part is unchanged)
+                    val newForm = Form(
+                        id = UUID.randomUUID().toString(),
+                        name = "New Form ${System.currentTimeMillis()}",
+                        description = "A new form uploaded by user",
+                        imageUris = finalUris,
+                        formFields = emptyList(),
+                        extractedInfo = emptyMap(),
+                        uploadDate = "2024-01-15"
+                    )
+                    // TODO: Save the form to the database/storage
+
+                    // [3. MODIFY NAVIGATION] Add the encodedUris to the navigation route.
+                    onNavigate("form_detail?formId=${newForm.id}&fromImageProcessing=true&photoUris=$encodedUris")
+                }
+                else -> onNavigate("home")
             }
-            "form" -> {
-                // Create a new form object (this part is unchanged)
-                val newForm = Form(
-                    id = UUID.randomUUID().toString(),
-                    name = "New Form ${System.currentTimeMillis()}",
-                    description = "A new form uploaded by user",
-                    imageUris = processedImageUris,
-                    formFields = emptyList(),
-                    extractedInfo = emptyMap(),
-                    uploadDate = "2024-01-15"
-                )
-                // TODO: Save the form to the database/storage
-
-                // [3. MODIFY NAVIGATION] Add the encodedUris to the navigation route.
-                onNavigate("form_detail?formId=${newForm.id}&fromImageProcessing=true&photoUris=$encodedUris")
-            }
-            else -> onNavigate("home")
         }
     }
 
@@ -211,13 +154,14 @@ fun ImageProcessingScreen(
                 ),
             contentAlignment = Alignment.Center
         ) {
+            // --- 1. Get the current display URI from the ViewModel state ---
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // Image index display
-                if (imageUris.isNotEmpty()) {
+                // --- 2. CONNECT Image index display to ViewModel state ---
+                if (uiState.originalImageUris.isNotEmpty()) {
                     Text(
-                        text = "${currentImageIndex + 1}/${imageUris.size}",
+                        text = "${uiState.currentImageIndex + 1}/${uiState.originalImageUris.size}",
                         fontSize = 14.sp,
                         color = MaterialTheme.colorScheme.primary,
                         fontWeight = FontWeight.Medium,
@@ -225,74 +169,54 @@ fun ImageProcessingScreen(
                     )
                 }
 
-                // Image placeholder or loaded image
+                // --- 3. REBUILD Image placeholder/loaded image logic with ViewModel state ---
                 Box(
                     modifier = Modifier
-                        .size(300.dp),
+                        .fillMaxWidth()
+                        .aspectRatio(
+                            // Calculate aspect ratio from the bitmap if available, otherwise use a default
+                            ratio = uiState.editingBitmap?.let { bitmap ->
+                                bitmap.width.toFloat() / bitmap.height.toFloat()
+                            } ?: 1f, // Default to square if no bitmap
+                            matchHeightConstraintsFirst = false
+                        )
+                        .padding(horizontal = 16.dp), // Add some horizontal padding
                     contentAlignment = Alignment.Center
                 ) {
                     // Priority 1: Show a loading spinner if processing.
-                    if (isProcessing || isSaving) {
+                    if (uiState.isLoading) {
                         CircularProgressIndicator()
-                        // Processing status
-                        if (isProcessing) {
-                            Text(
-                                text = "Processing image...",
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                        } else if (isSaving) {
-                            Text(
-                                text = "Saving to gallery...",
-                                fontSize = 14.sp,
-                                color = MaterialTheme.colorScheme.primary
+                        Text(
+                            text = "Processing image...",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                    // Priority 2: If we have a live preview Bitmap, display it.
+                    else if (uiState.editingBitmap != null) {
+                        uiState.editingBitmap?.let { bitmapToShow ->
+                            Image(
+                                bitmap = bitmapToShow.asImageBitmap(),
+                                contentDescription = "Editing Image",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Fit // Changed from Crop to Fit to show entire image
                             )
                         }
                     }
-                    // Priority 2: If we have a processed Bitmap, display it.
-                    else if (processedBitmap != null) {
-                        Image(
-                            bitmap = processedBitmap!!.asImageBitmap(),
-                            contentDescription = "Processed Image",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                    // Priority 3: Otherwise, display the original image from its Uri.
-                    else if (currentImageUri != null) {
-                        AsyncImage(
-                            model = currentImageUri,
-                            contentDescription = "Original Image",
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
-                    // Priority 4: If there is no image at all, show a placeholder.
+                    // Priority 3: If there is no image at all, show a placeholder.
                     else {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(
-                                text = "📄",
-                                fontSize = 48.sp
-                            )
+                            Text(text = "📄", fontSize = 48.sp)
                             Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Document Image",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                            Text(
-                                text = "Filter: $selectedFilter",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
+                            Text(text = "Document Image", fontSize = 16.sp, fontWeight = FontWeight.Medium)
                         }
                     }
                 }
             }
 
-            // Navigation arrows
+            // --- 4. CONNECT Navigation arrows to ViewModel functions ---
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -300,44 +224,85 @@ fun ImageProcessingScreen(
             ) {
                 // Previous arrow
                 IconButton(
-                    onClick = { goToPreviousImage() },
-                    enabled = currentImageIndex > 0,
+                    onClick = { viewModel.goToPreviousImage() },
+                    enabled = uiState.currentImageIndex > 0,
                     modifier = Modifier
                         .size(48.dp)
                         .background(
-                            if (currentImageIndex > 0) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f),
+                            if (uiState.currentImageIndex > 0) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f),
                             CircleShape
                         )
                 ) {
                     Icon(
                         Icons.Default.ChevronLeft,
                         contentDescription = "Previous image",
-                        tint = if (currentImageIndex > 0) Color.Black else Color.Gray
+                        tint = if (uiState.currentImageIndex > 0) Color.Black else Color.Gray
                     )
                 }
 
                 // Next arrow
                 IconButton(
-                    onClick = { goToNextImage() },
-                    enabled = currentImageIndex < imageUris.size - 1,
+                    onClick = { viewModel.goToNextImage() },
+                    enabled = uiState.currentImageIndex < uiState.originalImageUris.size - 1,
                     modifier = Modifier
                         .size(48.dp)
                         .background(
-                            if (currentImageIndex < imageUris.size - 1) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f),
+                            if (uiState.currentImageIndex < uiState.originalImageUris.size - 1) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f),
                             CircleShape
                         )
                 ) {
                     Icon(
                         Icons.Default.ChevronRight,
                         contentDescription = "Next image",
-                        tint = if (currentImageIndex < imageUris.size - 1) Color.Black else Color.Gray
+                        tint = if (uiState.currentImageIndex < uiState.originalImageUris.size - 1) Color.Black else Color.Gray
                     )
                 }
             }
         }
 
+        // Secondary Perspective Toolbar (appears when Perspective button is clicked)
+        if (uiState.isPerspectiveToolbarVisible) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 4.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(8.dp)
+                ) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        item {
+                            FilterButton(
+                                text = "Straighten",
+                                icon = Icons.Default.AutoFixHigh,
+                                onClick = {
+                                    viewModel.applyPerspectiveCorrectionFilter()
+                                },
+                                isSelected = uiState.appliedFilters.contains("Perspective Correction"),
+                                enabled = !uiState.appliedFilters.contains("Perspective Correction")
+                            )
+                        }
+//                        item {
+//                            FilterButton(
+//                                text = "Rotate 90°",
+//                                icon = Icons.Default.RotateRight,
+//                                onClick = {
+//                                    viewModel.applyRotation(90)
+//                                },
+//                                isSelected = false,
+//                                enabled = true
+//                            )
+//                        }
+                    }
+                }
+            }
+        }
+
         // Secondary Filter Toolbar (appears when Filter button is clicked)
-        if (showFilterToolbar) {
+        if (uiState.isFilterToolbarVisible) { // showFilterToolbar
             Surface(
                 modifier = Modifier.fillMaxWidth(),
                 color = MaterialTheme.colorScheme.surface,
@@ -355,21 +320,21 @@ fun ImageProcessingScreen(
                                 text = "Original",
                                 icon = Icons.Default.Refresh,
                                 onClick = {
-                                    selectedFilter = "Original"
-                                    processCurrentImage("Original")
+                                     viewModel.resetToOriginal()
                                 },
-                                isSelected = selectedFilter == "Original"
+                                isSelected = uiState.appliedFilters.isEmpty(),
+                                enabled = true
                             )
                         }
                         item {
                             FilterButton(
-                                text = "Black & White",
+                                text = "Monochrome",
                                 icon = Icons.Default.Tonality,
                                 onClick = {
-                                    selectedFilter = "Black & White"
-                                    processCurrentImage("Black & White")
+                                    viewModel.applyBinarizationFilter()
                                 },
-                                isSelected = selectedFilter == "Black & White"
+                                isSelected = uiState.appliedFilters.contains("Black & White"),
+                                enabled = !uiState.appliedFilters.contains("Black & White")
                             )
                         }
                         item {
@@ -377,10 +342,10 @@ fun ImageProcessingScreen(
                                 text = "High Contrast",
                                 icon = Icons.Default.Contrast,
                                 onClick = {
-                                    selectedFilter = "High Contrast"
-                                    processCurrentImage("High Contrast")
+                                    viewModel.applyHighContrastFilter()
                                 },
-                                isSelected = selectedFilter == "High Contrast"
+                                isSelected = uiState.appliedFilters.contains("High Contrast"),
+                                enabled = !uiState.appliedFilters.contains("High Contrast")
                             )
                         }
                         item {
@@ -388,10 +353,10 @@ fun ImageProcessingScreen(
                                 text = "Color Enhancement",
                                 icon = Icons.Outlined.ColorLens,
                                 onClick = {
-                                    selectedFilter = "Color Enhancement"
-                                    processCurrentImage("Color Enhancement")
+                                    viewModel.applyColorEnhancementFilter()
                                 },
-                                isSelected = selectedFilter == "Color Enhancement"
+                                isSelected = uiState.appliedFilters.contains("Color Enhancement"),
+                                enabled = !uiState.appliedFilters.contains("Color Enhancement")
                             )
                         }
                     }
@@ -418,27 +383,27 @@ fun ImageProcessingScreen(
                             text = "Auto",
                             icon = Icons.Default.AutoFixHigh,
                             onClick = {
-                                showFilterToolbar = false
-                                processCurrentImage("Auto Processed")
-                            }
+                                viewModel.applyAutoFilter()
+                            },
+                            isSelected = uiState.appliedFilters.contains("Auto"),
+                            enabled = !uiState.appliedFilters.contains("Auto")
                         )
                     }
                     item {
                         FilterButton(
                             text = "Filter",
                             icon = Icons.Outlined.PhotoFilter,
-                            onClick = { showFilterToolbar = !showFilterToolbar },
-                            isSelected = showFilterToolbar
+                            onClick = { viewModel.toggleFilterToolbar() }, // showFilterToolbar = !showFilterToolbar
+                            isSelected = uiState.isFilterToolbarVisible // isSelected = false // showFilterToolbar
                         )
                     }
                     item {
                         FilterButton(
                             text = "Perspective",
                             icon = Icons.Default.Transform,
-                            onClick = {
-                                showFilterToolbar = false
-                                processCurrentImage("Perspective Corrected")
-                            }
+                            onClick = { viewModel.togglePerspectiveToolbar() },
+                            isSelected = uiState.isPerspectiveToolbarVisible
+                                // TODO: complete the function
                         )
                     }
                     item {
@@ -446,13 +411,10 @@ fun ImageProcessingScreen(
                             text = "Reset",
                             icon = Icons.Default.Refresh,
                             onClick = {
-                                // [ADD THIS] Clear the processed bitmap to revert to the original.
-                                processedBitmap = null
-                                selectedFilter = "Original"
-                                // The line below is now less relevant but we can keep it for now.
-                                processedImages = processedImages - currentImageIndex
-                                showFilterToolbar = false
-                            }
+                                viewModel.resetToOriginal()
+                            },
+                            isSelected = false,
+                            enabled = true
                         )
                     }
                 }
@@ -495,10 +457,12 @@ private fun FilterButton(
     text: String,
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     onClick: () -> Unit,
-    isSelected: Boolean = false
+    isSelected: Boolean = false,
+    enabled: Boolean = true
 ) {
     OutlinedButton(
         onClick = onClick,
+        enabled = enabled,
         colors = ButtonDefaults.outlinedButtonColors(
             containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
         ),
