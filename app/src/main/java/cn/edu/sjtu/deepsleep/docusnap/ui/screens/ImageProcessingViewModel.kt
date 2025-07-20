@@ -32,6 +32,7 @@ data class ImageProcessingUiState(
     // This is the "canvas". It holds the current state of the image being edited.
     val editingBitmap: Bitmap? = null,
     val isFilterToolbarVisible: Boolean = false,
+    val isPerspectiveToolbarVisible: Boolean = false,
     val appliedFilters: Set<String> = emptySet()
 )
 
@@ -113,6 +114,11 @@ class ImageProcessingViewModel(
         }
     }
 
+    fun applyPerspectiveCorrectionFilter() {
+        applyFilter("Perspective Correction") { bitmap ->
+            imageProcService.correctPerspective(bitmap)
+        }
+    }
     fun resetToOriginal() {
         // Simply put the stored original bitmap back onto the canvas. No I/O needed.
         _uiState.update { it.copy(
@@ -209,6 +215,9 @@ class ImageProcessingViewModel(
         _uiState.update { it.copy(isFilterToolbarVisible = !it.isFilterToolbarVisible) }
     }
 
+    fun togglePerspectiveToolbar() {
+        _uiState.update { it.copy(isPerspectiveToolbarVisible = !it.isPerspectiveToolbarVisible) }
+    }
 
 
 

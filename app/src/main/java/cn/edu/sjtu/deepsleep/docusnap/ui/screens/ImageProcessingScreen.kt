@@ -172,7 +172,15 @@ fun ImageProcessingScreen(
                 // --- 3. REBUILD Image placeholder/loaded image logic with ViewModel state ---
                 Box(
                     modifier = Modifier
-                        .size(300.dp),
+                        .fillMaxWidth()
+                        .aspectRatio(
+                            // Calculate aspect ratio from the bitmap if available, otherwise use a default
+                            ratio = uiState.editingBitmap?.let { bitmap ->
+                                bitmap.width.toFloat() / bitmap.height.toFloat()
+                            } ?: 1f, // Default to square if no bitmap
+                            matchHeightConstraintsFirst = false
+                        )
+                        .padding(horizontal = 16.dp), // Add some horizontal padding
                     contentAlignment = Alignment.Center
                 ) {
                     // Priority 1: Show a loading spinner if processing.
@@ -191,7 +199,7 @@ fun ImageProcessingScreen(
                                 bitmap = bitmapToShow.asImageBitmap(),
                                 contentDescription = "Editing Image",
                                 modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
+                                contentScale = ContentScale.Fit // Changed from Crop to Fit to show entire image
                             )
                         }
                     }
@@ -248,6 +256,47 @@ fun ImageProcessingScreen(
                         contentDescription = "Next image",
                         tint = if (uiState.currentImageIndex < uiState.originalImageUris.size - 1) Color.Black else Color.Gray
                     )
+                }
+            }
+        }
+
+        // Secondary Perspective Toolbar (appears when Perspective button is clicked)
+        if (uiState.isPerspectiveToolbarVisible) {
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 4.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(8.dp)
+                ) {
+                    LazyRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        item {
+                            FilterButton(
+                                text = "Straighten",
+                                icon = Icons.Default.AutoFixHigh,
+                                onClick = {
+                                    viewModel.applyPerspectiveCorrectionFilter()
+                                },
+                                isSelected = uiState.appliedFilters.contains("Perspective Correction"),
+                                enabled = !uiState.appliedFilters.contains("Perspective Correction")
+                            )
+                        }
+//                        item {
+//                            FilterButton(
+//                                text = "Rotate 90°",
+//                                icon = Icons.Default.RotateRight,
+//                                onClick = {
+//                                    viewModel.applyRotation(90)
+//                                },
+//                                isSelected = false,
+//                                enabled = true
+//                            )
+//                        }
+                    }
                 }
             }
         }
@@ -352,9 +401,9 @@ fun ImageProcessingScreen(
                         FilterButton(
                             text = "Perspective",
                             icon = Icons.Default.Transform,
-                            onClick = {
+                            onClick = { viewModel.togglePerspectiveToolbar() },
+                            isSelected = uiState.isPerspectiveToolbarVisible
                                 // TODO: complete the function
-                            }
                         )
                     }
                     item {
