@@ -25,6 +25,10 @@ import kotlinx.coroutines.delay
 import android.widget.Toast
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
+import androidx.lifecycle.viewmodel.compose.viewModel
+import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
+import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModelFactory
+import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
 
 @Composable
 fun FormDetailScreen(
@@ -79,6 +83,9 @@ fun FormDetailScreen(
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    val viewModel: DocumentViewModel = viewModel(
+        factory = DocumentViewModelFactory(AppModule.provideDocumentRepository(context))
+    )
 
     var currentImageIndex by remember { mutableStateOf(0) }
 
@@ -135,8 +142,8 @@ fun FormDetailScreen(
             actions = {
                 IconButton(
                     onClick = {
-                        // TODO: DeviceDBService.exportForms()
-                        Toast.makeText(context, "Form saved to local media", Toast.LENGTH_SHORT).show()
+                        viewModel.exportForms(listOf(form.id))
+                        Toast.makeText(context, "Form images saved to local media", Toast.LENGTH_SHORT).show()
                     }
                 ) {
                     Icon(Icons.Default.Download, contentDescription = "Export")

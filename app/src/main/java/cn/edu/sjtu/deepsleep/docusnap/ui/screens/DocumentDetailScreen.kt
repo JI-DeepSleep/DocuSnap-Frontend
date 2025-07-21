@@ -26,6 +26,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
+import androidx.lifecycle.viewmodel.compose.viewModel
+import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
+import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModelFactory
+import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
 
 @Composable
 fun DocumentDetailScreen(
@@ -109,6 +113,10 @@ fun DocumentDetailScreen(
         }
     }
 
+    val viewModel: DocumentViewModel = viewModel(
+        factory = DocumentViewModelFactory(AppModule.provideDocumentRepository(context))
+    )
+
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -123,9 +131,9 @@ fun DocumentDetailScreen(
             actions = {
                 IconButton(
                     onClick = {
-                        Toast.makeText(context, "Document saved to local media", Toast.LENGTH_SHORT).show()
-                        // TODO: DeviceDBService.exportDocuments()
-                }) {
+                        viewModel.exportDocuments(listOf(document.id))
+                        Toast.makeText(context, "Document images saved to local media", Toast.LENGTH_SHORT).show()
+                    }) {
                     Icon(Icons.Default.Download, contentDescription = "Export/Download")
                 }
             }

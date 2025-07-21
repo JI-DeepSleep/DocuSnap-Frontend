@@ -11,6 +11,13 @@ import org.json.JSONObject
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import android.graphics.Bitmap
+import android.graphics.ImageDecoder
+import android.net.Uri
+import android.os.Build
+import android.provider.MediaStore
+import android.content.ContentValues
+import java.io.OutputStream
 
 // Manager of all interactions with local SQLite database
 
@@ -92,19 +99,12 @@ class DeviceDBService(private val context: Context) {
         documentDao.update(updated)
     }
 
-    suspend fun exportDocuments(documentIds: List<String>): List<JSONObject> {
-        return documentDao.getByIds(documentIds).map { entity ->
-            JSONObject().apply {
-                put("id", entity.id)
-                put("name", entity.name)
-                put("description", entity.description)
-                put("imageUris", Json.decodeFromString<List<String>>(entity.imageUris))
-                put("extractedInfo", JSONObject(entity.extractedInfo))
-                put("tags", Json.decodeFromString<List<String>>(entity.tags))
-                put("uploadDate", entity.uploadDate)
-                put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
-                put("sha256", entity.sha256)
-                put("isProcessed", entity.isProcessed)
+    suspend fun exportDocuments(documentIds: List<String>) {
+        val entities = documentDao.getByIds(documentIds)
+        entities.forEach { entity ->
+            val imageUris = Json.decodeFromString<List<String>>(entity.imageUris)
+            imageUris.forEach { imageUri ->
+                saveImageToGallery(imageUri)
             }
         }
     }
@@ -198,20 +198,12 @@ class DeviceDBService(private val context: Context) {
         formDao.update(updated)
     }
 
-    suspend fun exportForms(formIds: List<String>): List<JSONObject> {
-        return formDao.getByIds(formIds).map { entity ->
-            JSONObject().apply {
-                put("id", entity.id)
-                put("name", entity.name)
-                put("description", entity.description)
-                put("imageUris", Json.decodeFromString<List<String>>(entity.imageUris))
-                put("formFields", Json.decodeFromString<List<FormField>>(entity.formFields))
-                put("extractedInfo", JSONObject(entity.extractedInfo))
-                put("tags", Json.decodeFromString<List<String>>(entity.tags))
-                put("uploadDate", entity.uploadDate)
-                put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
-                put("sha256", entity.sha256)
-                put("isProcessed", entity.isProcessed)
+    suspend fun exportForms(formIds: List<String>) {
+        val entities = formDao.getByIds(formIds)
+        entities.forEach { entity ->
+            val imageUris = Json.decodeFromString<List<String>>(entity.imageUris)
+            imageUris.forEach { imageUri ->
+                saveImageToGallery(imageUri)
             }
         }
     }
@@ -283,5 +275,40 @@ class DeviceDBService(private val context: Context) {
     suspend fun getFrequentTextInfo(): List<JSONObject> {
         // This would require a separate table or usage tracking, so here we return empty for now
         return emptyList()
+    }
+
+    // Helper to save an image to MediaStore (gallery)
+    private fun saveImageToGallery(imageUri: String) {
+        try {
+            val uri = Uri.parse(imageUri)
+            val source = ImageDecoder.createSource(context.contentResolver, uri)
+            val bitmap = ImageDecoder.decodeBitmap(source)
+            val resolver = context.contentResolver
+            val contentValues = ContentValues().apply {
+                put(MediaStore.Images.Media.DISPLAY_NAME, "DocuSnap_${System.currentTimeMillis()}.jpg")
+                put(MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    put(MediaStore.Images.Media.IS_PENDING, 1)
+                }
+            }
+            val imageCollection = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            } else {
+                MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            }
+            val itemUri = resolver.insert(imageCollection, contentValues)
+            if (itemUri != null) {
+                resolver.openOutputStream(itemUri)?.use { outStream ->
+                    bitmap.compress(Bitmap.CompressFormat.JPEG, 95, outStream)
+                }
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    contentValues.clear()
+                    contentValues.put(MediaStore.Images.Media.IS_PENDING, 0)
+                    resolver.update(itemUri, contentValues, null, null)
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("DeviceDBService", "Failed to save image to gallery: $imageUri", e)
+        }
     }
 } 

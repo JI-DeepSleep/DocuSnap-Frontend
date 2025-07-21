@@ -102,6 +102,14 @@ class DocumentRepository(
         deviceDBService.deleteDocuments(documentIds)
     }
 
+    suspend fun exportDocuments(documentIds: List<String>) {
+        deviceDBService.exportDocuments(documentIds)
+    }
+
+    suspend fun exportForms(formIds: List<String>) {
+        deviceDBService.exportForms(formIds)
+    }
+
     // Form operations
     suspend fun getAllForms(): List<Form> {
         val jsonList = deviceDBService.getFormGallery()
