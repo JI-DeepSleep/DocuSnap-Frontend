@@ -45,7 +45,7 @@ class DeviceDBService(private val context: Context) {
                 description = data.optString("description"),
                 imageUris = data.optJSONArray("imageUris")?.toString() ?: "[]",
                 extractedInfo = data.optJSONObject("extractedInfo")?.toString() ?: "{}",
-                tags = data.optJSONArray("tags")?.toString() ?: "[]",
+                tags = data.optString("tags", "[]"), //tags = data.optJSONArray("tags")?.toString() ?: "[]",
                 uploadDate = data.optString("uploadDate"),
                 relatedFileIds = data.optJSONArray("relatedFileIds")?.toString() ?: "[]",
                 sha256 = data.optString("sha256"),
@@ -148,7 +148,7 @@ class DeviceDBService(private val context: Context) {
                 imageUris = data.optJSONArray("imageUris")?.toString() ?: "[]",
                 formFields = data.optJSONArray("formFields")?.toString() ?: "[]",
                 extractedInfo = data.optJSONObject("extractedInfo")?.toString() ?: "{}",
-                tags = data.optJSONArray("tags")?.toString() ?: "[]",
+                tags = data.optString("tags", "[]"), // tags = data.optJSONArray("tags")?.toString() ?: "[]",
                 uploadDate = data.optString("uploadDate"),
                 relatedFileIds = data.optJSONArray("relatedFileIds")?.toString() ?: "[]",
                 sha256 = data.optString("sha256"),
@@ -242,6 +242,7 @@ class DeviceDBService(private val context: Context) {
         val formResults = formDao.searchByQuery(query)
         val docJsons = docResults.map { entity ->
             JSONObject().apply {
+                put("type", "document")
                 put("id", entity.id)
                 put("name", entity.name)
                 put("description", entity.description)
@@ -256,6 +257,7 @@ class DeviceDBService(private val context: Context) {
         }
         val formJsons = formResults.map { entity ->
             JSONObject().apply {
+                put("type", "form")
                 put("id", entity.id)
                 put("name", entity.name)
                 put("description", entity.description)

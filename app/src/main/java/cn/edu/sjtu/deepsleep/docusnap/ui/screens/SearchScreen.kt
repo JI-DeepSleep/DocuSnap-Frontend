@@ -15,6 +15,12 @@ import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
 import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchEntityCard
+import androidx.compose.runtime.LaunchedEffect
+ import androidx.compose.runtime.getValue
+ import androidx.compose.runtime.setValue
+ import androidx.compose.ui.platform.LocalContext
+ import cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity
+ import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
 
 @Composable
 fun SearchScreen(
@@ -23,8 +29,22 @@ fun SearchScreen(
 ) {
     var searchQuery by remember { mutableStateOf("") }
 
+    // MINIMAL CHANGE 1: Replace MockData with a real, mutable state list.
+    var searchResults by remember { mutableStateOf<List<SearchEntity>>(emptyList()) }
+    val context = LocalContext.current
+    val documentRepository = remember { AppModule.provideDocumentRepository(context) }
+
     // TODO: DeviceDBService.searchByQuery(searchQuery)
-    val searchResults = remember { MockData.mockSearchResults }
+//    LaunchedEffect(Unit) { // "Unit" means this runs only once when the screen appears
+//        android.util.Log.d("TestData", "Attempting to add test data...")
+//        documentRepository.addTestData()
+//        android.util.Log.d("TestData", "Test data should be added now.")
+//    }
+
+    LaunchedEffect(searchQuery) {
+        android.util.Log.d("SEARCH_SPY", "UI Layer: About to search with query: '$searchQuery'")
+        searchResults = documentRepository.searchByQuery(searchQuery)
+    }
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -53,9 +73,10 @@ fun SearchScreen(
             )
 
             // Search Results Count
-            if (searchResults.entities.isNotEmpty()) {
+            if (searchResults.isNotEmpty()) {
                 Text(
-                    text = "${searchResults.entities.size} results found",
+                    // MINIMAL CHANGE 3.2: Get the size from the list directly.
+                    text = "${searchResults.size} results found",
                     fontSize = 14.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 16.dp)
@@ -66,18 +87,20 @@ fun SearchScreen(
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                items(searchResults.entities) { entity ->
+                // MINIMAL CHANGE 3.3: Iterate over the new `searchResults` list directly.
+                items(searchResults) { entity ->
                     SearchEntityCard(
                         entity = entity,
                         onClick = {
                             when (entity) {
                                 is cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity.TextEntity -> {
-                                    // For text entities, navigate to the source file if available
+                                    // This part is unchanged.
+                                    // NOTE: It still depends on MockData and may not work as expected.
+                                    // This can be addressed in a future task.
                                     if (entity.srcFileId != null) {
-                                        // Check if it's a document or form
                                         val sourceDoc = MockData.mockDocuments.find { it.id == entity.srcFileId }
                                         val sourceForm = MockData.mockForms.find { it.id == entity.srcFileId }
-                                        
+
                                         when {
                                             sourceDoc != null -> onNavigate("document_detail?documentId=${sourceDoc.id}&fromImageProcessing=false")
                                             sourceForm != null -> onNavigate("form_detail?formId=${sourceForm.id}&fromImageProcessing=false")
@@ -99,7 +122,9 @@ fun SearchScreen(
                 }
 
                 // No results message
-                if (searchResults.entities.isEmpty()) {
+                // MINIMAL CHANGE 3.4: The condition is updated to check the list directly
+                // and also check if the user has actually typed something.
+                if (searchResults.isEmpty() && searchQuery.isNotEmpty()) {
                     item {
                         Card(
                             modifier = Modifier.fillMaxWidth()

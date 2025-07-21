@@ -181,22 +181,53 @@ class DocumentRepository(
 
     // Search operations
     suspend fun searchByQuery(query: String): List<SearchEntity> {
+        // Return early if query is blank to avoid unnecessary work
+        android.util.Log.d("SEARCH_SPY", "Repository Layer: Received query: '$query'")
+        if (query.isBlank()) {
+            return emptyList()
+        }
+
         val jsonList = deviceDBService.searchByQuery(query)
         return jsonList.mapNotNull { json ->
             try {
-                // For now, return DocumentEntity - you can enhance this to distinguish between docs and forms
-                val document = Document(
-                    id = json.getString("id"),
-                    name = json.getString("name"),
-                    description = json.getString("description"),
-                    imageUris = emptyList(),
-                    extractedInfo = json.getJSONObject("kv").toMap(),
-                    tags = Json.decodeFromString(json.getString("tags")),
-                    uploadDate = "2024-01-15",
-                    relatedFileIds = emptyList()
-                )
-                SearchEntity.DocumentEntity(document, 10.0F)
+                // CORE CHANGE: Instead of assuming everything is a Document,
+                // we now check the 'type' field added in the service layer.
+                when (json.optString("type")) {
+                    "document" -> {
+                        // This is the corrected parsing logic for a Document
+                        val document = Document(
+                            id = json.getString("id"),
+                            name = json.getString("name"),
+                            description = json.getString("description"),
+                            imageUris = Json.decodeFromString(json.getString("imageUris")),
+                            extractedInfo = JSONObject(json.getString("extractedInfo")).toMap(),
+                            tags = Json.decodeFromString(json.getString("tags")),
+                            uploadDate = json.getString("uploadDate"),
+                            relatedFileIds = Json.decodeFromString(json.getString("relatedFileIds"))
+                        )
+                        SearchEntity.DocumentEntity(document, 10.0F)
+                    }
+                    "form" -> {
+                        // This is the new parsing logic for a Form
+                        val form = Form(
+                            id = json.getString("id"),
+                            name = json.getString("name"),
+                            description = json.getString("description"),
+                            imageUris = Json.decodeFromString(json.getString("imageUris")),
+                            formFields = Json.decodeFromString(json.getString("formFields")),
+                            extractedInfo = JSONObject(json.getString("extractedInfo")).toMap(),
+                            tags = Json.decodeFromString(json.getString("tags")),
+                            uploadDate = json.getString("uploadDate"),
+                            relatedFileIds = Json.decodeFromString(json.getString("relatedFileIds"))
+                        )
+                        SearchEntity.FormEntity(form, 10.0F)
+                    }
+                    // If type is unknown, ignore this entry
+                    else -> null
+                }
             } catch (e: Exception) {
+                // If any error occurs during parsing, log it and safely skip this item
+                android.util.Log.e("DocumentRepository", "Failed to parse search result: $json", e)
                 null
             }
         }
