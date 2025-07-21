@@ -209,8 +209,7 @@ fun FormGalleryScreen(
                                     "Exporting ${selectedForms.size} form(s) to local media...",
                                     Toast.LENGTH_SHORT
                                 ).show()
-                                // Call exportForms in repository (not implemented in ViewModel, so you may want to add it)
-                                // viewModel.exportForms(selectedForms.toList())
+                                 viewModel.exportForms(selectedForms.toList())
                             },
                             enabled = selectedForms.isNotEmpty()
                         ) {
