@@ -22,6 +22,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
+import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
+import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
+import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModelFactory
 import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.DocumentCard
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.FormCard
@@ -31,13 +35,21 @@ import android.widget.Toast
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun FormGalleryScreen(
-    onNavigate: (String) -> Unit
+    onNavigate: (String) -> Unit,
+    viewModel: DocumentViewModel = viewModel(
+        factory = DocumentViewModelFactory(
+            AppModule.provideDocumentRepository(LocalContext.current)
+        )
+    )
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var isSelectionMode by remember { mutableStateOf(false) }
-    var selectedForms by remember { mutableStateOf(mutableSetOf<Int>()) }
+    var selectedForms by remember { mutableStateOf(mutableSetOf<String>()) } // Use form IDs
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     val context = LocalContext.current
+
+    val forms by viewModel.forms.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
 
     Column(
         modifier = Modifier.fillMaxSize()
@@ -54,17 +66,17 @@ fun FormGalleryScreen(
                     // Select All text button
                     TextButton(
                         onClick = {
-                            if (selectedForms.size == MockData.mockForms.size) {
+                            if (selectedForms.size == forms.size) {
                                 // Deselect all
                                 selectedForms = mutableSetOf()
                             } else {
                                 // Select all
-                                selectedForms = (0 until MockData.mockForms.size).toMutableSet()
+                                selectedForms = forms.map { it.id }.toMutableSet()
                             }
                         }
                     ) {
                         Text(
-                            text = if (selectedForms.size == MockData.mockForms.size) {
+                            text = if (selectedForms.size == forms.size) {
                                 "Deselect All"
                             } else {
                                 "Select All"
@@ -89,61 +101,69 @@ fun FormGalleryScreen(
                 modifier = Modifier.padding(bottom = 16.dp)
             )
 
-            // Image Grid
-            LazyVerticalGrid(
-                columns = GridCells.Fixed(2),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.weight(1f)
-            ) {
-                // TODO: change the mockForms to DeviceDBService.getFormGallery()
-                itemsIndexed(MockData.mockForms) { index, form ->
-                    val isSelected = selectedForms.contains(index)
-                    
-                    val cardModifier = Modifier.combinedClickable(
-                        onClick = {
-                            if (isSelectionMode) {
-                                // Toggle selection
-                                val newSelected = selectedForms.toMutableSet()
-                                if (isSelected) {
-                                    newSelected.remove(index)
+            if (isLoading) {
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                // Image Grid
+                LazyVerticalGrid(
+                    columns = GridCells.Fixed(2),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    itemsIndexed(forms) { index, form ->
+                        val isSelected = selectedForms.contains(form.id)
+
+                        val cardModifier = Modifier.combinedClickable(
+                            onClick = {
+                                if (isSelectionMode) {
+                                    // Toggle selection
+                                    val newSelected = selectedForms.toMutableSet()
+                                    if (isSelected) {
+                                        newSelected.remove(form.id)
+                                    } else {
+                                        newSelected.add(form.id)
+                                    }
+                                    selectedForms = newSelected
                                 } else {
-                                    newSelected.add(index)
+                                    onNavigate("form_detail?formId=${form.id}&fromImageProcessing=false")
+                                }
+                            },
+                            onLongClick = {
+                                if (!isSelectionMode) {
+                                    // Enter selection mode and select this card
+                                    isSelectionMode = true
+                                    selectedForms = mutableSetOf(form.id)
+                                }
+                            }
+                        )
+
+                        FormCard(
+                            form = form,
+                            isSelectionMode = isSelectionMode,
+                            isSelected = isSelected,
+                            onSelectionChanged = { checked ->
+                                val newSelected = selectedForms.toMutableSet()
+                                if (checked) {
+                                    newSelected.add(form.id)
+                                } else {
+                                    newSelected.remove(form.id)
                                 }
                                 selectedForms = newSelected
-                            } else {
-                                onNavigate("form_detail?formId=${form.id}&fromImageProcessing=false")
-                            }
-                        },
-                        onLongClick = {
-                            if (!isSelectionMode) {
-                                // Enter selection mode and select this card
-                                isSelectionMode = true
-                                selectedForms = mutableSetOf(index)
-                            }
-                        }
-                    )
-                    
-                    FormCard(
-                        form = form,
-                        isSelectionMode = isSelectionMode,
-                        isSelected = isSelected,
-                        onSelectionChanged = { checked ->
-                            val newSelected = selectedForms.toMutableSet()
-                            if (checked) {
-                                newSelected.add(index)
-                            } else {
-                                newSelected.remove(index)
-                            }
-                            selectedForms = newSelected
-                        },
-                        modifier = cardModifier
-                    )
+                            },
+                            modifier = cardModifier
+                        )
+                    }
                 }
             }
         }
     }
-    
+
     // Bottom action bar for selection mode
     if (isSelectionMode) {
         Box(
@@ -168,7 +188,7 @@ fun FormGalleryScreen(
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
                     )
-                    
+
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -180,7 +200,7 @@ fun FormGalleryScreen(
                         ) {
                             Text("Cancel")
                         }
-                        
+
                         OutlinedButton(
                             onClick = {
                                 // Export selected forms to local media
@@ -189,7 +209,8 @@ fun FormGalleryScreen(
                                     "Exporting ${selectedForms.size} form(s) to local media...",
                                     Toast.LENGTH_SHORT
                                 ).show()
-                                // TODO: DeviceDBService.exportForms(Ids)
+                                // Call exportForms in repository (not implemented in ViewModel, so you may want to add it)
+                                // viewModel.exportForms(selectedForms.toList())
                             },
                             enabled = selectedForms.isNotEmpty()
                         ) {
@@ -199,7 +220,7 @@ fun FormGalleryScreen(
                                 modifier = Modifier.size(16.dp)
                             )
                         }
-                        
+
                         Button(
                             onClick = {
                                 showDeleteConfirmation = true
@@ -220,7 +241,7 @@ fun FormGalleryScreen(
             }
         }
     }
-    
+
     // Delete confirmation dialog
     if (showDeleteConfirmation) {
         AlertDialog(
@@ -230,7 +251,7 @@ fun FormGalleryScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        // TODO: DeviceDBService.deleteForms(Ids)
+                        viewModel.deleteForms(selectedForms.toList())
                         showDeleteConfirmation = false
                         isSelectionMode = false
                         selectedForms = mutableSetOf()
