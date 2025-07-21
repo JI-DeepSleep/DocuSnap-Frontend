@@ -179,6 +179,10 @@ class DocumentViewModel(
         }
     }
     
+    suspend fun getDocument(documentId: String): Document? {
+        return repository.getDocument(documentId)
+    }
+    
     // Development helper: Add test data
     fun addTestData() {
         android.util.Log.d("DocumentViewModel", "addTestData called")
