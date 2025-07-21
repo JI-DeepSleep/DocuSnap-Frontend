@@ -86,9 +86,22 @@ fun DocuSnapApp() {
                     onNavigate = { route -> navController.navigate(route) }
                 )
             }
-            
-            composable(Screen.Search.route) {
+
+            composable(
+                // 1. Define the route to accept an optional 'query' argument
+                route = Screen.Search.route + "?query={query}",
+                arguments = listOf(
+                    navArgument("query") {
+                        type = NavType.StringType
+                        nullable = true // Allow the query to be null
+                    }
+                )
+            ) { navBackStackEntry ->
+                // 2. Extract the argument from the navigation entry
+                val query = navBackStackEntry.arguments?.getString("query")
                 SearchScreen(
+                    // 3. Pass the extracted query to the SearchScreen composable
+                    query = query,
                     onNavigate = { route -> navController.navigate(route) },
                     onBackClick = { navController.popBackStack() }
                 )

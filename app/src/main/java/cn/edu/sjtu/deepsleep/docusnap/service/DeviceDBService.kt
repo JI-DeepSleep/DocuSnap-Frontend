@@ -45,7 +45,7 @@ class DeviceDBService(private val context: Context) {
                 description = data.optString("description"),
                 imageUris = data.optJSONArray("imageUris")?.toString() ?: "[]",
                 extractedInfo = data.optJSONObject("extractedInfo")?.toString() ?: "{}",
-                tags = data.optJSONArray("tags")?.toString() ?: "[]",
+                tags = data.optString("tags", "[]"), //tags = data.optJSONArray("tags")?.toString() ?: "[]",
                 uploadDate = data.optString("uploadDate"),
                 relatedFileIds = data.optJSONArray("relatedFileIds")?.toString() ?: "[]",
                 sha256 = data.optString("sha256"),
@@ -148,7 +148,7 @@ class DeviceDBService(private val context: Context) {
                 imageUris = data.optJSONArray("imageUris")?.toString() ?: "[]",
                 formFields = data.optJSONArray("formFields")?.toString() ?: "[]",
                 extractedInfo = data.optJSONObject("extractedInfo")?.toString() ?: "{}",
-                tags = data.optJSONArray("tags")?.toString() ?: "[]",
+                tags = data.optString("tags", "[]"), // tags = data.optJSONArray("tags")?.toString() ?: "[]",
                 uploadDate = data.optString("uploadDate"),
                 relatedFileIds = data.optJSONArray("relatedFileIds")?.toString() ?: "[]",
                 sha256 = data.optString("sha256"),
@@ -240,14 +240,17 @@ class DeviceDBService(private val context: Context) {
     suspend fun searchByQuery(query: String): List<JSONObject> {
         val docResults = documentDao.searchByQuery(query)
         val formResults = formDao.searchByQuery(query)
+
         val docJsons = docResults.map { entity ->
+            android.util.Log.d("SERVICE_DEBUG", "Mapping a DOC with ID: ${entity.id}")
             JSONObject().apply {
+                put("type", "document")
                 put("id", entity.id)
                 put("name", entity.name)
                 put("description", entity.description)
                 put("imageUris", Json.decodeFromString<List<String>>(entity.imageUris))
                 put("extractedInfo", JSONObject(entity.extractedInfo))
-                put("tags", Json.decodeFromString<List<String>>(entity.tags))
+                put("tags", entity.tags)
                 put("uploadDate", entity.uploadDate)
                 put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
                 put("sha256", entity.sha256)
@@ -255,14 +258,16 @@ class DeviceDBService(private val context: Context) {
             }
         }
         val formJsons = formResults.map { entity ->
+            android.util.Log.d("SERVICE_DEBUG", "Mapping a FORM with ID: ${entity.id}")
             JSONObject().apply {
+                put("type", "form")
                 put("id", entity.id)
                 put("name", entity.name)
                 put("description", entity.description)
                 put("imageUris", Json.decodeFromString<List<String>>(entity.imageUris))
                 put("formFields", Json.decodeFromString<List<FormField>>(entity.formFields))
                 put("extractedInfo", JSONObject(entity.extractedInfo))
-                put("tags", Json.decodeFromString<List<String>>(entity.tags))
+                put("tags", entity.tags)
                 put("uploadDate", entity.uploadDate)
                 put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
                 put("sha256", entity.sha256)
