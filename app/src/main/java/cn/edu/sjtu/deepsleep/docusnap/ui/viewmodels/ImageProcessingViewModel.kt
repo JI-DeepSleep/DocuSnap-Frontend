@@ -1,4 +1,4 @@
-package cn.edu.sjtu.deepsleep.docusnap.ui.screens
+package cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels
 
 import android.content.Context
 import android.graphics.Bitmap

@@ -8,7 +8,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.ColorLens
-import androidx.compose.material.icons.outlined.Filter
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.rememberCoroutineScope
@@ -21,29 +20,24 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import androidx.compose.ui.layout.ContentScale
-import coil.compose.AsyncImage
 import cn.edu.sjtu.deepsleep.docusnap.data.Document
 import cn.edu.sjtu.deepsleep.docusnap.data.Form
 import java.util.UUID
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.Color as AndroidColor
 import android.graphics.ImageDecoder
 import android.net.Uri
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.Image
-import kotlinx.coroutines.Dispatchers
 import java.io.File
 import java.io.FileOutputStream
 import androidx.core.content.FileProvider
-import android.util.Log
 import android.widget.Toast
 import androidx.compose.material.icons.outlined.PhotoFilter
-import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.collectAsState
-import androidx.compose.foundation.Image
-import androidx.compose.ui.graphics.asImageBitmap
+import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.ImageProcessingViewModel
+import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.ImageProcessingViewModelFactory
 
 
 @Composable
