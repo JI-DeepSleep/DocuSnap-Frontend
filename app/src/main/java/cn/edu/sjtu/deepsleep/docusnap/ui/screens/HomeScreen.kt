@@ -16,6 +16,7 @@ import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.TextInfoItem
 import cn.edu.sjtu.deepsleep.docusnap.data.MockData
+import cn.edu.sjtu.deepsleep.docusnap.navigation.Screen
 
 @Composable
 fun HomeScreen(
@@ -80,7 +81,7 @@ fun HomeScreen(
         SearchBar(
             query = searchQuery,
             onQueryChange = { searchQuery = it },
-            onSearch = { onNavigate("search") },
+            onSearch = { onNavigate(Screen.Search.route + "?query=$searchQuery") },
             modifier = Modifier.padding(bottom = 24.dp)
         )
 

@@ -24,10 +24,11 @@ import androidx.compose.runtime.LaunchedEffect
 
 @Composable
 fun SearchScreen(
+    query: String?,
     onNavigate: (String) -> Unit,
     onBackClick: () -> Unit
 ) {
-    var searchQuery by remember { mutableStateOf("") }
+    var searchQuery by remember { mutableStateOf(query ?: "") }
 
     // MINIMAL CHANGE 1: Replace MockData with a real, mutable state list.
     var searchResults by remember { mutableStateOf<List<SearchEntity>>(emptyList()) }
@@ -42,7 +43,6 @@ fun SearchScreen(
 //    }
 
     LaunchedEffect(searchQuery) {
-        android.util.Log.d("SEARCH_SPY", "UI Layer: About to search with query: '$searchQuery'")
         searchResults = documentRepository.searchByQuery(searchQuery)
     }
 

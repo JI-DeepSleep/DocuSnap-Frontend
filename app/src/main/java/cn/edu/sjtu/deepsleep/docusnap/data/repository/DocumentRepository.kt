@@ -182,7 +182,6 @@ class DocumentRepository(
     // Search operations
     suspend fun searchByQuery(query: String): List<SearchEntity> {
         // Return early if query is blank to avoid unnecessary work
-        android.util.Log.d("SEARCH_SPY", "Repository Layer: Received query: '$query'")
         if (query.isBlank()) {
             return emptyList()
         }
