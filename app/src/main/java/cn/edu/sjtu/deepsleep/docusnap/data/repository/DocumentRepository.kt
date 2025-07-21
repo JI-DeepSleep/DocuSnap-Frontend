@@ -187,6 +187,12 @@ class DocumentRepository(
         }
 
         val jsonList = deviceDBService.searchByQuery(query)
+
+        // v-- PROBE 2: Check what the Repository received --v
+        val docCount = jsonList.count { it.optString("type") == "document" }
+        val formCount = jsonList.count { it.optString("type") == "form" }
+//        android.util.Log.d("DATA_JOURNEY", "Repository Layer: Received $docCount JSON docs and $formCount JSON forms.")
+
         return jsonList.mapNotNull { json ->
             try {
                 // CORE CHANGE: Instead of assuming everything is a Document,
@@ -227,9 +233,11 @@ class DocumentRepository(
             } catch (e: Exception) {
                 // If any error occurs during parsing, log it and safely skip this item
                 android.util.Log.e("DocumentRepository", "Failed to parse search result: $json", e)
+//                android.util.Log.e("DATA_JOURNEY", "Repository Layer: FAILED to parse a ${json.optString("type")}. JSON: $json", e)
                 null
             }
         }
+
     }
 
     suspend fun getFrequentTextInfo(): List<TextInfo> {

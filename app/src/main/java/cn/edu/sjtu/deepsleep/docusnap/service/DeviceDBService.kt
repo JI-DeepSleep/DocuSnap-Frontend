@@ -240,7 +240,23 @@ class DeviceDBService(private val context: Context) {
     suspend fun searchByQuery(query: String): List<JSONObject> {
         val docResults = documentDao.searchByQuery(query)
         val formResults = formDao.searchByQuery(query)
+
+        android.util.Log.d("DAO_OUTPUT_DEBUG", "--- Raw DAO Output ---")
+        android.util.Log.d("DAO_OUTPUT_DEBUG", "docResults contains ${docResults.size} items.")
+        // Check the ID of the first document, if it exists
+        docResults.firstOrNull()?.let {
+            android.util.Log.d("DAO_OUTPUT_DEBUG", "First item in docResults has ID: ${it.id}")
+        }
+
+        android.util.Log.d("DAO_OUTPUT_DEBUG", "formResults contains ${formResults.size} items.")
+        // Check the ID of the first form, if it exists
+        formResults.firstOrNull()?.let {
+            android.util.Log.d("DAO_OUTPUT_DEBUG", "First item in formResults has ID: ${it.id}")
+        }
+        android.util.Log.d("DAO_OUTPUT_DEBUG", "--- End of Raw DAO Output ---")
+//        android.util.Log.d("DATA_JOURNEY", "Service Layer: Received ${docResults.size} docs and ${formResults.size} forms from DAOs.")
         val docJsons = docResults.map { entity ->
+            android.util.Log.d("SERVICE_DEBUG", "Mapping a DOC with ID: ${entity.id}")
             JSONObject().apply {
                 put("type", "document")
                 put("id", entity.id)
@@ -248,7 +264,7 @@ class DeviceDBService(private val context: Context) {
                 put("description", entity.description)
                 put("imageUris", Json.decodeFromString<List<String>>(entity.imageUris))
                 put("extractedInfo", JSONObject(entity.extractedInfo))
-                put("tags", Json.decodeFromString<List<String>>(entity.tags))
+                put("tags", entity.tags)
                 put("uploadDate", entity.uploadDate)
                 put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
                 put("sha256", entity.sha256)
@@ -256,6 +272,7 @@ class DeviceDBService(private val context: Context) {
             }
         }
         val formJsons = formResults.map { entity ->
+            android.util.Log.d("SERVICE_DEBUG", "Mapping a FORM with ID: ${entity.id}")
             JSONObject().apply {
                 put("type", "form")
                 put("id", entity.id)
@@ -264,7 +281,7 @@ class DeviceDBService(private val context: Context) {
                 put("imageUris", Json.decodeFromString<List<String>>(entity.imageUris))
                 put("formFields", Json.decodeFromString<List<FormField>>(entity.formFields))
                 put("extractedInfo", JSONObject(entity.extractedInfo))
-                put("tags", Json.decodeFromString<List<String>>(entity.tags))
+                put("tags", entity.tags)
                 put("uploadDate", entity.uploadDate)
                 put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
                 put("sha256", entity.sha256)

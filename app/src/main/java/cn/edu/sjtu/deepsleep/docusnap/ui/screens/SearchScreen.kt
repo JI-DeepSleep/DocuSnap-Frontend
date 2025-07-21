@@ -19,8 +19,11 @@ import androidx.compose.runtime.LaunchedEffect
  import androidx.compose.runtime.getValue
  import androidx.compose.runtime.setValue
  import androidx.compose.ui.platform.LocalContext
- import cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity
- import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
+import androidx.room.Room
+import cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity
+import cn.edu.sjtu.deepsleep.docusnap.data.local.AppDatabase
+import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
+
 
 @Composable
 fun SearchScreen(
@@ -35,7 +38,46 @@ fun SearchScreen(
     val context = LocalContext.current
     val documentRepository = remember { AppModule.provideDocumentRepository(context) }
 
-    // TODO: DeviceDBService.searchByQuery(searchQuery)
+//    // TODO: DeviceDBService.searchByQuery(searchQuery)
+//    LaunchedEffect("dao_test") {
+//        android.util.Log.d("DAO_TEST", "--- Starting Direct DAO Test ---")
+//
+//        // We need direct access to the DAO. We'll get it through the DB instance.
+//        // This requires a bit of setup. Let's get the database instance first
+//
+//        // This is a simplified way to get the DAO.
+//        // We need to build the DB instance to access the DAO.
+//        // NOTE: This is for testing only. In real code, use dependency injection.
+//        try {
+//            val db = Room.databaseBuilder(
+//                context.applicationContext,
+//                AppDatabase::class.java, "docusnap.db"
+//            ).build()
+//
+//            val documentDao = db.documentDao()
+//
+//            // --- The actual test ---
+//            val queryToTest = "Development"
+//            android.util.Log.d("DAO_TEST", "Querying DocumentDao with: '$queryToTest'")
+//            val results = documentDao.searchByQuery(queryToTest)
+//
+//            android.util.Log.d("DAO_TEST", "Direct DAO query returned ${results.size} documents.")
+//            if (results.isNotEmpty()) {
+//                results.forEach { doc ->
+//                    android.util.Log.d("DAO_TEST", "Found Doc -> Name: ${doc.name}, Tags: ${doc.tags}")
+//                }
+//            } else {
+//                android.util.Log.d("DAO_TEST", "No documents found with this query.")
+//            }
+//
+//            db.close() // Close the connection after testing
+//
+//        } catch (e: Exception) {
+//            android.util.Log.e("DAO_TEST", "Error during direct DAO test: ", e)
+//        }
+//
+//        android.util.Log.d("DAO_TEST", "--- Direct DAO Test Finished ---")
+//    }
 //    LaunchedEffect(Unit) { // "Unit" means this runs only once when the screen appears
 //        android.util.Log.d("TestData", "Attempting to add test data...")
 //        documentRepository.addTestData()
@@ -89,6 +131,7 @@ fun SearchScreen(
             ) {
                 // MINIMAL CHANGE 3.3: Iterate over the new `searchResults` list directly.
                 items(searchResults) { entity ->
+                    android.util.Log.d("RENDER_DEBUG", "LazyColumn is about to render an entity of type: ${entity::class.simpleName}, Content: $entity")
                     SearchEntityCard(
                         entity = entity,
                         onClick = {
