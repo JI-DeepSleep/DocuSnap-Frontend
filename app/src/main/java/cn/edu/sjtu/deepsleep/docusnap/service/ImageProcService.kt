@@ -220,6 +220,154 @@ class ImageProcService(private val context: Context) {
     }
 
     /**
+    * Apply morphological dilation to thicken edges and fill small gaps
+    */
+    private fun applyDilation(binary: IntArray, width: Int, height: Int, iterations: Int = 1): IntArray {
+        var result = binary.copyOf()
+        
+        // 3x3 structuring element (cross shape)
+        val structElement = arrayOf(
+            intArrayOf(0, 1, 0),
+            intArrayOf(1, 1, 1),
+            intArrayOf(0, 1, 0)
+        )
+        
+        repeat(iterations) {
+            val temp = IntArray(width * height)
+            
+            for (y in 1 until height - 1) {
+                for (x in 1 until width - 1) {
+                    var maxValue = 0
+                    
+                    // Apply structuring element
+                    for (sy in -1..1) {
+                        for (sx in -1..1) {
+                            if (structElement[sy + 1][sx + 1] == 1) {
+                                val pixelIndex = (y + sy) * width + (x + sx)
+                                maxValue = maxOf(maxValue, result[pixelIndex])
+                            }
+                        }
+                    }
+                    
+                    temp[y * width + x] = maxValue
+                }
+            }
+            
+            // Copy borders
+            for (y in 0 until height) {
+                for (x in 0 until width) {
+                    if (y == 0 || y == height - 1 || x == 0 || x == width - 1) {
+                        temp[y * width + x] = result[y * width + x]
+                    }
+                }
+            }
+            
+            result = temp
+        }
+        
+        return result
+    }
+
+    /**
+    * Apply morphological erosion to thin edges and remove noise
+    */
+    private fun applyErosion(binary: IntArray, width: Int, height: Int, iterations: Int = 1): IntArray {
+        var result = binary.copyOf()
+        
+        // 3x3 structuring element (cross shape)
+        val structElement = arrayOf(
+            intArrayOf(0, 1, 0),
+            intArrayOf(1, 1, 1),
+            intArrayOf(0, 1, 0)
+        )
+        
+        repeat(iterations) {
+            val temp = IntArray(width * height)
+            
+            for (y in 1 until height - 1) {
+                for (x in 1 until width - 1) {
+                    var minValue = 255
+                    
+                    // Apply structuring element
+                    for (sy in -1..1) {
+                        for (sx in -1..1) {
+                            if (structElement[sy + 1][sx + 1] == 1) {
+                                val pixelIndex = (y + sy) * width + (x + sx)
+                                minValue = minOf(minValue, result[pixelIndex])
+                            }
+                        }
+                    }
+                    
+                    temp[y * width + x] = minValue
+                }
+            }
+            
+            // Copy borders
+            for (y in 0 until height) {
+                for (x in 0 until width) {
+                    if (y == 0 || y == height - 1 || x == 0 || x == width - 1) {
+                        temp[y * width + x] = result[y * width + x]
+                    }
+                }
+            }
+            
+            result = temp
+        }
+        
+        return result
+    }
+
+    /**
+    * Calculate contour area using cross product method
+    * Points are sorted by angle to center before calculation
+    */
+    private fun calculateContourArea(contour: List<Point>): Double {
+        if (contour.size < 3) return 0.0
+        
+        // Calculate center point
+        val centerX = contour.sumOf { it.x }.toDouble() / contour.size
+        val centerY = contour.sumOf { it.y }.toDouble() / contour.size
+        
+        // Sort points by angle to center
+        val sortedContour = contour.sortedBy { point ->
+            atan2((point.y - centerY), (point.x - centerX))
+        }
+        
+        // Calculate area using cross product (shoelace formula)
+        var area = 0.0
+        val n = sortedContour.size
+        
+        for (i in 0 until n) {
+            val j = (i + 1) % n
+            val xi = sortedContour[i].x.toDouble()
+            val yi = sortedContour[i].y.toDouble()
+            val xj = sortedContour[j].x.toDouble()
+            val yj = sortedContour[j].y.toDouble()
+            
+            area += xi * yj - xj * yi
+        }
+        
+        return abs(area) / 2.0
+    }
+
+    /**
+    * Sort contour points in clockwise order around the centroid
+    * This ensures clean line drawing between consecutive points
+    */
+    private fun sortContourPoints(contour: List<Point>): List<Point> {
+        if (contour.size < 3) return contour
+        
+        // Calculate centroid
+        val centerX = contour.sumOf { it.x }.toDouble() / contour.size
+        val centerY = contour.sumOf { it.y }.toDouble() / contour.size
+        
+        // Sort points by angle from centroid (clockwise order)
+        return contour.sortedBy { point ->
+            atan2((point.y - centerY), (point.x - centerX))
+        }
+    }
+
+    /**
     * Update findDocumentCorners to use the new corner detection method
     */
     suspend fun findDocumentCorners(image: Bitmap): Array<PointF>? {
@@ -245,9 +393,15 @@ class ImageProcService(private val context: Context) {
             // Apply Canny edge detection
             val edges = applyCannyEdgeDetection(blurred, width, height, lowThreshold = 50, highThreshold = 100)
             
-            // Find contours and get the largest one
-            val contours = findContoursFromBinary(edges, width, height)
-            val largestContour = contours.maxByOrNull { it.size }
+            // Apply dilation to thicken edges and connect nearby edge pixels
+            val dilatedEdges = applyDilation(edges, width, height, iterations = 2)
+            
+            // Apply erosion to clean up and thin the edges
+            val cleanedEdges = applyErosion(dilatedEdges, width, height, iterations = 1)
+            
+            // Find contours and get the largest one by area
+            val contours = findContoursFromBinary(cleanedEdges, width, height)
+            val largestContour = contours.maxByOrNull { calculateContourArea(it) }
             
             return@withContext if (largestContour != null && largestContour.size >= 20) {
                 findCornersFromContour(largestContour)
@@ -327,12 +481,18 @@ class ImageProcService(private val context: Context) {
             // Apply Canny edge detection
             val edges = applyCannyEdgeDetection(blurred, width, height, lowThreshold, highThreshold)
             
-            // Convert result back to bitmap
+            // Apply dilation to thicken edges (for demonstration purposes)
+            val dilatedEdges = applyDilation(edges, width, height, iterations = 2)
+            
+            // Apply erosion to clean up the edges
+            val finalEdges = applyErosion(dilatedEdges, width, height, iterations = 1)
+            
+            // Convert final result back to bitmap for visualization
             val resultBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
             val resultPixels = IntArray(width * height)
             
-            for (i in edges.indices) {
-                val edgeValue = edges[i]
+            for (i in finalEdges.indices) {
+                val edgeValue = finalEdges[i]
                 resultPixels[i] = Color.rgb(edgeValue, edgeValue, edgeValue)
             }
             
@@ -346,8 +506,9 @@ class ImageProcService(private val context: Context) {
                 isAntiAlias = true
             }
             
-            canvas.drawText("Canny Edge Detection", 20f, 50f, debugPaint)
+            canvas.drawText("Canny + Dilation + Erosion", 20f, 50f, debugPaint)
             canvas.drawText("Low: $lowThreshold, High: $highThreshold", 20f, 90f, debugPaint)
+            canvas.drawText("Morphology: Dilate(2) + Erode(1)", 20f, 130f, debugPaint)
             
             resultBitmap
         }
@@ -440,6 +601,152 @@ class ImageProcService(private val context: Context) {
     }
 
     /**
+     * Debug function: shows all contours found from Canny edge detection
+     * This helps visualize what contours are actually being detected
+     */
+    suspend fun debugContoursOnly(image: Bitmap, lowThreshold: Int = 50, highThreshold: Int = 100): Bitmap {
+        return withContext(Dispatchers.Default) {
+            val width = image.width
+            val height = image.height
+            val pixels = IntArray(width * height)
+            image.getPixels(pixels, 0, width, 0, 0, width, height)
+            
+            // Convert to grayscale
+            val grayPixels = IntArray(width * height)
+            for (i in pixels.indices) {
+                val pixel = pixels[i]
+                val r = Color.red(pixel)
+                val g = Color.green(pixel)
+                val b = Color.blue(pixel)
+                grayPixels[i] = (0.299 * r + 0.587 * g + 0.114 * b).toInt()
+            }
+            
+            // Apply Gaussian blur to reduce noise
+            val blurred = applyGaussianBlur(grayPixels, width, height)
+            
+            // Apply Canny edge detection
+            val edges = applyCannyEdgeDetection(blurred, width, height, lowThreshold, highThreshold)
+            
+            // Apply dilation to thicken edges and connect nearby edge pixels
+            val dilatedEdges = applyDilation(edges, width, height, iterations = 2)
+            
+            // Apply erosion to clean up and thin the edges
+            val cleanedEdges = applyErosion(dilatedEdges, width, height, iterations = 1)
+            
+            // Find contours and sort by area (largest first)
+            val contours = findContoursFromBinary(cleanedEdges, width, height)
+                .sortedByDescending { calculateContourArea(it) }
+            
+            // Start with original image for better visibility
+            val resultBitmap = image.copy(Bitmap.Config.ARGB_8888, true)
+            val canvas = Canvas(resultBitmap)
+            
+            // Draw all contours in different colors
+            val colors = arrayOf(
+                Color.RED, Color.GREEN, Color.BLUE, Color.YELLOW, 
+                Color.CYAN, Color.MAGENTA, Color.WHITE, Color.LTGRAY
+            )
+            
+            for ((index, contour) in contours.withIndex().take(8)) { // Show first 8 contours
+                if (contour.size < 5) continue // Skip very small contours
+                
+                val contourPaint = Paint().apply {
+                    color = colors[index % colors.size]
+                    style = Paint.Style.STROKE
+                    strokeWidth = 3f
+                    isAntiAlias = true
+                }
+                
+                // Draw contour as connected lines
+                for (i in 0 until contour.size - 1) {
+                    val start = contour[i]
+                    val end = contour[i + 1]
+                    canvas.drawLine(start.x.toFloat(), start.y.toFloat(), 
+                                   end.x.toFloat(), end.y.toFloat(), contourPaint)
+                }
+                
+                // Connect last point to first to close the contour
+                if (contour.size > 2) {
+                    val last = contour.last()
+                    val first = contour.first()
+                    canvas.drawLine(last.x.toFloat(), last.y.toFloat(),
+                                   first.x.toFloat(), first.y.toFloat(), contourPaint)
+                }
+                
+                // Draw contour number at the center
+                if (contour.isNotEmpty()) {
+                    val centerX = contour.sumOf { it.x }.toFloat() / contour.size
+                    val centerY = contour.sumOf { it.y }.toFloat() / contour.size
+                    
+                    val textPaint = Paint().apply {
+                        color = Color.WHITE
+                        textSize = 24f
+                        isAntiAlias = true
+                        typeface = Typeface.DEFAULT_BOLD
+                    }
+                    
+                    val backgroundPaint = Paint().apply {
+                        color = Color.BLACK
+                        style = Paint.Style.FILL
+                    }
+                    
+                    val text = "${index + 1}"
+                    val textBounds = Rect()
+                    textPaint.getTextBounds(text, 0, text.length, textBounds)
+                    
+                    val bgRect = RectF(
+                        centerX - textBounds.width() / 2 - 4f,
+                        centerY - textBounds.height() / 2 - 4f,
+                        centerX + textBounds.width() / 2 + 4f,
+                        centerY + textBounds.height() / 2 + 4f
+                    )
+                    canvas.drawRect(bgRect, backgroundPaint)
+                    canvas.drawText(text, centerX - textBounds.width() / 2, centerY + textBounds.height() / 2, textPaint)
+                }
+            }
+            
+            // Add debug info
+            val debugPaint = Paint().apply {
+                color = Color.BLACK
+                textSize = 25f
+                isAntiAlias = true
+            }
+            
+            val debugBackgroundPaint = Paint().apply {
+                color = Color.BLACK
+                style = Paint.Style.FILL
+            }
+            
+            val infoHeight = 150f + (contours.take(8).size * 25f)
+            // canvas.drawRect(10f, 10f, 400f, infoHeight, debugBackgroundPaint)
+            canvas.drawText("Contour Detection Debug (Area-based)", 20f, 35f, debugPaint)
+            canvas.drawText("Total contours: ${contours.size}", 20f, 65f, debugPaint)
+            canvas.drawText("Sorted by area (largest first)", 20f, 95f, debugPaint)
+            canvas.drawText("Canny + Dilation + Erosion", 20f, 125f, debugPaint)
+            
+            // Show contour details with area information
+            for ((index, contour) in contours.withIndex().take(8)) {
+                val color = colors[index % colors.size]
+                val colorName = when (color) {
+                    Color.RED -> "Red"
+                    Color.GREEN -> "Green"
+                    Color.BLUE -> "Blue"
+                    Color.YELLOW -> "Yellow"
+                    Color.CYAN -> "Cyan"
+                    Color.MAGENTA -> "Magenta"
+                    Color.WHITE -> "White"
+                    else -> "Orange"
+                }
+                val area = calculateContourArea(contour)
+                val info = "${index + 1}. $colorName: ${contour.size}pts, ${area.toInt()}px²"
+                canvas.drawText(info, 20f, 155f + index * 25f, debugPaint)
+            }
+            
+            resultBitmap
+        }
+    }
+
+    /**
     * Updated debugContourDetection to use the new corner detection method
     */
     suspend fun debugContourDetection(image: Bitmap, lowThreshold: Int = 50, highThreshold: Int = 100): Bitmap {
@@ -465,15 +772,22 @@ class ImageProcService(private val context: Context) {
             // Apply Canny edge detection
             val edges = applyCannyEdgeDetection(blurred, width, height, lowThreshold, highThreshold)
             
-            // Find contours directly from Canny output
-            val contours = findContoursFromBinary(edges, width, height)
+            // Apply dilation to thicken edges and connect nearby edge pixels
+            val dilatedEdges = applyDilation(edges, width, height, iterations = 2)
+            
+            // Apply erosion to clean up and thin the edges
+            val cleanedEdges = applyErosion(dilatedEdges, width, height, iterations = 1)
+            
+            // Find contours and get the largest one by area
+            val contours = findContoursFromBinary(cleanedEdges, width, height)
+            val largestContour = contours.maxByOrNull { calculateContourArea(it) }
             
             // Start with original image for better visibility
             val resultBitmap = image.copy(Bitmap.Config.ARGB_8888, true)
             val canvas = Canvas(resultBitmap)
             
             // Get the largest contour only
-            val largestContour = contours.maxByOrNull { it.size }
+//            val largestContour = contours.maxByOrNull { it.size }
             
             if (largestContour != null && largestContour.size >= 10) {
                 // Draw the largest contour in bright red
@@ -591,11 +905,12 @@ class ImageProcService(private val context: Context) {
                         style = Paint.Style.FILL
                     }
                     
-                    canvas.drawRect(10f, 10f, 450f, 280f, debugBackgroundPaint)
-                    canvas.drawText("Distance-Based Corner Detection", 20f, 35f, debugPaint)
+                    // canvas.drawRect(10f, 10f, 450f, 280f, debugBackgroundPaint)
+                    val contourArea = calculateContourArea(largestContour)
+                    canvas.drawText("Area-Based Corner Detection", 20f, 35f, debugPaint)
                     canvas.drawText("Contour points: ${largestContour.size}", 20f, 65f, debugPaint)
-                    canvas.drawText("Corners found: YES (4)", 20f, 95f, debugPaint)
-                    canvas.drawText("Method: Distance-based", 20f, 125f, debugPaint)
+                    canvas.drawText("Contour area: ${contourArea.toInt()}px²", 20f, 95f, debugPaint)
+                    canvas.drawText("Corners found: YES (4)", 20f, 125f, debugPaint)
                     canvas.drawText("Area: ${area.toInt()} (min: ${minArea.toInt()})", 20f, 155f, debugPaint)
                     canvas.drawText("Area check: ${if (area > minArea) "PASS" else "FAIL"}", 20f, 185f, debugPaint)
                     
@@ -620,10 +935,11 @@ class ImageProcService(private val context: Context) {
                     }
                     
                     canvas.drawRect(10f, 10f, 450f, 140f, backgroundPaint)
-                    canvas.drawText("Distance-Based Corner Detection", 20f, 35f, debugPaint)
+                    val contourArea = calculateContourArea(largestContour)
+                    canvas.drawText("Area-Based Corner Detection", 20f, 35f, debugPaint)
                     canvas.drawText("Contour points: ${largestContour.size}", 20f, 65f, debugPaint)
-                    canvas.drawText("Corners found: NO", 20f, 95f, debugPaint)
-                    canvas.drawText("Low: $lowThreshold, High: $highThreshold", 20f, 125f, debugPaint)
+                    canvas.drawText("Contour area: ${contourArea.toInt()}px²", 20f, 95f, debugPaint)
+                    canvas.drawText("Corners found: NO", 20f, 125f, debugPaint)
                 }
                 
             } else {
@@ -663,13 +979,15 @@ class ImageProcService(private val context: Context) {
                     val contour = mutableListOf<Point>()
                     traceContour(binary, visited, width, height, x, y, contour)
                     if (contour.size > 10) { // Filter very small contours
-                        contours.add(contour)
+                        // Sort contour points in proper order for clean line drawing
+                        val sortedContour = sortContourPoints(contour)
+                        contours.add(sortedContour)
                     }
                 }
             }
         }
         
-        return contours.sortedByDescending { it.size } // Return largest contours first
+        return contours // Return contours without sorting, let calling function decide
     }
 
     /**
@@ -1065,10 +1383,17 @@ class ImageProcService(private val context: Context) {
     // Update the correctPerspective function to use corner detection
     suspend fun correctPerspective(image: Bitmap): Bitmap {
 
-        // return debugContourDetection(image, 50, 100)
+        // For debugging all contours found:
+         return debugContoursOnly(image, 30, 60)
+        
+        // For debugging corner detection on largest contour:
+//        return debugContourDetection(image, 50, 100)
+        
+        // For debugging Canny edge detection:
+        // return debugCannyEdgeDetection(image, 30, 60)
 
+        /*
         val corners = findDocumentCorners(image)
-
         
         return if (corners != null) {
             // Use detected corners
@@ -1076,6 +1401,7 @@ class ImageProcService(private val context: Context) {
         } else {
             image
         }
+        */
     }
     
     // TODO: Color Enhancement
