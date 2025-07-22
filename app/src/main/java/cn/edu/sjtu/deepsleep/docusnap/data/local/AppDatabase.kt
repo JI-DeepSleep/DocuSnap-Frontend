@@ -11,7 +11,7 @@ import cn.edu.sjtu.deepsleep.docusnap.data.model.Converters
 
 @Database(
     entities = [DocumentEntity::class, FormEntity::class, JobEntity::class],
-    version = 4  // Incremented version
+    version = 5  // Incremented version
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {

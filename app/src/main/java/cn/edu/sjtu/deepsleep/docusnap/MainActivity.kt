@@ -180,7 +180,6 @@ fun DocuSnapApp() {
                     },
                     documentId = documentId,
                     fromImageProcessing = fromImageProcessing,
-                    photoUris = photoUris
                 )
             }
             
@@ -214,8 +213,6 @@ fun DocuSnapApp() {
                         }
                     },
                     formId = formId,
-                    // [4. ADDED] Passed the new photoUris argument to the FormDetailScreen.
-                    photoUris = photoUris
                 )
             }
             

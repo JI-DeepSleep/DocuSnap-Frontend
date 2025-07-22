@@ -1,6 +1,10 @@
 package cn.edu.sjtu.deepsleep.docusnap.data
 
 import java.util.UUID
+import android.util.Base64
+import java.io.ByteArrayOutputStream
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 
 object MockData {
     // Create IDs first so we can reference them
@@ -10,12 +14,41 @@ object MockData {
     private val expenseFormId = UUID.randomUUID().toString()
     private val visaFormId = UUID.randomUUID().toString()
 
+    // Helper function to create mock base64 images
+    private fun createMockBase64Image(color: Int, text: String): String {
+        // Create bitmap with initial color
+        val bitmap = Bitmap.createBitmap(200, 200, Bitmap.Config.ARGB_8888).apply {
+            eraseColor(color)
+        }
+
+        // Create canvas and paint
+        val canvas = android.graphics.Canvas(bitmap)
+        val paint = android.graphics.Paint().apply {
+            this.color = android.graphics.Color.WHITE
+            textSize = 24f
+        }
+
+        // Draw text on bitmap
+        canvas.drawText(text, 50f, 100f, paint)
+
+        // Convert to byte array
+        val byteArrayOutputStream = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 80, byteArrayOutputStream)
+        val byteArray = byteArrayOutputStream.toByteArray()
+
+        // Return base64 string
+        return Base64.encodeToString(byteArray, Base64.DEFAULT)
+    }
+
     val mockDocuments = listOf(
         Document(
             id = starbucksReceiptId,
             name = "Lunch Receipt - Starbucks",
             description = "A lunch receipt from Starbucks showing coffee and sandwich purchase for $12.50.",
-            imageUris = listOf("mock_image_1.jpg", "mock_image_2.jpg"),
+            imageBase64s = listOf(
+                createMockBase64Image(android.graphics.Color.RED, "Starbucks Receipt 1"),
+                createMockBase64Image(android.graphics.Color.RED, "Starbucks Receipt 2")
+            ),
             extractedInfo = mapOf(
                 "Vendor" to "Starbucks Coffee",
                 "Date" to "2024-01-15",
@@ -25,13 +58,15 @@ object MockData {
                 "Items" to "Latte, Sandwich"
             ),
             tags = listOf("Food", "Expense", "Coffee"),
-            relatedFileIds = listOf(officeInvoiceId, expenseFormId) // Related to office invoice and expense form
+            relatedFileIds = listOf(officeInvoiceId, expenseFormId)
         ),
         Document(
             id = officeInvoiceId,
             name = "Office Supply Invoice",
             description = "An invoice for office supplies totaling $1,245.50 from OfficeSupply Co.",
-            imageUris = listOf("mock_image_3.jpg"),
+            imageBase64s = listOf(
+                createMockBase64Image(android.graphics.Color.BLUE, "Office Invoice")
+            ),
             extractedInfo = mapOf(
                 "Supplier" to "OfficeSupply Co.",
                 "Invoice Number" to "INV-2024-0876",
@@ -41,13 +76,17 @@ object MockData {
                 "Payment Status" to "Unpaid"
             ),
             tags = listOf("Business", "Invoice", "Office"),
-            relatedFileIds = listOf(starbucksReceiptId, expenseFormId) // Related to Starbucks receipt and expense form
+            relatedFileIds = listOf(starbucksReceiptId, expenseFormId)
         ),
         Document(
             id = employmentContractId,
             name = "Employment Contract",
             description = "A full-time employment contract for John Doe as Software Engineer at TechCorp Inc.",
-            imageUris = listOf("mock_image_4.jpg", "mock_image_5.jpg", "mock_image_6.jpg"),
+            imageBase64s = listOf(
+                createMockBase64Image(android.graphics.Color.GREEN, "Contract Page 1"),
+                createMockBase64Image(android.graphics.Color.GREEN, "Contract Page 2"),
+                createMockBase64Image(android.graphics.Color.GREEN, "Contract Page 3")
+            ),
             extractedInfo = mapOf(
                 "Company" to "TechCorp Inc.",
                 "Employee" to "John Doe",
@@ -57,7 +96,7 @@ object MockData {
                 "Contract Type" to "Full-time"
             ),
             tags = listOf("Employment", "Contract", "Legal"),
-            relatedFileIds = listOf(visaFormId) // Related to visa application
+            relatedFileIds = listOf(visaFormId)
         )
     )
 
@@ -66,7 +105,9 @@ object MockData {
             id = expenseFormId,
             name = "Expense Report Form",
             description = "A company expense report form for tracking business expenses and reimbursements.",
-            imageUris = listOf("mock_form_1.jpg"),
+            imageBase64s = listOf(
+                createMockBase64Image(android.graphics.Color.YELLOW, "Expense Form")
+            ),
             extractedInfo = mapOf(
                 "Form Type" to "Expense Report",
                 "Company" to "TechCorp Inc.",
@@ -88,7 +129,10 @@ object MockData {
             id = visaFormId,
             name = "Visa Application",
             description = "A visa application form for travel to Japan with personal and travel details.",
-            imageUris = listOf("mock_form_2.jpg", "mock_form_3.jpg"),
+            imageBase64s = listOf(
+                createMockBase64Image(android.graphics.Color.CYAN, "Visa Form 1"),
+                createMockBase64Image(android.graphics.Color.CYAN, "Visa Form 2")
+            ),
             extractedInfo = mapOf(
                 "Form Type" to "Visa Application",
                 "Country" to "Japan",
@@ -112,31 +156,31 @@ object MockData {
     fun getRelatedFiles(fileId: String): List<Any> {
         val document = mockDocuments.find { it.id == fileId }
         val form = mockForms.find { it.id == fileId }
-        
+
         val relatedIds = document?.relatedFileIds ?: form?.relatedFileIds ?: emptyList()
-        
+
         return relatedIds.mapNotNull { relatedId ->
             mockDocuments.find { it.id == relatedId } ?: mockForms.find { it.id == relatedId }
         }
     }
-    
+
     fun getRelatedDocuments(fileId: String): List<Document> {
         val document = mockDocuments.find { it.id == fileId }
         val form = mockForms.find { it.id == fileId }
-        
+
         val relatedIds = document?.relatedFileIds ?: form?.relatedFileIds ?: emptyList()
-        
+
         return relatedIds.mapNotNull { relatedId ->
             mockDocuments.find { it.id == relatedId }
         }
     }
-    
+
     fun getRelatedForms(fileId: String): List<Form> {
         val document = mockDocuments.find { it.id == fileId }
         val form = mockForms.find { it.id == fileId }
-        
+
         val relatedIds = document?.relatedFileIds ?: form?.relatedFileIds ?: emptyList()
-        
+
         return relatedIds.mapNotNull { relatedId ->
             mockForms.find { it.id == relatedId }
         }
@@ -150,7 +194,7 @@ object MockData {
             relevanceScore = 0.95f
         ),
         SearchEntity.DocumentEntity(
-            document = mockDocuments.find { it.id == starbucksReceiptId }!!, // Starbucks receipt
+            document = mockDocuments.find { it.id == starbucksReceiptId }!!,
             relevanceScore = 0.92f
         ),
         SearchEntity.TextEntity(
@@ -159,11 +203,11 @@ object MockData {
             relevanceScore = 0.88f
         ),
         SearchEntity.FormEntity(
-            form = mockForms.find { it.id == expenseFormId }!!, // Expense Report Form
+            form = mockForms.find { it.id == expenseFormId }!!,
             relevanceScore = 0.85f
         ),
         SearchEntity.DocumentEntity(
-            document = mockDocuments.find { it.id == officeInvoiceId }!!, // Office Supply Invoice
+            document = mockDocuments.find { it.id == officeInvoiceId }!!,
             relevanceScore = 0.82f
         ),
         SearchEntity.TextEntity(
@@ -182,13 +226,13 @@ object MockData {
             relevanceScore = 0.68f
         ),
         SearchEntity.FormEntity(
-            form = mockForms.find { it.id == visaFormId }!!, // Visa Application
+            form = mockForms.find { it.id == visaFormId }!!,
             relevanceScore = 0.65f
         )
     )
 
     val mockSearchResults = SearchResult(
-        entities = mockSearchEntities.sortedByDescending { 
+        entities = mockSearchEntities.sortedByDescending {
             when (it) {
                 is SearchEntity.TextEntity -> it.relevanceScore
                 is SearchEntity.DocumentEntity -> it.relevanceScore
@@ -198,7 +242,6 @@ object MockData {
     )
 
     // Text info generated from document and form extracted info
-    // Each item represents a key-value pair that was extracted from a document's or form's extractedInfo
     val MockTextInfo = generateFrequentlyUsedTextInfoFromFiles()
 
     // Helper function to get text info grouped by category and usage
@@ -210,58 +253,55 @@ object MockData {
     }
 
     // Helper function to generate text info from document and form extracted info
-    // This demonstrates how the system could automatically create text info
     private fun generateFrequentlyUsedTextInfoFromFiles(): List<TextInfo> {
         val generated = mutableListOf<TextInfo>()
-        
+
         // Generate from documents
         mockDocuments.forEach { document ->
             document.extractedInfo.forEach { (key, value) ->
-                // Determine category based on key or document type
                 val category = when {
                     key.contains("Amount") || key.contains("Total") || key.contains("Price") || key.contains("Vendor") || key.contains("Invoice") -> "Recent Expenses"
                     key.contains("Company") || key.contains("Employee") || key.contains("Position") -> "Important Contacts"
                     key.contains("Date") || key.contains("Start") || key.contains("End") || key.contains("Contract") -> "Travel Information"
                     else -> "General Information"
                 }
-                
+
                 generated.add(
                     TextInfo(
                         key = key,
                         value = value,
                         category = category,
                         srcFileId = document.id,
-                        usageCount = (1..10).random(), // Random usage count for demo
+                        usageCount = (1..10).random(),
                         lastUsed = "2024-01-${(15..20).random()}"
                     )
                 )
             }
         }
-        
+
         // Generate from forms
         mockForms.forEach { form ->
             form.extractedInfo.forEach { (key, value) ->
-                // Determine category based on key or form type
                 val category = when {
                     key.contains("Form Type") -> "Form Information"
                     key.contains("Company") || key.contains("Department") -> "Business Information"
                     key.contains("Country") || key.contains("Travel") -> "Travel Information"
                     else -> "General Information"
                 }
-                
+
                 generated.add(
                     TextInfo(
                         key = key,
                         value = value,
                         category = category,
                         srcFileId = form.id,
-                        usageCount = (1..8).random(), // Random usage count for demo
+                        usageCount = (1..8).random(),
                         lastUsed = "2024-01-${(15..20).random()}"
                     )
                 )
             }
         }
-        
+
         return generated
     }
-} 
+}

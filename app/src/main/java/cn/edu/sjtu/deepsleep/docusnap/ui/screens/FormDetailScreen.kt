@@ -29,66 +29,127 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
 import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModelFactory
 import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
+import cn.edu.sjtu.deepsleep.docusnap.service.JobPollingService
+import cn.edu.sjtu.deepsleep.docusnap.data.local.AppDatabase
+import android.util.Base64
+import cn.edu.sjtu.deepsleep.docusnap.data.local.JobEntity
+import kotlinx.coroutines.flow.collectLatest
+import org.json.JSONObject
+import android.util.Log
+import cn.edu.sjtu.deepsleep.docusnap.data.FormField
+import kotlinx.serialization.json.Json
 
 @Composable
 fun FormDetailScreen(
     onNavigate: (String) -> Unit,
     onBackClick: () -> Unit,
     formId: String? = null,
-    photoUris: String? = null,
     fromImageProcessing: Boolean = false
 ) {
+    val context = LocalContext.current
     val viewModel: DocumentViewModel = viewModel(
-        factory = DocumentViewModelFactory(AppModule.provideDocumentRepository(LocalContext.current))
+        factory = DocumentViewModelFactory(AppModule.provideDocumentRepository(context))
     )
+    val jobPollingService = remember { JobPollingService(context) }
+    val database = remember { AppDatabase.getInstance(context) }
+    val jobDao = remember { database.jobDao() }
+    val coroutineScope = rememberCoroutineScope()
 
     // State for loaded form
-    var loadedForm by remember { mutableStateOf<cn.edu.sjtu.deepsleep.docusnap.data.Form?>(null) }
+    var form by remember { mutableStateOf<cn.edu.sjtu.deepsleep.docusnap.data.Form?>(null) }
     var loading by remember { mutableStateOf(true) }
-    val scope = rememberCoroutineScope()
+    var job by remember { mutableStateOf<JobEntity?>(null) }
+    var jobStatus by remember { mutableStateOf<String?>(null) }
+    var jobError by remember { mutableStateOf<String?>(null) }
 
-    // Load form from DB (or fallback to MockData if not found)
+    // Observe job status changes
+    LaunchedEffect(form?.jobId) {
+        form?.jobId?.let { jobId ->
+            jobDao.getJobById(jobId).collectLatest { jobEntity: JobEntity? ->
+                job = jobEntity
+                jobEntity?.let {
+                    jobStatus = it.status
+                    jobError = it.errorDetail
+
+                    if (it.status == "completed" && it.result != null) {
+                        try {
+                            // Decrypt result
+                            val decryptedResult = jobPollingService.decryptJobResult(it.result, it)
+                            decryptedResult?.let { resultJson ->
+                                val result = JSONObject(resultJson)
+                                val formFieldsJson = result.optJSONArray("formFields") ?: result.optJSONArray("fields")
+                                val extractedInfoJson = result.optJSONObject("extractedInfo") ?: result.optJSONObject("kv")
+
+                                // Convert form fields
+                                val formFields = if (formFieldsJson != null) {
+                                    Json.decodeFromString<List<FormField>>(formFieldsJson.toString())
+                                } else {
+                                    emptyList()
+                                }
+
+                                // Convert extracted info
+                                val extractedInfo = mutableMapOf<String, String>()
+                                extractedInfoJson?.keys()?.forEach { key ->
+                                    extractedInfo[key] = extractedInfoJson.getString(key)
+                                }
+
+                                // Update form
+                                form = form?.copy(
+                                    formFields = formFields,
+                                    extractedInfo = extractedInfo,
+                                    isProcessed = true
+                                )
+
+                                // Save to DB
+                                form?.let { updatedForm ->
+                                    viewModel.updateForm(updatedForm)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            jobError = "Result parsing failed: ${e.message}"
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // Load form from DB
     LaunchedEffect(formId) {
         loading = true
-        loadedForm = if (formId != null) {
+        form = if (formId != null) {
             viewModel.getForm(formId) ?: MockData.mockForms.find { it.id == formId } ?: MockData.mockForms.first()
         } else {
             MockData.mockForms.first()
         }
-        android.util.Log.d("FormDetailScreen", "Loaded form: ${loadedForm?.name}, formFields count: ${loadedForm?.formFields?.size}")
-        loadedForm?.formFields?.forEach { field ->
-            android.util.Log.d("FormDetailScreen", "Field: ${field.name}, value: ${field.value}, isRetrieved: ${field.isRetrieved}")
-        }
         loading = false
     }
 
-    if (loading || loadedForm == null) {
+    // Save/update form on exit
+    DisposableEffect(form, fromImageProcessing) {
+        onDispose {
+            form?.let { frm ->
+                if (fromImageProcessing) {
+                    coroutineScope.launch { viewModel.saveForm(frm) }
+                } else {
+                    coroutineScope.launch { viewModel.updateForm(frm) }
+                }
+            }
+        }
+    }
+
+    if (loading || form == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
         }
         return
     }
-    val currentForm = loadedForm!!
+    val currentForm = form!!
 
-    // Helper to persist form changes to DB
-    fun persistFormUpdate(updatedForm: cn.edu.sjtu.deepsleep.docusnap.data.Form) {
-        loadedForm = updatedForm
-        scope.launch { viewModel.updateForm(updatedForm) }
-    }
-
-    // [1. NEW DATA LOGIC] Prioritize displaying images from navigation parameters.
-    val imagesToShow = remember(photoUris) {
-        if (photoUris != null) {
-            // If photoUris from navigation exists, decode and use it.
-            try {
-                java.net.URLDecoder.decode(photoUris, "UTF-8").split(",").filter { it.isNotEmpty() }
-            } catch (e: Exception) {
-                // In case of decoding error, fallback to an empty list.
-                emptyList()
-            }
-        } else {
-            // Otherwise, fallback to loading from form object.
-            currentForm.imageUris
+    // Images to show from Base64 strings
+    val imagesToShow = remember(currentForm) {
+        currentForm.imageBase64s.map { base64 ->
+            "data:image/jpeg;base64,$base64"
         }
     }
 
@@ -99,20 +160,16 @@ fun FormDetailScreen(
     var autoFillingJob by remember { mutableStateOf<Job?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
-    val context = LocalContext.current
 
     var currentImageIndex by remember { mutableStateOf(0) }
 
-    
     // Store original form fields for restoration during parsing
     val originalFormFields = remember { currentForm.formFields }
-    
-    // Create mutable state for form fields - use the original form fields directly
-    var formFields by remember { mutableStateOf(currentForm.formFields) }
 
-    // Create mutable state for extracted info
+    // Create mutable state for form fields
+    var formFields by remember { mutableStateOf(currentForm.formFields) }
     var extractedInfo by remember { mutableStateOf(currentForm.extractedInfo) }
-    
+
     // For editing, keep separate maps to hold edits until saved
     var editedFormFields by remember { mutableStateOf(currentForm.formFields) }
     var editedExtractedInfo by remember { mutableStateOf(currentForm.extractedInfo) }
@@ -133,6 +190,12 @@ fun FormDetailScreen(
         if (currentImageIndex < imagesToShow.size - 1) {
             currentImageIndex++
         }
+    }
+
+    // Helper to persist form changes to DB
+    fun persistFormUpdate(updatedForm: cn.edu.sjtu.deepsleep.docusnap.data.Form) {
+        form = updatedForm
+        coroutineScope.launch { viewModel.updateForm(updatedForm) }
     }
 
     Column(
@@ -189,7 +252,7 @@ fun FormDetailScreen(
                                 )
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         )
-                        
+
                         // Current image
                         AsyncImage(
                             model = imagesToShow[currentImageIndex],
@@ -197,7 +260,7 @@ fun FormDetailScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
-                        
+
                         // Navigation arrows
                         if (imagesToShow.size > 1) {
                             Row(
@@ -301,6 +364,30 @@ fun FormDetailScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Job status display
+            jobStatus?.let { status ->
+                val statusColor = when (status) {
+                    "processing" -> MaterialTheme.colorScheme.primary
+                    "completed" -> MaterialTheme.colorScheme.secondary
+                    "error" -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+
+                Text(
+                    text = "Processing status: ${status.uppercase()}",
+                    color = statusColor,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
+            jobError?.let { error ->
+                Text(
+                    text = "Error: $error",
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
             // Tool buttons row: Parse/Autofill/Edit/Clear Form/Clear All/Copy/Help
             Row(
                 modifier = Modifier
@@ -318,23 +405,27 @@ fun FormDetailScreen(
                             formFields = emptyList()
                             editedExtractedInfo = emptyMap()
                             editedFormFields = emptyList()
-                            parsingJob = scope.launch {
-                                // TODO： BackendApiService.processForm()
-                                delay(2000) // Simulate parsing
-                                // After parsing, restore the original data and persist to DB
-                                extractedInfo = currentForm.extractedInfo
-                                editedExtractedInfo = currentForm.extractedInfo
-                                formFields = originalFormFields.map { field ->
-                                    field.copy(value = null, isRetrieved = false)
+
+                            parsingJob = coroutineScope.launch {
+                                try {
+                                    // Convert images to base64
+                                    val base64Images = imagesToShow.map { uri ->
+                                        uri.substringAfter("base64,")
+                                    }
+
+                                    // Create processing job
+                                    val job = jobPollingService.createJob(
+                                        type = "form",
+                                        payload = base64Images
+                                    )
+
+                                    // Update form with job ID
+                                    form = currentForm.copy(jobId = job.id)
+                                    viewModel.updateForm(form!!)
+                                } catch (e: Exception) {
+                                    jobError = "Job creation failed: ${e.message}"
+                                    parsing = false
                                 }
-                                editedFormFields = formFields
-                                // Persist the parsed results
-                                persistFormUpdate(currentForm.copy(
-                                    extractedInfo = extractedInfo,
-                                    formFields = formFields
-                                ))
-                                parsing = false
-                                parsingJob = null
                             }
                         },
                         enabled = !autoFilling,
@@ -354,13 +445,13 @@ fun FormDetailScreen(
                         Icon(Icons.Default.Stop, contentDescription = "Stop")
                     }
                 }
-                
+
                 // Autofill button (auto fill form fields)
                 if (!autoFilling) {
                     IconButton(
                         onClick = {
                             autoFilling = true
-                            autoFillingJob = scope.launch {
+                            autoFillingJob = coroutineScope.launch {
                                 // TODO: BackendApiService.fillForm()
                                 delay(2000) // Simulate auto-filling process
                                 // After auto-filling, update form fields with realistic values
@@ -403,7 +494,7 @@ fun FormDetailScreen(
                         Icon(Icons.Default.Stop, contentDescription = "Stop")
                     }
                 }
-                
+
                 // Edit button (edit both extracted info and form fields)
                 IconButton(
                     onClick = {
@@ -430,7 +521,7 @@ fun FormDetailScreen(
                         contentDescription = if (isEditing) "Save" else "Edit"
                     )
                 }
-                
+
                 // Clear Form button (clear form fields only)
                 IconButton(
                     onClick = {
@@ -467,7 +558,7 @@ fun FormDetailScreen(
 
                 // Copy button (copy everything)
                 IconButton(
-                    onClick = { 
+                    onClick = {
                         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                         val extractedText = extractedInfo.entries.joinToString("\n") { "${it.key}: ${it.value}" }
                         val formFieldsText = formFields.joinToString("\n") { "${it.name}: ${it.value ?: ""}" }
@@ -560,7 +651,7 @@ fun FormDetailScreen(
 
             // Form Fields Section
             if ((if (isEditing) editedFormFields else formFields).isNotEmpty() && !autoFilling) {
-                android.util.Log.d("FormDetailScreen", "Showing form fields section. Count: ${(if (isEditing) editedFormFields else formFields).size}")
+                Log.d("FormDetailScreen", "Showing form fields section. Count: ${(if (isEditing) editedFormFields else formFields).size}")
                 Text(
                     text = "Form Fields",
                     fontSize = 18.sp,
@@ -576,12 +667,12 @@ fun FormDetailScreen(
                     ) {
                         (if (isEditing) editedFormFields else formFields).forEach { field ->
                             FormFieldDisplayItem(
-                                field = field, 
+                                field = field,
                                 isEditing = isEditing,
                                 onNavigate = onNavigate,
                                 onValueChange = { newValue ->
-                                    editedFormFields = editedFormFields.map { 
-                                        if (it.name == field.name) it.copy(value = newValue) else it 
+                                    editedFormFields = editedFormFields.map {
+                                        if (it.name == field.name) it.copy(value = newValue) else it
                                     }
                                 }
                             )
@@ -593,7 +684,7 @@ fun FormDetailScreen(
                 }
             } else if (!parsing && !autoFilling && extractedInfo.isEmpty() && formFields.isEmpty()) {
                 // Show prompt message when both extracted info and form fields are empty
-                android.util.Log.d("FormDetailScreen", "Showing no information available section. formFields.isEmpty: ${formFields.isEmpty()}, extractedInfo.isEmpty: ${extractedInfo.isEmpty()}")
+                Log.d("FormDetailScreen", "Showing no information available section. formFields.isEmpty: ${formFields.isEmpty()}, extractedInfo.isEmpty: ${extractedInfo.isEmpty()}")
                 Card(
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -733,7 +824,7 @@ fun FormDetailScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        scope.launch {
+                        coroutineScope.launch {
                             viewModel.deleteForms(listOf(currentForm.id))
                         }
                         // Always go back to gallery when deleting, regardless of source
@@ -751,6 +842,8 @@ fun FormDetailScreen(
             }
         )
     }
+
+
 }
 
 @Composable
@@ -762,10 +855,10 @@ private fun FormFieldDisplayItem(
 ) {
     var value by remember { mutableStateOf(field.value ?: "") }
     val context = LocalContext.current
-    
+
     // Keep value in sync with field.value prop
     LaunchedEffect(field.value) { if (!isEditing) value = field.value ?: "" }
-    
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -818,11 +911,11 @@ private fun FormFieldDisplayItem(
                     }
                 }
             }
-            
+
             if (isEditing) {
                 OutlinedTextField(
                     value = value,
-                    onValueChange = { 
+                    onValueChange = {
                         value = it
                         onValueChange?.invoke(it)
                     },
@@ -844,7 +937,7 @@ private fun FormFieldDisplayItem(
             }
         }
     }
-} 
+}
 
 @Composable
 private fun RelatedFileItem(
@@ -880,9 +973,9 @@ private fun RelatedFileItem(
                 fontWeight = FontWeight.Light
             )
         }
-        
+
         IconButton(
-            onClick = { 
+            onClick = {
                 when (file) {
                     is cn.edu.sjtu.deepsleep.docusnap.data.Document -> onNavigate("document_detail?documentId=${file.id}&fromImageProcessing=false")
                     is cn.edu.sjtu.deepsleep.docusnap.data.Form -> onNavigate("form_detail?formId=${file.id}&fromImageProcessing=false")
@@ -907,10 +1000,10 @@ private fun ExtractedInfoItem(
 ) {
     var editedValue by remember { mutableStateOf(value) }
     val context = LocalContext.current
-    
+
     // Keep editedValue in sync with value prop
     LaunchedEffect(value) { if (!isEditing) editedValue = value }
-    
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -925,9 +1018,9 @@ private fun ExtractedInfoItem(
             fontWeight = FontWeight.Medium,
             modifier = Modifier.weight(1f)
         )
-        
+
         Spacer(modifier = Modifier.width(16.dp))
-        
+
         // Value and copy icon column
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -952,7 +1045,7 @@ private fun ExtractedInfoItem(
                     modifier = Modifier.weight(1f)
                 )
             }
-            
+
             // Copy icon for individual values
             IconButton(
                 onClick = {

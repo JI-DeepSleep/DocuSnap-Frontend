@@ -1,41 +1,42 @@
 package cn.edu.sjtu.deepsleep.docusnap.service
+
 import android.content.Context
 import androidx.room.Room
 import cn.edu.sjtu.deepsleep.docusnap.data.local.AppDatabase
 import cn.edu.sjtu.deepsleep.docusnap.data.local.DocumentEntity
 import cn.edu.sjtu.deepsleep.docusnap.data.local.FormEntity
 import cn.edu.sjtu.deepsleep.docusnap.data.FormField
-
 import kotlinx.coroutines.flow.first
 import org.json.JSONObject
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import android.graphics.Bitmap
-import android.graphics.ImageDecoder
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.content.ContentValues
+import android.util.Base64
+import android.util.Log
+import java.io.ByteArrayOutputStream
 import java.io.OutputStream
-
-// Manager of all interactions with local SQLite database
 
 class DeviceDBService(private val context: Context) {
     private val db: AppDatabase by lazy {
-        android.util.Log.d("DeviceDBService", "Initializing Room database...")
+        Log.d("DeviceDBService", "Initializing Room database...")
         try {
             Room.databaseBuilder(
                 context.applicationContext,
                 AppDatabase::class.java,
                 "docusnap.db"
             )
-            .fallbackToDestructiveMigration()
-            .build().also {
-                android.util.Log.d("DeviceDBService", "Room database initialized successfully")
-            }
+                .fallbackToDestructiveMigration()
+                .build().also {
+                    Log.d("DeviceDBService", "Room database initialized successfully")
+                }
         } catch (e: Exception) {
-            android.util.Log.e("DeviceDBService", "Error initializing database: ${e.message}", e)
+            Log.e("DeviceDBService", "Error initializing database: ${e.message}", e)
             throw e
         }
     }
@@ -44,26 +45,26 @@ class DeviceDBService(private val context: Context) {
 
     // Document storage operations
     suspend fun saveDocument(documentId: String, data: JSONObject) {
-        android.util.Log.d("DeviceDBService", "Saving document: $documentId")
+        Log.d("DeviceDBService", "Saving document: $documentId")
         try {
             val entity = DocumentEntity(
                 id = documentId,
                 name = data.optString("name"),
                 description = data.optString("description"),
-                imageUris = data.optJSONArray("imageUris")?.toString() ?: "[]",
+                // CHANGED: imageUris -> imageBase64s
+                imageBase64s = data.optString("imageBase64s", "[]"),
                 extractedInfo = data.optJSONObject("extractedInfo")?.toString() ?: "{}",
-//                tags = data.optString("tags", "[]"), //tags = data.optJSONArray("tags")?.toString() ?: "[]",
-                tags = data.optJSONArray("tags")?.toString() ?: "[]",
+                tags = data.optString("tags", "[]"),
                 uploadDate = data.optString("uploadDate"),
-                relatedFileIds = data.optJSONArray("relatedFileIds")?.toString() ?: "[]",
+                relatedFileIds = data.optString("relatedFileIds", "[]"),
                 sha256 = data.optString("sha256"),
                 isProcessed = data.optBoolean("isProcessed", false),
                 jobId = data.optLong("jobId").takeIf { it != 0L }
             )
             documentDao.insert(entity)
-            android.util.Log.d("DeviceDBService", "Document saved successfully: $documentId")
+            Log.d("DeviceDBService", "Document saved successfully: $documentId")
         } catch (e: Exception) {
-            android.util.Log.e("DeviceDBService", "Error saving document: ${e.message}", e)
+            Log.e("DeviceDBService", "Error saving document: ${e.message}", e)
             throw e
         }
     }
@@ -74,11 +75,12 @@ class DeviceDBService(private val context: Context) {
             put("id", entity.id)
             put("name", entity.name)
             put("description", entity.description)
-            put("imageUris", Json.decodeFromString<List<String>>(entity.imageUris))
+            // CHANGED: imageUris -> imageBase64s
+            put("imageBase64s", entity.imageBase64s)
             put("extractedInfo", JSONObject(entity.extractedInfo))
-            put("tags", Json.decodeFromString<List<String>>(entity.tags))
+            put("tags", entity.tags)
             put("uploadDate", entity.uploadDate)
-            put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
+            put("relatedFileIds", entity.relatedFileIds)
             put("sha256", entity.sha256)
             put("isProcessed", entity.isProcessed)
             put("jobId", entity.jobId ?: JSONObject.NULL)
@@ -90,11 +92,12 @@ class DeviceDBService(private val context: Context) {
         val updated = entity.copy(
             name = updates.optString("name", entity.name),
             description = updates.optString("description", entity.description),
-            imageUris = updates.optJSONArray("imageUris")?.toString() ?: entity.imageUris,
-            extractedInfo = updates.optJSONObject("extractedInfo")?.toString() ?: entity.extractedInfo,
-            tags = updates.optJSONArray("tags")?.toString() ?: entity.tags,
+            // CHANGED: imageUris -> imageBase64s
+            imageBase64s = updates.optString("imageBase64s", entity.imageBase64s),
+            extractedInfo = updates.optString("extractedInfo", entity.extractedInfo),
+            tags = updates.optString("tags", entity.tags),
             uploadDate = updates.optString("uploadDate", entity.uploadDate),
-            relatedFileIds = updates.optJSONArray("relatedFileIds")?.toString() ?: entity.relatedFileIds,
+            relatedFileIds = updates.optString("relatedFileIds", entity.relatedFileIds),
             sha256 = updates.optString("sha256", entity.sha256),
             isProcessed = updates.optBoolean("isProcessed", entity.isProcessed),
             jobId = updates.optLong("jobId").takeIf { it != 0L } ?: entity.jobId
@@ -105,9 +108,10 @@ class DeviceDBService(private val context: Context) {
     suspend fun exportDocuments(documentIds: List<String>) {
         val entities = documentDao.getByIds(documentIds)
         entities.forEach { entity ->
-            val imageUris = Json.decodeFromString<List<String>>(entity.imageUris)
-            imageUris.forEach { imageUri ->
-                saveImageToGallery(imageUri)
+            // CHANGED: Decode base64 strings instead of URIs
+            val base64Images = Json.decodeFromString<List<String>>(entity.imageBase64s)
+            base64Images.forEach { base64 ->
+                saveBase64ToGallery(base64)
             }
         }
     }
@@ -117,52 +121,53 @@ class DeviceDBService(private val context: Context) {
     }
 
     suspend fun getDocumentGallery(): List<JSONObject> {
-        android.util.Log.d("DeviceDBService", "Getting document gallery...")
+        Log.d("DeviceDBService", "Getting document gallery...")
         try {
             val entities = documentDao.getAll().first()
-            android.util.Log.d("DeviceDBService", "Found ${entities.size} documents in database")
+            Log.d("DeviceDBService", "Found ${entities.size} documents in database")
             return entities.map { entity ->
                 JSONObject().apply {
                     put("id", entity.id)
                     put("name", entity.name)
                     put("description", entity.description)
-                    put("imageUris", Json.decodeFromString<List<String>>(entity.imageUris))
+                    // CHANGED: imageUris -> imageBase64s
+                    put("imageBase64s", entity.imageBase64s)
                     put("extractedInfo", JSONObject(entity.extractedInfo))
-                    put("tags", Json.decodeFromString<List<String>>(entity.tags))
+                    put("tags", entity.tags)
                     put("uploadDate", entity.uploadDate)
-                    put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
+                    put("relatedFileIds", entity.relatedFileIds)
                     put("sha256", entity.sha256)
                     put("isProcessed", entity.isProcessed)
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("DeviceDBService", "Error getting document gallery: ${e.message}", e)
+            Log.e("DeviceDBService", "Error getting document gallery: ${e.message}", e)
             throw e
         }
     }
 
     // Form data storage operations
     suspend fun saveForm(formId: String, data: JSONObject) {
-        android.util.Log.d("DeviceDBService", "Saving form: $formId")
+        Log.d("DeviceDBService", "Saving form: $formId")
         try {
             val entity = FormEntity(
                 id = formId,
                 name = data.optString("name"),
                 description = data.optString("description"),
-                imageUris = data.optJSONArray("imageUris")?.toString() ?: "[]",
-                formFields = data.optJSONArray("formFields")?.toString() ?: "[]",
-                extractedInfo = data.optJSONObject("extractedInfo")?.toString() ?: "{}",
-//                tags = data.optString("tags", "[]"), // tags = data.optJSONArray("tags")?.toString() ?: "[]",
-                tags = data.optJSONArray("tags")?.toString() ?: "[]",
+                // CHANGED: imageUris -> imageBase64s
+                imageBase64s = data.optString("imageBase64s", "[]"),
+                formFields = data.optString("formFields", "[]"),
+                extractedInfo = data.optString("extractedInfo", "{}"),
+                tags = data.optString("tags", "[]"),
                 uploadDate = data.optString("uploadDate"),
-                relatedFileIds = data.optJSONArray("relatedFileIds")?.toString() ?: "[]",
+                relatedFileIds = data.optString("relatedFileIds", "[]"),
                 sha256 = data.optString("sha256"),
                 isProcessed = data.optBoolean("isProcessed", false)
             )
             formDao.insert(entity)
-            android.util.Log.d("DeviceDBService", "Form saved successfully: $formId")
+            Log.d("DeviceDBService", "Form saved successfully: $formId")
         } catch (e: Exception) {
-            android.util.Log.e("DeviceDBService", "Error saving form: ${e.message}", e)
+            Log.e("DeviceDBService", "Error saving form: ${e.message}", e)
             throw e
         }
     }
@@ -173,12 +178,13 @@ class DeviceDBService(private val context: Context) {
             put("id", entity.id)
             put("name", entity.name)
             put("description", entity.description)
-            put("imageUris", Json.decodeFromString<List<String>>(entity.imageUris))
-            put("formFields", Json.decodeFromString<List<FormField>>(entity.formFields))
+            // CHANGED: imageUris -> imageBase64s
+            put("imageBase64s", entity.imageBase64s)
+            put("formFields", entity.formFields)
             put("extractedInfo", JSONObject(entity.extractedInfo))
-            put("tags", Json.decodeFromString<List<String>>(entity.tags))
+            put("tags", entity.tags)
             put("uploadDate", entity.uploadDate)
-            put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
+            put("relatedFileIds", entity.relatedFileIds)
             put("sha256", entity.sha256)
             put("isProcessed", entity.isProcessed)
         }
@@ -189,12 +195,13 @@ class DeviceDBService(private val context: Context) {
         val updated = entity.copy(
             name = updates.optString("name", entity.name),
             description = updates.optString("description", entity.description),
-            imageUris = updates.optJSONArray("imageUris")?.toString() ?: entity.imageUris,
-            formFields = updates.optJSONArray("formFields")?.toString() ?: entity.formFields,
-            extractedInfo = updates.optJSONObject("extractedInfo")?.toString() ?: entity.extractedInfo,
-            tags = updates.optJSONArray("tags")?.toString() ?: entity.tags,
+            // CHANGED: imageUris -> imageBase64s
+            imageBase64s = updates.optString("imageBase64s", entity.imageBase64s),
+            formFields = updates.optString("formFields", entity.formFields),
+            extractedInfo = updates.optString("extractedInfo", entity.extractedInfo),
+            tags = updates.optString("tags", entity.tags),
             uploadDate = updates.optString("uploadDate", entity.uploadDate),
-            relatedFileIds = updates.optJSONArray("relatedFileIds")?.toString() ?: entity.relatedFileIds,
+            relatedFileIds = updates.optString("relatedFileIds", entity.relatedFileIds),
             sha256 = updates.optString("sha256", entity.sha256),
             isProcessed = updates.optBoolean("isProcessed", entity.isProcessed)
         )
@@ -204,9 +211,10 @@ class DeviceDBService(private val context: Context) {
     suspend fun exportForms(formIds: List<String>) {
         val entities = formDao.getByIds(formIds)
         entities.forEach { entity ->
-            val imageUris = Json.decodeFromString<List<String>>(entity.imageUris)
-            imageUris.forEach { imageUri ->
-                saveImageToGallery(imageUri)
+            // CHANGED: Decode base64 strings instead of URIs
+            val base64Images = Json.decodeFromString<List<String>>(entity.imageBase64s)
+            base64Images.forEach { base64 ->
+                saveBase64ToGallery(base64)
             }
         }
     }
@@ -221,12 +229,13 @@ class DeviceDBService(private val context: Context) {
                 put("id", entity.id)
                 put("name", entity.name)
                 put("description", entity.description)
-                put("imageUris", Json.decodeFromString<List<String>>(entity.imageUris))
-                put("formFields", Json.decodeFromString<List<FormField>>(entity.formFields))
+                // CHANGED: imageUris -> imageBase64s
+                put("imageBase64s", entity.imageBase64s)
+                put("formFields", entity.formFields)
                 put("extractedInfo", JSONObject(entity.extractedInfo))
-                put("tags", Json.decodeFromString<List<String>>(entity.tags))
+                put("tags", entity.tags)
                 put("uploadDate", entity.uploadDate)
-                put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
+                put("relatedFileIds", entity.relatedFileIds)
                 put("sha256", entity.sha256)
                 put("isProcessed", entity.isProcessed)
             }
@@ -237,36 +246,37 @@ class DeviceDBService(private val context: Context) {
     suspend fun searchByQuery(query: String): List<JSONObject> {
         val docResults = documentDao.searchByQuery(query)
         val formResults = formDao.searchByQuery(query)
-
         val docJsons = docResults.map { entity ->
-            android.util.Log.d("SERVICE_DEBUG", "Mapping a DOC with ID: ${entity.id}")
+            Log.d("SERVICE_DEBUG", "Mapping a DOC with ID: ${entity.id}")
             JSONObject().apply {
                 put("type", "document")
                 put("id", entity.id)
                 put("name", entity.name)
                 put("description", entity.description)
-                put("imageUris", Json.decodeFromString<List<String>>(entity.imageUris))
+                // CHANGED: imageUris -> imageBase64s
+                put("imageBase64s", entity.imageBase64s)
                 put("extractedInfo", JSONObject(entity.extractedInfo))
                 put("tags", entity.tags)
                 put("uploadDate", entity.uploadDate)
-                put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
+                put("relatedFileIds", entity.relatedFileIds)
                 put("sha256", entity.sha256)
                 put("isProcessed", entity.isProcessed)
             }
         }
         val formJsons = formResults.map { entity ->
-            android.util.Log.d("SERVICE_DEBUG", "Mapping a FORM with ID: ${entity.id}")
+            Log.d("SERVICE_DEBUG", "Mapping a FORM with ID: ${entity.id}")
             JSONObject().apply {
                 put("type", "form")
                 put("id", entity.id)
                 put("name", entity.name)
                 put("description", entity.description)
-                put("imageUris", Json.decodeFromString<List<String>>(entity.imageUris))
-                put("formFields", Json.decodeFromString<List<FormField>>(entity.formFields))
+                // CHANGED: imageUris -> imageBase64s
+                put("imageBase64s", entity.imageBase64s)
+                put("formFields", entity.formFields)
                 put("extractedInfo", JSONObject(entity.extractedInfo))
                 put("tags", entity.tags)
                 put("uploadDate", entity.uploadDate)
-                put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
+                put("relatedFileIds", entity.relatedFileIds)
                 put("sha256", entity.sha256)
                 put("isProcessed", entity.isProcessed)
             }
@@ -274,18 +284,24 @@ class DeviceDBService(private val context: Context) {
         return docJsons + formJsons
     }
 
-    // fetch text info by usage frequency (stub, needs actual logic)
     suspend fun getFrequentTextInfo(): List<JSONObject> {
-        // This would require a separate table or usage tracking, so here we return empty for now
         return emptyList()
     }
 
-    // Helper to save an image to MediaStore (gallery)
-    private fun saveImageToGallery(imageUri: String) {
+    // NEW: Helper to save base64 image to gallery
+    private fun saveBase64ToGallery(base64: String) {
         try {
-            val uri = Uri.parse(imageUri)
-            val source = ImageDecoder.createSource(context.contentResolver, uri)
-            val bitmap = ImageDecoder.decodeBitmap(source)
+            val bytes = Base64.decode(base64, Base64.DEFAULT)
+            val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            saveBitmapToGallery(bitmap)
+        } catch (e: Exception) {
+            Log.e("DeviceDBService", "Failed to save base64 image", e)
+        }
+    }
+
+    // Existing helper modified to work with Bitmap
+    private fun saveBitmapToGallery(bitmap: Bitmap) {
+        try {
             val resolver = context.contentResolver
             val contentValues = ContentValues().apply {
                 put(MediaStore.Images.Media.DISPLAY_NAME, "DocuSnap_${System.currentTimeMillis()}.jpg")
@@ -311,7 +327,7 @@ class DeviceDBService(private val context: Context) {
                 }
             }
         } catch (e: Exception) {
-            android.util.Log.e("DeviceDBService", "Failed to save image to gallery: $imageUri", e)
+            Log.e("DeviceDBService", "Failed to save image to gallery", e)
         }
     }
-} 
+}

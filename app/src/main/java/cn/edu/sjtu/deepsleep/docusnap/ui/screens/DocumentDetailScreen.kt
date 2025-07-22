@@ -40,7 +40,6 @@ fun DocumentDetailScreen(
     onNavigate: (String) -> Unit,
     onBackClick: () -> Unit,
     documentId: String? = null,
-    photoUris: String? = null,
     fromImageProcessing: Boolean = false
 ) {
     val context = LocalContext.current
@@ -138,15 +137,10 @@ fun DocumentDetailScreen(
     val doc = document!!
     // Restore image navigation state and imagesToShow after doc is loaded
     var currentImageIndex by remember { mutableStateOf(0) }
-    val imagesToShow = remember(photoUris, doc) {
-        if (photoUris != null) {
-            try {
-                java.net.URLDecoder.decode(photoUris, "UTF-8").split(",").filter { it.isNotEmpty() }
-            } catch (e: Exception) {
-                emptyList()
-            }
-        } else {
-            doc.imageUris
+    // New imagesToShow using Base64
+    val imagesToShow = remember(doc) {
+        doc.imageBase64s.map { base64 ->
+            "data:image/jpeg;base64,$base64"
         }
     }
     var isEditing by remember { mutableStateOf(false) }

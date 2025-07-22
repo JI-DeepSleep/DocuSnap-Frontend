@@ -1,5 +1,6 @@
 package cn.edu.sjtu.deepsleep.docusnap.ui.screens
 
+import android.util.Base64
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -79,10 +80,22 @@ fun ImageProcessingScreen(
 
     val scope = rememberCoroutineScope()
 
+    fun uriToBase64(uri: String): String {
+        return try {
+            val inputStream = context.contentResolver.openInputStream(Uri.parse(uri))
+            val bytes = inputStream?.readBytes() ?: byteArrayOf()
+            Base64.encodeToString(bytes, Base64.NO_WRAP)
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
     // Function to create new document or form and navigate to it
     fun createAndNavigateToDetail() {
         scope.launch{
             val finalUris = imageProcessingViewModel.getFinalUris()
+            // Convert URIs to Base64
+            val base64Images = finalUris.map { uriToBase64(it) } // New conversion
 
             // [1. PREPARE DATA] Convert the list of Uris into a single, URL-safe string.
             // 第一步：准备数据。将 URI 列表转换成一个 URL 安全的字符串。
@@ -100,7 +113,7 @@ fun ImageProcessingScreen(
                         id = UUID.randomUUID().toString(),
                         name = "New Document ${System.currentTimeMillis()}",
                         description = "A new document created by user",
-                        imageUris = finalUris,
+                        imageBase64s = base64Images, // Store Base64
                         extractedInfo = emptyMap(),
                         tags = listOf("New", "Document"),
                         uploadDate = currentDate
@@ -117,7 +130,7 @@ fun ImageProcessingScreen(
                         id = UUID.randomUUID().toString(),
                         name = "New Form ${System.currentTimeMillis()}",
                         description = "A new form uploaded by user",
-                        imageUris = finalUris,
+                        imageBase64s = base64Images, // Store Base64
                         formFields = emptyList(),
                         extractedInfo = emptyMap(),
                         uploadDate = currentDate
@@ -126,7 +139,7 @@ fun ImageProcessingScreen(
                     documentViewModel.saveForm(newForm)
 
                     // [3. MODIFY NAVIGATION] Add the encodedUris to the navigation route.
-                    onNavigate("form_detail?formId=${newForm.id}&fromImageProcessing=true&photoUris=$encodedUris")
+                    onNavigate("form_detail?formId=${newForm.id}&fromImageProcessing=true") // Removed photoUris
                 }
                 else -> onNavigate("home")
             }
