@@ -62,19 +62,6 @@ fun FormDetailScreen(
         loading = false
     }
 
-    // Save/update form on exit
-    DisposableEffect(loadedForm, fromImageProcessing) {
-        onDispose {
-            loadedForm?.let { form ->
-                if (fromImageProcessing) {
-                    scope.launch { viewModel.saveForm(form) }
-                } else {
-                    scope.launch { viewModel.updateForm(form) }
-                }
-            }
-        }
-    }
-
     if (loading || loadedForm == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()

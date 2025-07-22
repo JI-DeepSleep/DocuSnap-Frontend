@@ -67,19 +67,6 @@ fun DocumentDetailScreen(
         loading = false
     }
 
-    // Save/update document on exit
-    DisposableEffect(document, fromImageProcessing) {
-        onDispose {
-            document?.let { doc ->
-                if (fromImageProcessing) {
-                    scope.launch { viewModel.saveDocument(doc) }
-                } else {
-                    scope.launch { viewModel.updateDocument(doc) }
-                }
-            }
-        }
-    }
-
     if (loading || document == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             CircularProgressIndicator()
