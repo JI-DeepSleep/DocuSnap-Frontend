@@ -23,6 +23,8 @@ import kotlinx.coroutines.launch
 import android.util.Base64
 import cn.edu.sjtu.deepsleep.docusnap.util.CryptoUtil
 import org.json.JSONObject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun JobStatusScreen(
@@ -117,11 +119,11 @@ fun JobStatusScreen(
                                 .bufferedReader()
                                 .use { it.readText() }
                             val testImages = listOf(testBase64Image)
-                            val jobId = jobPollingService.createJob(
+                            val job = jobPollingService.createJob(
                                 type = "doc",
                                 payload = testImages
                             )
-                            println("Created test job with ID: $jobId")
+                            println("Created test job with ID: ${job.id}")
                             refreshJobs()
                         } catch (e: Exception) {
                             println("Error creating test job: ${e.message}")
@@ -141,11 +143,11 @@ fun JobStatusScreen(
                                 "invalid_field" to "invalid_value",
                                 "missing_required" to null
                             )
-                            val jobId = jobPollingService.createJob(
+                            val job = jobPollingService.createJob(
                                 type = "invalid_type",
                                 payload = invalidPayload
                             )
-                            println("Created invalid test job with ID: $jobId")
+                            println("Created invalid test job with ID: ${job.id}")
                             refreshJobs()
                         } catch (e: Exception) {
                             println("Error creating invalid test job: ${e.message}")
@@ -250,15 +252,50 @@ fun JobStatusScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             jobs.forEach { job ->
-                JobCard(job = job)
+                JobCard(job = job, jobPollingService = jobPollingService)
             }
         }
     }
 }
 
 @Composable
-fun JobCard(job: JobEntity) {
+fun JobCard(job: JobEntity, jobPollingService: JobPollingService) {
     var expanded by remember { mutableStateOf(false) }
+    var decryptedResult by remember { mutableStateOf<String?>(null) }
+    var decryptError by remember { mutableStateOf<String?>(null) }
+    var isDecrypting by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Reset state when job changes
+    LaunchedEffect(job.id) {
+        decryptedResult = null
+        decryptError = null
+        isDecrypting = false
+    }
+
+    // Decrypt result when expanded
+    LaunchedEffect(expanded) {
+        if (expanded && job.result != null && decryptedResult == null && !isDecrypting) {
+            isDecrypting = true
+            coroutineScope.launch(Dispatchers.IO) {
+                try {
+                    val result = jobPollingService.decryptJobResult(job.result, job)
+                    withContext(Dispatchers.Main) {
+                        decryptedResult = result
+                        decryptError = null
+                        isDecrypting = false
+                    }
+                } catch (e: Exception) {
+                    withContext(Dispatchers.Main) {
+                        decryptedResult = null
+                        decryptError = "Decryption failed: ${e.message}"
+                        isDecrypting = false
+                    }
+                }
+            }
+        }
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
@@ -327,6 +364,13 @@ fun JobCard(job: JobEntity) {
                         fontFamily = FontFamily.Monospace
                     )
                 }
+                if (job.plainAesKey != null) {
+                    Text(
+                        text = "Plain AES Key (first 50 chars): ${job.plainAesKey.take(50)}...",
+                        style = MaterialTheme.typography.bodySmall,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
             }
             // Error details with better formatting
             if (job.errorDetail != null) {
@@ -366,7 +410,7 @@ fun JobCard(job: JobEntity) {
                         modifier = Modifier.padding(12.dp)
                     ) {
                         Text(
-                            text = "Result:",
+                            text = "Encrypted Result:",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSecondaryContainer
                         )
@@ -377,6 +421,61 @@ fun JobCard(job: JobEntity) {
                             style = MaterialTheme.typography.bodySmall,
                             fontFamily = FontFamily.Monospace
                         )
+                    }
+                }
+
+                // +++ FIXED: Decrypted result section with proper state management +++
+                Spacer(modifier = Modifier.height(8.dp))
+                Card(
+                    colors = CardDefaults.cardColors(
+                        containerColor = MaterialTheme.colorScheme.tertiaryContainer
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        Text(
+                            text = "Decrypted Result:",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onTertiaryContainer
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        when {
+                            isDecrypting -> {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp
+                                    )
+                                }
+                            }
+
+                            decryptedResult != null -> {
+                                Text(
+                                    text = decryptedResult ?: "",
+                                    color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+
+                            decryptError != null -> {
+                                Text(
+                                    text = decryptError ?: "Decryption error",
+                                    color = MaterialTheme.colorScheme.error,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+
+                            else -> {
+                                // Show nothing if not expanded or not decrypting
+                            }
+                        }
                     }
                 }
             }
@@ -404,31 +503,4 @@ fun StatusChip(status: String) {
             style = MaterialTheme.typography.labelSmall
         )
     }
-}
-
-
-private fun getPrivateKeyFromPem(pem: String): java.security.PrivateKey {
-    try {
-        // Remove header and footer, and all whitespace
-        val privateKeyPEM = pem
-            .replace("-----BEGIN PRIVATE KEY-----", "")
-            .replace("-----END PRIVATE KEY-----", "")
-            .replace("\\s".toRegex(), "") // Remove all whitespace including newlines
-        android.util.Log.d("JobStatusScreen", "Cleaned PEM length: ${privateKeyPEM.length}")
-        android.util.Log.d("JobStatusScreen", "Cleaned PEM first 50 chars: ${privateKeyPEM.take(50)}")
-        val encoded = Base64.decode(privateKeyPEM, Base64.DEFAULT)
-        android.util.Log.d("JobStatusScreen", "Decoded bytes length: ${encoded.size}")
-        val keySpec = java.security.spec.PKCS8EncodedKeySpec(encoded)
-        val kf = java.security.KeyFactory.getInstance("RSA")
-        return kf.generatePrivate(keySpec)
-    } catch (e: Exception) {
-        android.util.Log.e("JobStatusScreen", "Failed to parse private key: ${e.message}", e)
-        throw e
-    }
-}
-
-private fun rsaDecrypt(data: ByteArray, privateKey: java.security.PrivateKey): ByteArray {
-    val cipher = javax.crypto.Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding")
-    cipher.init(javax.crypto.Cipher.DECRYPT_MODE, privateKey)
-    return cipher.doFinal(data)
 }

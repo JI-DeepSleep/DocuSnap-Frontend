@@ -57,7 +57,8 @@ class DeviceDBService(private val context: Context) {
                 uploadDate = data.optString("uploadDate"),
                 relatedFileIds = data.optJSONArray("relatedFileIds")?.toString() ?: "[]",
                 sha256 = data.optString("sha256"),
-                isProcessed = data.optBoolean("isProcessed", false)
+                isProcessed = data.optBoolean("isProcessed", false),
+                jobId = data.optLong("jobId").takeIf { it != 0L }
             )
             documentDao.insert(entity)
             android.util.Log.d("DeviceDBService", "Document saved successfully: $documentId")
@@ -80,6 +81,7 @@ class DeviceDBService(private val context: Context) {
             put("relatedFileIds", Json.decodeFromString<List<String>>(entity.relatedFileIds))
             put("sha256", entity.sha256)
             put("isProcessed", entity.isProcessed)
+            put("jobId", entity.jobId ?: JSONObject.NULL)
         }
     }
 
@@ -94,7 +96,8 @@ class DeviceDBService(private val context: Context) {
             uploadDate = updates.optString("uploadDate", entity.uploadDate),
             relatedFileIds = updates.optJSONArray("relatedFileIds")?.toString() ?: entity.relatedFileIds,
             sha256 = updates.optString("sha256", entity.sha256),
-            isProcessed = updates.optBoolean("isProcessed", entity.isProcessed)
+            isProcessed = updates.optBoolean("isProcessed", entity.isProcessed),
+            jobId = updates.optLong("jobId").takeIf { it != 0L } ?: entity.jobId
         )
         documentDao.update(updated)
     }

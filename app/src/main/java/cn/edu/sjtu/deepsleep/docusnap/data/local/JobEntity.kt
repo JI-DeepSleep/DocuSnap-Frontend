@@ -17,5 +17,6 @@ data class JobEntity(
     val result: String? = null, // base64(AES(actual json string)) from backend
     val errorDetail: String? = null,
     val createdAt: Long = System.currentTimeMillis(),
-    val updatedAt: Long = System.currentTimeMillis()
+    val updatedAt: Long = System.currentTimeMillis(),
+    val plainAesKey: String? = null
 ) 
