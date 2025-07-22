@@ -8,6 +8,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.ColorLens
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.rememberCoroutineScope
@@ -23,6 +24,9 @@ import androidx.compose.ui.layout.ContentScale
 import cn.edu.sjtu.deepsleep.docusnap.data.Document
 import cn.edu.sjtu.deepsleep.docusnap.data.Form
 import java.util.UUID
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
@@ -39,6 +43,9 @@ import androidx.compose.runtime.collectAsState
 import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.ImageProcessingViewModel
 import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.ImageProcessingViewModelFactory
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.CornerAdjustmentOverlay
+import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
+import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModelFactory
+import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
 
 
 @Composable
@@ -49,19 +56,22 @@ fun ImageProcessingScreen(
     source: String = "document"
 ) {
     val context = LocalContext.current
-    val viewModel: ImageProcessingViewModel = viewModel(
+    val imageProcessingViewModel: ImageProcessingViewModel = viewModel(
         factory = ImageProcessingViewModelFactory(context)
     )
-    val uiState by viewModel.uiState.collectAsState()
+    val documentViewModel: DocumentViewModel = viewModel(
+        factory = DocumentViewModelFactory(AppModule.provideDocumentRepository(context))
+    )
+    val uiState by imageProcessingViewModel.uiState.collectAsState()
 
     LaunchedEffect(key1 = true) {
-        viewModel.events.collect { eventMessage ->
+        imageProcessingViewModel.events.collect { eventMessage ->
             Toast.makeText(context, eventMessage, Toast.LENGTH_SHORT).show()
         }
     }
 
     LaunchedEffect(key1 = photoUris) {
-        viewModel.setInitialPhotosAndLoadFirst(photoUris)
+        imageProcessingViewModel.setInitialPhotosAndLoadFirst(photoUris)
     }
 
 
@@ -70,16 +80,20 @@ fun ImageProcessingScreen(
     // Function to create new document or form and navigate to it
     fun createAndNavigateToDetail() {
         scope.launch{
-            val finalUris = viewModel.getFinalUris()
+            val finalUris = imageProcessingViewModel.getFinalUris()
 
             // [1. PREPARE DATA] Convert the list of Uris into a single, URL-safe string.
             // 第一步：准备数据。将 URI 列表转换成一个 URL 安全的字符串。
             val urisString = finalUris.joinToString(",")
             val encodedUris = java.net.URLEncoder.encode(urisString, "UTF-8")
 
+            // Get current date in the required format
+            val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+            val currentDate = dateFormat.format(Date())
+
             when (source) {
                 "document" -> {
-                    // Create a new document object (this part is unchanged)
+                    // Create a new document object and save to database
                     val newDocument = Document(
                         id = UUID.randomUUID().toString(),
                         name = "New Document ${System.currentTimeMillis()}",
@@ -87,15 +101,16 @@ fun ImageProcessingScreen(
                         imageUris = finalUris,
                         extractedInfo = emptyMap(),
                         tags = listOf("New", "Document"),
-                        uploadDate = "2024-01-15"
+                        uploadDate = currentDate
                     )
-                    // TODO: Save the document to the database/storage
+                    // Save the document to the database
+                    documentViewModel.saveDocument(newDocument)
 
                     // [2. MODIFY NAVIGATION] Add the encodedUris to the navigation route.
                     onNavigate("document_detail?documentId=${newDocument.id}&fromImageProcessing=true&photoUris=$encodedUris")
                 }
                 "form" -> {
-                    // Create a new form object (this part is unchanged)
+                    // Create a new form object and save to database
                     val newForm = Form(
                         id = UUID.randomUUID().toString(),
                         name = "New Form ${System.currentTimeMillis()}",
@@ -103,9 +118,10 @@ fun ImageProcessingScreen(
                         imageUris = finalUris,
                         formFields = emptyList(),
                         extractedInfo = emptyMap(),
-                        uploadDate = "2024-01-15"
+                        uploadDate = currentDate
                     )
-                    // TODO: Save the form to the database/storage
+                    // Save the form to the database
+                    documentViewModel.saveForm(newForm)
 
                     // [3. MODIFY NAVIGATION] Add the encodedUris to the navigation route.
                     onNavigate("form_detail?formId=${newForm.id}&fromImageProcessing=true&photoUris=$encodedUris")
@@ -124,19 +140,19 @@ fun ImageProcessingScreen(
             navigationIcon = {
                 IconButton(onClick = {
                     if (uiState.isCornerAdjustmentMode) {
-                        viewModel.cancelCornerAdjustment()
+                        imageProcessingViewModel.cancelCornerAdjustment()
                     } else {
                         onBackClick()
                     }
                 }) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                 }
             },
             actions = {
                 if (uiState.isCornerAdjustmentMode) {
                     // Show Apply button when in corner adjustment mode
                     Button(
-                        onClick = { viewModel.applyCornerAdjustment() }
+                        onClick = { imageProcessingViewModel.applyCornerAdjustment() }
                     ) {
                         Icon(Icons.Default.Check, contentDescription = null)
                         Spacer(modifier = Modifier.width(4.dp))
@@ -235,7 +251,7 @@ fun ImageProcessingScreen(
                     bitmap = uiState.editingBitmap!!,
                     corners = uiState.adjustedCorners!!,
                     onCornerMoved = { cornerIndex, newPosition ->
-                        viewModel.updateCornerPosition(cornerIndex, newPosition)
+                        imageProcessingViewModel.updateCornerPosition(cornerIndex, newPosition)
                     },
                     modifier = Modifier.fillMaxSize()
                 )
@@ -249,7 +265,7 @@ fun ImageProcessingScreen(
             ) {
                 // Previous arrow
                 IconButton(
-                    onClick = { viewModel.goToPreviousImage() },
+                    onClick = { imageProcessingViewModel.goToPreviousImage() },
                     enabled = uiState.currentImageIndex > 0,
                     modifier = Modifier
                         .size(48.dp)
@@ -267,7 +283,7 @@ fun ImageProcessingScreen(
 
                 // Next arrow
                 IconButton(
-                    onClick = { viewModel.goToNextImage() },
+                    onClick = { imageProcessingViewModel.goToNextImage() },
                     enabled = uiState.currentImageIndex < uiState.originalImageUris.size - 1,
                     modifier = Modifier
                         .size(48.dp)
@@ -304,10 +320,10 @@ fun ImageProcessingScreen(
                                 text = "Straighten",
                                 icon = Icons.Default.AutoFixHigh,
                                 onClick = {
-                                    viewModel.applyPerspectiveCorrectionFilter()
+                                    imageProcessingViewModel.applyPerspectiveCorrectionFilter()
                                 },
-                                isSelected = uiState.appliedFilters.contains("Perspective Correction"),
-                                enabled = !uiState.appliedFilters.contains("Perspective Correction")
+                                isSelected = uiState.appliedFilter == "Perspective Correction",
+                                enabled = uiState.appliedFilter != "Perspective Correction"
                             )
                         }
 //                        item {
@@ -345,9 +361,9 @@ fun ImageProcessingScreen(
                                 text = "Original",
                                 icon = Icons.Default.Refresh,
                                 onClick = {
-                                     viewModel.resetToOriginal()
+                                     imageProcessingViewModel.resetToOriginal()
                                 },
-                                isSelected = uiState.appliedFilters.isEmpty(),
+                                isSelected = uiState.appliedFilter == null,
                                 enabled = true
                             )
                         }
@@ -356,10 +372,10 @@ fun ImageProcessingScreen(
                                 text = "Monochrome",
                                 icon = Icons.Default.Tonality,
                                 onClick = {
-                                    viewModel.applyBinarizationFilter()
+                                    imageProcessingViewModel.applyBinarizationFilter()
                                 },
-                                isSelected = uiState.appliedFilters.contains("Black & White"),
-                                enabled = !uiState.appliedFilters.contains("Black & White")
+                                isSelected = uiState.appliedFilter == "Black & White",
+                                enabled = uiState.appliedFilter != "Black & White"
                             )
                         }
                         item {
@@ -367,10 +383,10 @@ fun ImageProcessingScreen(
                                 text = "High Contrast",
                                 icon = Icons.Default.Contrast,
                                 onClick = {
-                                    viewModel.applyHighContrastFilter()
+                                    imageProcessingViewModel.applyHighContrastFilter()
                                 },
-                                isSelected = uiState.appliedFilters.contains("High Contrast"),
-                                enabled = !uiState.appliedFilters.contains("High Contrast")
+                                isSelected = uiState.appliedFilter == "High Contrast",
+                                enabled = uiState.appliedFilter != "High Contrast"
                             )
                         }
                         item {
@@ -378,10 +394,10 @@ fun ImageProcessingScreen(
                                 text = "Color Enhancement",
                                 icon = Icons.Outlined.ColorLens,
                                 onClick = {
-                                    viewModel.applyColorEnhancementFilter()
+                                    imageProcessingViewModel.applyColorEnhancementFilter()
                                 },
-                                isSelected = uiState.appliedFilters.contains("Color Enhancement"),
-                                enabled = !uiState.appliedFilters.contains("Color Enhancement")
+                                isSelected = uiState.appliedFilter == "Color Enhancement",
+                                enabled = uiState.appliedFilter != "Color Enhancement"
                             )
                         }
                     }
@@ -408,27 +424,26 @@ fun ImageProcessingScreen(
                             text = "Auto",
                             icon = Icons.Default.AutoFixHigh,
                             onClick = {
-                                viewModel.applyAutoFilter()
+                                imageProcessingViewModel.applyAutoFilter()
                             },
-                            isSelected = uiState.appliedFilters.contains("Auto"),
-                            enabled = !uiState.appliedFilters.contains("Auto")
+                            isSelected = uiState.appliedFilter == "Auto",
+                            enabled = uiState.appliedFilter != "Auto"
                         )
                     }
                     item {
                         FilterButton(
                             text = "Filter",
                             icon = Icons.Outlined.PhotoFilter,
-                            onClick = { viewModel.toggleFilterToolbar() }, // showFilterToolbar = !showFilterToolbar
-                            isSelected = uiState.isFilterToolbarVisible // isSelected = false // showFilterToolbar
+                            onClick = { imageProcessingViewModel.toggleFilterToolbar() },
+                            isSelected = uiState.isFilterToolbarVisible
                         )
                     }
                     item {
                         FilterButton(
                             text = "Perspective",
                             icon = Icons.Default.Transform,
-                            onClick = { viewModel.togglePerspectiveToolbar() },
+                            onClick = { imageProcessingViewModel.togglePerspectiveToolbar() },
                             isSelected = uiState.isPerspectiveToolbarVisible
-                                // TODO: complete the function
                         )
                     }
                     item {
@@ -436,7 +451,7 @@ fun ImageProcessingScreen(
                             text = "Reset",
                             icon = Icons.Default.Refresh,
                             onClick = {
-                                viewModel.resetToOriginal()
+                                imageProcessingViewModel.resetToOriginal()
                             },
                             isSelected = false,
                             enabled = true
@@ -447,35 +462,6 @@ fun ImageProcessingScreen(
         }
     }
 }
-
-// Placeholder functions for image processing (to be implemented later)
-/*
-private fun performAutoProcessing(imageUri: String?): String? {
-    // TODO: Implement binary thresholding + 4 point perspective correction
-    return imageUri
-}
-
-private fun performPerspectiveCorrection(imageUri: String?): String? {
-    // TODO: Implement 4 point perspective correction
-    return imageUri
-}
-
-private fun applyOriginalFilter(imageUri: String?): String? {
-    // TODO: Apply original filter
-    return imageUri
-}
-
-
-private fun applyBinaryThresholdingFilter(imageUri: String?): String? {
-    // TODO: Apply binary thresholding filter
-    return imageUri
-}
-
-private fun applyColorEnhancementFilter(imageUri: String?): String? {
-    // TODO: Apply color enhancement filter
-    return imageUri
-}
-*/
 
 @Composable
 private fun FilterButton(
@@ -503,61 +489,5 @@ private fun FilterButton(
         )
         Spacer(modifier = Modifier.width(2.dp))
         Text(text, fontSize = 12.sp)
-    }
-}
-
-// Helper function to decode a Uri string into a Bitmap.
-private fun uriToBitmap(context: Context, uriString: String): Bitmap? {
-    return try {
-        val imageUri = Uri.parse(uriString)
-        val source = ImageDecoder.createSource(context.contentResolver, imageUri)
-        // Decode the image. Add memory optimization later if needed.
-        ImageDecoder.decodeBitmap(source)
-    } catch (e: Exception) {
-        e.printStackTrace()
-        null
-    }
-}
-
-private fun applyBlackAndWhiteFilter(bitmap: Bitmap): Bitmap {
-    val newBitmap = bitmap.copy(Bitmap.Config.ARGB_8888, true)
-    val width = newBitmap.width
-    val height = newBitmap.height
-    val pixels = IntArray(width * height)
-
-    newBitmap.getPixels(pixels, 0, width, 0, 0, width, height)
-
-    for (i in pixels.indices) {
-        val pixel = pixels[i]
-        val r = (pixel shr 16) and 0xFF
-        val g = (pixel shr 8) and 0xFF
-        val b = pixel and 0xFF
-        val gray = (r * 0.3 + g * 0.59 + b * 0.11).toInt()
-        pixels[i] = 0xFF000000.toInt() or (gray shl 16) or (gray shl 8) or gray
-    }
-
-    newBitmap.setPixels(pixels, 0, width, 0, 0, width, height)
-    return newBitmap
-}
-
-private fun saveBitmapToCache(context: Context, bitmap: Bitmap): Uri? {
-    return try {
-        val cachePath = File(context.cacheDir, "images")
-        cachePath.mkdirs() // Create the cache directory if it doesn't exist.
-
-        // Create a new file for the bitmap.
-        val file = File(cachePath, "processed_image_${System.currentTimeMillis()}.jpg")
-        val stream = FileOutputStream(file)
-
-        // Compress the bitmap to the file.
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream)
-        stream.close()
-
-        // Get a content Uri for the file using FileProvider.
-        // NOTE: Your app's applicationId must match the authority string.
-        FileProvider.getUriForFile(context, "${context.packageName}.provider", file)
-    } catch (e: Exception) {
-        e.printStackTrace()
-        null
     }
 }

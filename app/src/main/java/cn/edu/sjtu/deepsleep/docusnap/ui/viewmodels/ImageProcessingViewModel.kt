@@ -34,7 +34,7 @@ data class ImageProcessingUiState(
     val editingBitmap: Bitmap? = null,
     val isFilterToolbarVisible: Boolean = false,
     val isPerspectiveToolbarVisible: Boolean = false,
-    val appliedFilters: Set<String> = emptySet(),
+    val appliedFilter: String? = null, // Changed from appliedFilters to appliedFilter (single filter only)
     // Corner adjustment state
     val isCornerAdjustmentMode: Boolean = false,
     val detectedCorners: Array<PointF>? = null,
@@ -72,7 +72,7 @@ class ImageProcessingViewModel(
     private fun applyFilter(filterName: String, filter: suspend (Bitmap) -> Bitmap) {
         val currentCanvas = _uiState.value.editingBitmap
 
-        if (currentCanvas == null || _uiState.value.appliedFilters.contains(filterName)) {
+        if (currentCanvas == null || _uiState.value.appliedFilter == filterName) {
             return
         }
 
@@ -86,8 +86,7 @@ class ImageProcessingViewModel(
                 currentState.copy(
                     isLoading = false,
                     editingBitmap = newCanvas,
-
-                    appliedFilters = currentState.appliedFilters + filterName
+                    appliedFilter = filterName
                 )
             }
         }
@@ -149,7 +148,7 @@ class ImageProcessingViewModel(
                         it.copy(
                             isLoading = false,
                             editingBitmap = correctedBitmap,
-                            appliedFilters = it.appliedFilters + "Perspective Correction"
+                            appliedFilter = "Perspective Correction"
                         )
                     }
                 }
@@ -191,7 +190,7 @@ class ImageProcessingViewModel(
                     it.copy(
                         isLoading = false,
                         editingBitmap = correctedBitmap,
-                        appliedFilters = it.appliedFilters + "Perspective Correction",
+                        appliedFilter = "Perspective Correction",
                         isCornerAdjustmentMode = false,
                         detectedCorners = null,
                         adjustedCorners = null
@@ -217,7 +216,7 @@ class ImageProcessingViewModel(
         // Simply put the stored original bitmap back onto the canvas. No I/O needed.
         _uiState.update { it.copy(
             editingBitmap = originalBitmap,
-            appliedFilters = emptySet()
+            appliedFilter = null
         )}
     }
 
@@ -267,7 +266,7 @@ class ImageProcessingViewModel(
                 val loadedBitmap = uriToBitmap(uriToLoad)
                 originalBitmap = loadedBitmap // Always store the first loaded version for reset.
                 _uiState.update {
-                    it.copy(isLoading = false, editingBitmap = loadedBitmap,  appliedFilters = emptySet())
+                    it.copy(isLoading = false, editingBitmap = loadedBitmap,  appliedFilter = null)
                 }
             }
         }
@@ -306,11 +305,21 @@ class ImageProcessingViewModel(
     }
 
     fun toggleFilterToolbar() {
-        _uiState.update { it.copy(isFilterToolbarVisible = !it.isFilterToolbarVisible) }
+        _uiState.update { currentState ->
+            currentState.copy(
+                isFilterToolbarVisible = !currentState.isFilterToolbarVisible,
+                isPerspectiveToolbarVisible = false // Close perspective toolbar when opening filter toolbar
+            )
+        }
     }
 
     fun togglePerspectiveToolbar() {
-        _uiState.update { it.copy(isPerspectiveToolbarVisible = !it.isPerspectiveToolbarVisible) }
+        _uiState.update { currentState ->
+            currentState.copy(
+                isPerspectiveToolbarVisible = !currentState.isPerspectiveToolbarVisible,
+                isFilterToolbarVisible = false // Close filter toolbar when opening perspective toolbar
+            )
+        }
     }
 
 
