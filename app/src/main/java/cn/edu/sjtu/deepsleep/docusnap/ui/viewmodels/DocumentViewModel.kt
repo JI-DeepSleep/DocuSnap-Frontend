@@ -183,6 +183,10 @@ class DocumentViewModel(
         return repository.getDocument(documentId)
     }
     
+    suspend fun getForm(formId: String): Form? {
+        return repository.getForm(formId)
+    }
+    
     // Development helper: Add test data
     fun addTestData() {
         android.util.Log.d("DocumentViewModel", "addTestData called")

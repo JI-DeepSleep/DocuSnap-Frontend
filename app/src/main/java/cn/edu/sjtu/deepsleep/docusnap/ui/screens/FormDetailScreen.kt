@@ -38,10 +38,56 @@ fun FormDetailScreen(
     photoUris: String? = null,
     fromImageProcessing: Boolean = false
 ) {
-    // TODO: retrieve form data from DeviceDBService.getForm()
-    // TODO: when exit this page, call saveForm() or updateForm() depending on fromImageProcessing or not
-    // Find the specific form by ID, or use the first one as fallback
-    // [ 用这个新的逻辑块完整替换掉旧的 ]
+    val viewModel: DocumentViewModel = viewModel(
+        factory = DocumentViewModelFactory(AppModule.provideDocumentRepository(LocalContext.current))
+    )
+
+    // State for loaded form
+    var loadedForm by remember { mutableStateOf<cn.edu.sjtu.deepsleep.docusnap.data.Form?>(null) }
+    var loading by remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
+
+    // Load form from DB (or fallback to MockData if not found)
+    LaunchedEffect(formId) {
+        loading = true
+        loadedForm = if (formId != null) {
+            viewModel.getForm(formId) ?: MockData.mockForms.find { it.id == formId } ?: MockData.mockForms.first()
+        } else {
+            MockData.mockForms.first()
+        }
+        android.util.Log.d("FormDetailScreen", "Loaded form: ${loadedForm?.name}, formFields count: ${loadedForm?.formFields?.size}")
+        loadedForm?.formFields?.forEach { field ->
+            android.util.Log.d("FormDetailScreen", "Field: ${field.name}, value: ${field.value}, isRetrieved: ${field.isRetrieved}")
+        }
+        loading = false
+    }
+
+    // Save/update form on exit
+    DisposableEffect(loadedForm, fromImageProcessing) {
+        onDispose {
+            loadedForm?.let { form ->
+                if (fromImageProcessing) {
+                    scope.launch { viewModel.saveForm(form) }
+                } else {
+                    scope.launch { viewModel.updateForm(form) }
+                }
+            }
+        }
+    }
+
+    if (loading || loadedForm == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+    val currentForm = loadedForm!!
+
+    // Helper to persist form changes to DB
+    fun persistFormUpdate(updatedForm: cn.edu.sjtu.deepsleep.docusnap.data.Form) {
+        loadedForm = updatedForm
+        scope.launch { viewModel.updateForm(updatedForm) }
+    }
 
     // [1. NEW DATA LOGIC] Prioritize displaying images from navigation parameters.
     val imagesToShow = remember(photoUris) {
@@ -54,22 +100,8 @@ fun FormDetailScreen(
                 emptyList()
             }
         } else {
-            // Otherwise, fallback to loading from MockData.
-            val frm = if (formId != null) {
-                MockData.mockForms.find { it.id == formId }
-            } else {
-                null
-            }
-            frm?.imageUris ?: emptyList()
-        }
-    }
-
-    // Find the form object for other info like title, description etc.
-    val form = remember(formId) {
-        if (formId != null) {
-            MockData.mockForms.find { it.id == formId } ?: MockData.mockForms.first()
-        } else {
-            MockData.mockForms.first()
+            // Otherwise, fallback to loading from form object.
+            currentForm.imageUris
         }
     }
 
@@ -80,39 +112,27 @@ fun FormDetailScreen(
     var autoFillingJob by remember { mutableStateOf<Job?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
-    val scope = rememberCoroutineScope()
     val context = LocalContext.current
-
-    val viewModel: DocumentViewModel = viewModel(
-        factory = DocumentViewModelFactory(AppModule.provideDocumentRepository(context))
-    )
 
     var currentImageIndex by remember { mutableStateOf(0) }
 
     
     // Store original form fields for restoration during parsing
-    val originalFormFields = remember { form.formFields }
+    val originalFormFields = remember { currentForm.formFields }
     
-    // Create mutable state for form fields with proper initial highlighting
-    var formFields by remember { 
-        mutableStateOf(
-            form.formFields.map { field ->
-                // If field is not retrieved and has empty value, set value to null for proper highlighting
-                if (!field.isRetrieved && (field.value.isNullOrEmpty() || field.value == "")) {
-                    field.copy(value = null)
-                } else {
-                    field
-                }
-            }
-        )
-    }
+    // Create mutable state for form fields - use the original form fields directly
+    var formFields by remember { mutableStateOf(currentForm.formFields) }
 
     // Create mutable state for extracted info
-    var extractedInfo by remember { mutableStateOf(form.extractedInfo) }
+    var extractedInfo by remember { mutableStateOf(currentForm.extractedInfo) }
+    
+    // For editing, keep separate maps to hold edits until saved
+    var editedFormFields by remember { mutableStateOf(currentForm.formFields) }
+    var editedExtractedInfo by remember { mutableStateOf(currentForm.extractedInfo) }
 
     // Get related files using MockData helper functions
-    val relatedFiles = remember(form) {
-        MockData.getRelatedFiles(form.id)
+    val relatedFiles = remember(currentForm) {
+        MockData.getRelatedFiles(currentForm.id)
     }
 
     // Navigation functions
@@ -133,7 +153,7 @@ fun FormDetailScreen(
     ) {
         // Top Bar
         TopAppBar(
-            title = { Text(form.name) },
+            title = { Text(currentForm.name) },
             navigationIcon = {
                 IconButton(onClick = onBackClick) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -142,7 +162,7 @@ fun FormDetailScreen(
             actions = {
                 IconButton(
                     onClick = {
-                        viewModel.exportForms(listOf(form.id))
+                        viewModel.exportForms(listOf(currentForm.id))
                         Toast.makeText(context, "Form images saved to local media", Toast.LENGTH_SHORT).show()
                     }
                 ) {
@@ -252,7 +272,7 @@ fun FormDetailScreen(
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = form.name,
+                                    text = currentForm.name,
                                     fontSize = 16.sp,
                                     fontWeight = FontWeight.Medium
                                 )
@@ -271,7 +291,7 @@ fun FormDetailScreen(
 
             // Form Summary
             Text(
-                text = form.description,
+                text = currentForm.description,
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 4.dp)
@@ -284,7 +304,7 @@ fun FormDetailScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                form.tags.forEach { tag ->
+                currentForm.tags.forEach { tag ->
                     AssistChip(
                         onClick = { },
                         label = { Text(tag) }
@@ -309,14 +329,23 @@ fun FormDetailScreen(
                             // Clear both extracted info and form fields
                             extractedInfo = emptyMap()
                             formFields = emptyList()
+                            editedExtractedInfo = emptyMap()
+                            editedFormFields = emptyList()
                             parsingJob = scope.launch {
                                 // TODO： BackendApiService.processForm()
                                 delay(2000) // Simulate parsing
-                                // After parsing, restore the original data
-                                extractedInfo = form.extractedInfo
+                                // After parsing, restore the original data and persist to DB
+                                extractedInfo = currentForm.extractedInfo
+                                editedExtractedInfo = currentForm.extractedInfo
                                 formFields = originalFormFields.map { field ->
                                     field.copy(value = null, isRetrieved = false)
                                 }
+                                editedFormFields = formFields
+                                // Persist the parsed results
+                                persistFormUpdate(currentForm.copy(
+                                    extractedInfo = extractedInfo,
+                                    formFields = formFields
+                                ))
                                 parsing = false
                                 parsingJob = null
                             }
@@ -348,7 +377,7 @@ fun FormDetailScreen(
                                 // TODO: BackendApiService.fillForm()
                                 delay(2000) // Simulate auto-filling process
                                 // After auto-filling, update form fields with realistic values
-                                formFields = formFields.map { field ->
+                                val updatedFormFields = formFields.map { field ->
                                     when (field.name.lowercase()) {
                                         "employee name" -> field.copy(value = "John Doe", isRetrieved = true)
                                         "department" -> field.copy(value = "Engineering", isRetrieved = true)
@@ -362,6 +391,10 @@ fun FormDetailScreen(
                                         else -> field.copy(value = null, isRetrieved = false) // Keep unavailable fields as null
                                     }
                                 }
+                                formFields = updatedFormFields
+                                editedFormFields = updatedFormFields
+                                // Persist the auto-filled results
+                                persistFormUpdate(currentForm.copy(formFields = updatedFormFields))
                                 autoFilling = false
                                 autoFillingJob = null
                             }
@@ -386,7 +419,22 @@ fun FormDetailScreen(
                 
                 // Edit button (edit both extracted info and form fields)
                 IconButton(
-                    onClick = { isEditing = !isEditing },
+                    onClick = {
+                        if (isEditing) {
+                            // Save changes to database when finishing editing
+                            extractedInfo = editedExtractedInfo
+                            formFields = editedFormFields
+                            persistFormUpdate(currentForm.copy(
+                                extractedInfo = editedExtractedInfo,
+                                formFields = editedFormFields
+                            ))
+                        } else {
+                            // Entering edit mode, copy current data
+                            editedExtractedInfo = extractedInfo
+                            editedFormFields = formFields
+                        }
+                        isEditing = !isEditing
+                    },
                     enabled = (extractedInfo.isNotEmpty() || formFields.isNotEmpty()) && !parsing && !autoFilling,
                     modifier = Modifier.weight(1f)
                 ) {
@@ -398,10 +446,13 @@ fun FormDetailScreen(
                 
                 // Clear Form button (clear form fields only)
                 IconButton(
-                    onClick = { 
-                        formFields = formFields.map { field ->
+                    onClick = {
+                        val clearedFormFields = formFields.map { field ->
                             field.copy(value = null, isRetrieved = false)
                         }
+                        formFields = clearedFormFields
+                        editedFormFields = clearedFormFields
+                        persistFormUpdate(currentForm.copy(formFields = clearedFormFields))
                     },
                     enabled = formFields.isNotEmpty() && !parsing && !autoFilling,
                     modifier = Modifier.weight(1f)
@@ -414,6 +465,12 @@ fun FormDetailScreen(
                     onClick = {
                         formFields = emptyList()
                         extractedInfo = emptyMap()
+                        editedFormFields = emptyList()
+                        editedExtractedInfo = emptyMap()
+                        persistFormUpdate(currentForm.copy(
+                            extractedInfo = emptyMap(),
+                            formFields = emptyList()
+                        ))
                     },
                     enabled = (extractedInfo.isNotEmpty() || formFields.isNotEmpty()) && !parsing && !autoFilling,
                     modifier = Modifier.weight(1f)
@@ -482,7 +539,7 @@ fun FormDetailScreen(
             }
 
             // Extracted Information Section
-            if (extractedInfo.isNotEmpty()) {
+            if ((if (isEditing) editedExtractedInfo else extractedInfo).isNotEmpty()) {
                 Text(
                     text = "Extracted Information",
                     fontSize = 18.sp,
@@ -496,13 +553,16 @@ fun FormDetailScreen(
                     Column(
                         modifier = Modifier.padding(8.dp)
                     ) {
-                        extractedInfo.forEach { (key, value) ->
+                        (if (isEditing) editedExtractedInfo else extractedInfo).forEach { (key, value) ->
                             ExtractedInfoItem(
                                 key = key,
                                 value = value,
-                                isEditing = isEditing
+                                isEditing = isEditing,
+                                onValueChange = { newValue ->
+                                    editedExtractedInfo = editedExtractedInfo.toMutableMap().apply { put(key, newValue) }
+                                }
                             )
-                            if (key != extractedInfo.keys.last()) {
+                            if (key != (if (isEditing) editedExtractedInfo else extractedInfo).keys.last()) {
                                 Divider(modifier = Modifier.padding(vertical = 2.dp))
                             }
                         }
@@ -512,7 +572,8 @@ fun FormDetailScreen(
             }
 
             // Form Fields Section
-            if (formFields.isNotEmpty() && !autoFilling) {
+            if ((if (isEditing) editedFormFields else formFields).isNotEmpty() && !autoFilling) {
+                android.util.Log.d("FormDetailScreen", "Showing form fields section. Count: ${(if (isEditing) editedFormFields else formFields).size}")
                 Text(
                     text = "Form Fields",
                     fontSize = 18.sp,
@@ -526,20 +587,26 @@ fun FormDetailScreen(
                     Column(
                         modifier = Modifier.padding(16.dp)
                     ) {
-                        formFields.forEach { field ->
+                        (if (isEditing) editedFormFields else formFields).forEach { field ->
                             FormFieldDisplayItem(
                                 field = field, 
                                 isEditing = isEditing,
-                                onNavigate = onNavigate
+                                onNavigate = onNavigate,
+                                onValueChange = { newValue ->
+                                    editedFormFields = editedFormFields.map { 
+                                        if (it.name == field.name) it.copy(value = newValue) else it 
+                                    }
+                                }
                             )
-                            if (field != formFields.last()) {
+                            if (field != (if (isEditing) editedFormFields else formFields).last()) {
                                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                             }
                         }
                     }
                 }
-            } else if (!parsing && !autoFilling && extractedInfo.isEmpty()) {
+            } else if (!parsing && !autoFilling && extractedInfo.isEmpty() && formFields.isEmpty()) {
                 // Show prompt message when both extracted info and form fields are empty
+                android.util.Log.d("FormDetailScreen", "Showing no information available section. formFields.isEmpty: ${formFields.isEmpty()}, extractedInfo.isEmpty: ${extractedInfo.isEmpty()}")
                 Card(
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -601,7 +668,7 @@ fun FormDetailScreen(
             // Upload Date at the bottom
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Upload Date: ${form.uploadDate}",
+                text = "Upload Date: ${currentForm.uploadDate}",
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp)
@@ -679,7 +746,9 @@ fun FormDetailScreen(
             confirmButton = {
                 TextButton(
                     onClick = {
-                        // TODO: DeviceDBService.deleteForms()
+                        scope.launch {
+                            viewModel.deleteForms(listOf(currentForm.id))
+                        }
                         // Always go back to gallery when deleting, regardless of source
                         onNavigate("form_gallery")
                         showDeleteDialog = false
@@ -701,10 +770,14 @@ fun FormDetailScreen(
 private fun FormFieldDisplayItem(
     field: cn.edu.sjtu.deepsleep.docusnap.data.FormField,
     isEditing: Boolean,
-    onNavigate: (String) -> Unit
+    onNavigate: (String) -> Unit,
+    onValueChange: ((String) -> Unit)? = null
 ) {
     var value by remember { mutableStateOf(field.value ?: "") }
     val context = LocalContext.current
+    
+    // Keep value in sync with field.value prop
+    LaunchedEffect(field.value) { if (!isEditing) value = field.value ?: "" }
     
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -762,7 +835,10 @@ private fun FormFieldDisplayItem(
             if (isEditing) {
                 OutlinedTextField(
                     value = value,
-                    onValueChange = { value = it },
+                    onValueChange = { 
+                        value = it
+                        onValueChange?.invoke(it)
+                    },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -839,10 +915,14 @@ private fun RelatedFileItem(
 private fun ExtractedInfoItem(
     key: String,
     value: String,
-    isEditing: Boolean
+    isEditing: Boolean,
+    onValueChange: ((String) -> Unit)? = null
 ) {
     var editedValue by remember { mutableStateOf(value) }
     val context = LocalContext.current
+    
+    // Keep editedValue in sync with value prop
+    LaunchedEffect(value) { if (!isEditing) editedValue = value }
     
     Row(
         modifier = Modifier
@@ -870,7 +950,10 @@ private fun ExtractedInfoItem(
             if (isEditing) {
                 OutlinedTextField(
                     value = editedValue,
-                    onValueChange = { editedValue = it },
+                    onValueChange = {
+                        editedValue = it
+                        onValueChange?.invoke(it)
+                    },
                     modifier = Modifier.weight(1f),
                     singleLine = true
                 )
