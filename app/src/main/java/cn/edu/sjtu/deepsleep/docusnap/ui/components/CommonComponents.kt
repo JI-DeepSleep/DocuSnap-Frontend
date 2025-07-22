@@ -18,6 +18,20 @@ import androidx.compose.ui.graphics.Color
 import cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity
 import android.widget.Toast
 import cn.edu.sjtu.deepsleep.docusnap.data.MockData
+import android.graphics.BitmapFactory
+import android.util.Base64
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import cn.edu.sjtu.deepsleep.docusnap.data.Document
 
 @Composable
 fun SearchBar(
@@ -508,12 +522,28 @@ fun TextInfoItem(
 
 @Composable
 fun DocumentCard(
-    document: cn.edu.sjtu.deepsleep.docusnap.data.Document,
+    document: Document,
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
     onSelectionChanged: ((Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+
+    // Decode the first image if available
+    val imageBitmap = remember(document.imageBase64s) {
+        if (document.imageBase64s.isNotEmpty()) {
+            try {
+                val bytes = Base64.decode(document.imageBase64s[0], Base64.DEFAULT)
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+            } catch (e: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -531,11 +561,20 @@ fun DocumentCard(
                     .background(Color.Gray.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "📄",
-                    fontSize = 32.sp
-                )
-                
+                if (imageBitmap != null) {
+                    Image(
+                        bitmap = imageBitmap,
+                        contentDescription = "Document preview",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Text(
+                        text = "📄",
+                        fontSize = 32.sp
+                    )
+                }
+
                 // Selection checkbox (bottom right corner of image only)
                 if (isSelectionMode) {
                     Checkbox(
@@ -548,7 +587,7 @@ fun DocumentCard(
                     )
                 }
             }
-            
+
             // Bottom section with name, date, and status
             Column(
                 modifier = Modifier
@@ -562,7 +601,7 @@ fun DocumentCard(
                     fontWeight = FontWeight.Medium,
                     maxLines = 1
                 )
-                
+
                 // Date and status icon row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -574,7 +613,7 @@ fun DocumentCard(
                         fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    
+
                     // Parse status icon
                     Icon(
                         imageVector = if (document.extractedInfo.isNotEmpty()) {

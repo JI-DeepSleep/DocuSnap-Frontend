@@ -48,16 +48,16 @@ fun HomeScreen(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
             Row {
-                IconButton(
-                    onClick = { onNavigate("job_status") },
-                    modifier = Modifier.size(48.dp)
-                ) {
-                    Icon(
-                        Icons.Default.List,
-                        contentDescription = "Job Status",
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
+//                IconButton(
+//                    onClick = { onNavigate("job_status") },
+//                    modifier = Modifier.size(48.dp)
+//                ) {
+//                    Icon(
+//                        Icons.Default.List,
+//                        contentDescription = "Job Status",
+//                        modifier = Modifier.size(24.dp)
+//                    )
+//                }
                 IconButton(
                     onClick = { onNavigate("settings") },
                     modifier = Modifier.size(48.dp)
