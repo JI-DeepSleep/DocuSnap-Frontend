@@ -48,6 +48,14 @@ fun DocumentDetailScreen(
     var loading by remember { mutableStateOf(true) }
     val scope = rememberCoroutineScope()
 
+    // Helper to persist extractedInfo changes to DB
+    fun persistExtractedInfoUpdate(newExtractedInfo: Map<String, String>) {
+        document = document?.copy(extractedInfo = newExtractedInfo)
+        document?.let { updatedDoc ->
+            scope.launch { viewModel.updateDocument(updatedDoc) }
+        }
+    }
+
     // Load document from DB (or fallback to MockData if not found)
     LaunchedEffect(documentId) {
         loading = true
@@ -95,6 +103,8 @@ fun DocumentDetailScreen(
     var isEditing by remember { mutableStateOf(false) }
     val originalExtractedInfo = remember(doc) { doc.extractedInfo.toMap() }
     var extractedInfo by remember { mutableStateOf(originalExtractedInfo) }
+    // For editing, keep a separate map to hold edits until saved
+    var editedExtractedInfo by remember { mutableStateOf(originalExtractedInfo) }
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
@@ -317,6 +327,7 @@ fun DocumentDetailScreen(
                                 delay(2000)
                                 // After delay, show parsed info
                                 extractedInfo = originalExtractedInfo
+                                editedExtractedInfo = originalExtractedInfo
                                 parsing = false
                                 parsingJob = null
                             }
@@ -331,6 +342,7 @@ fun DocumentDetailScreen(
                             // Stop parsing, restore previous info
                             parsingJob?.cancel()
                             extractedInfo = previousExtractedInfo
+                            editedExtractedInfo = previousExtractedInfo
                             parsing = false
                             parsingJob = null
                         },
@@ -342,7 +354,17 @@ fun DocumentDetailScreen(
                 
                 // Edit button
                 IconButton(
-                    onClick = { isEditing = !isEditing },
+                    onClick = {
+                        if (isEditing) {
+                            // Save changes to database when finishing editing
+                            extractedInfo = editedExtractedInfo
+                            persistExtractedInfoUpdate(editedExtractedInfo)
+                        } else {
+                            // Entering edit mode, copy current extractedInfo
+                            editedExtractedInfo = extractedInfo
+                        }
+                        isEditing = !isEditing
+                    },
                     enabled = extractedInfo.isNotEmpty() && !parsing,
                     modifier = Modifier.weight(1f)
                 ) {
@@ -354,7 +376,11 @@ fun DocumentDetailScreen(
                 
                 // Clear button
                 IconButton(
-                    onClick = { extractedInfo = emptyMap() },
+                    onClick = {
+                        extractedInfo = emptyMap()
+                        editedExtractedInfo = emptyMap()
+                        persistExtractedInfoUpdate(emptyMap())
+                    },
                     enabled = extractedInfo.isNotEmpty() && !parsing,
                     modifier = Modifier.weight(1f)
                 ) {
@@ -401,20 +427,23 @@ fun DocumentDetailScreen(
             )
             
             // Show info list or empty state
-            if (extractedInfo.isNotEmpty()) {
+            if ((if (isEditing) editedExtractedInfo else extractedInfo).isNotEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier.padding(8.dp)
                     ) {
-                        extractedInfo.forEach { (key, value) ->
+                        (if (isEditing) editedExtractedInfo else extractedInfo).forEach { (key, value) ->
                             ExtractedInfoItem(
                                 key = key,
                                 value = value,
-                                isEditing = isEditing
+                                isEditing = isEditing,
+                                onValueChange = { newValue ->
+                                    editedExtractedInfo = editedExtractedInfo.toMutableMap().apply { put(key, newValue) }
+                                }
                             )
-                            if (key != extractedInfo.keys.last()) {
+                            if (key != (if (isEditing) editedExtractedInfo else extractedInfo).keys.last()) {
                                 Divider(modifier = Modifier.padding(vertical = 2.dp))
                             }
                         }
@@ -561,11 +590,13 @@ fun DocumentDetailScreen(
 private fun ExtractedInfoItem(
     key: String,
     value: String,
-    isEditing: Boolean
+    isEditing: Boolean,
+    onValueChange: ((String) -> Unit)? = null
 ) {
     var editedValue by remember { mutableStateOf(value) }
     val context = LocalContext.current
-    
+    // Keep editedValue in sync with value prop
+    LaunchedEffect(value) { if (!isEditing) editedValue = value }
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -592,7 +623,10 @@ private fun ExtractedInfoItem(
             if (isEditing) {
                 OutlinedTextField(
                     value = editedValue,
-                    onValueChange = { editedValue = it },
+                    onValueChange = {
+                        editedValue = it
+                        onValueChange?.invoke(it)
+                    },
                     modifier = Modifier.weight(1f),
                     singleLine = true
                 )
@@ -604,7 +638,6 @@ private fun ExtractedInfoItem(
                     modifier = Modifier.weight(1f)
                 )
             }
-            
             // Copy icon for individual values
             IconButton(
                 onClick = {
