@@ -49,6 +49,8 @@ import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
 import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModelFactory
 import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
 
+private const val TAG = "ImageProcessingScreen"
+
 
 @Composable
 fun ImageProcessingScreen(
@@ -92,19 +94,23 @@ fun ImageProcessingScreen(
 
     // Function to create new document or form and navigate to it
     fun createAndNavigateToDetail() {
-        scope.launch{
+        scope.launch {
             val finalUris = imageProcessingViewModel.getFinalUris()
             // Convert URIs to Base64
-            val base64Images = finalUris.map { uriToBase64(it) } // New conversion
-
-            // [1. PREPARE DATA] Convert the list of Uris into a single, URL-safe string.
-            // 第一步：准备数据。将 URI 列表转换成一个 URL 安全的字符串。
-            val urisString = finalUris.joinToString(",")
-            val encodedUris = java.net.URLEncoder.encode(urisString, "UTF-8")
+            val base64Images = finalUris.map { uriToBase64(it) }
 
             // Get current date in the required format
             val dateFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
             val currentDate = dateFormat.format(Date())
+
+            base64Images.forEachIndexed { index, base64 ->
+                val preview = if (base64.length >= 20) {
+                    "${base64.take(10)}...${base64.takeLast(10)}"
+                } else {
+                    base64 // Show full string if too short
+                }
+                Log.e(TAG, "Image $index (${base64.length} chars): $preview")
+            }
 
             when (source) {
                 "document" -> {
@@ -113,7 +119,7 @@ fun ImageProcessingScreen(
                         id = UUID.randomUUID().toString(),
                         name = "New Document ${System.currentTimeMillis()}",
                         description = "A new document created by user",
-                        imageBase64s = base64Images, // Store Base64
+                        imageBase64s = base64Images,
                         extractedInfo = emptyMap(),
                         tags = listOf("New", "Document"),
                         uploadDate = currentDate
@@ -121,8 +127,8 @@ fun ImageProcessingScreen(
                     // Save the document to the database
                     documentViewModel.saveDocument(newDocument)
 
-                    // [2. MODIFY NAVIGATION] Add the encodedUris to the navigation route.
-                    onNavigate("document_detail?documentId=${newDocument.id}&fromImageProcessing=true&photoUris=$encodedUris")
+                    // Navigate with just the document ID
+                    onNavigate("document_detail?documentId=${newDocument.id}&fromImageProcessing=true")
                 }
                 "form" -> {
                     // Create a new form object and save to database
@@ -130,7 +136,7 @@ fun ImageProcessingScreen(
                         id = UUID.randomUUID().toString(),
                         name = "New Form ${System.currentTimeMillis()}",
                         description = "A new form uploaded by user",
-                        imageBase64s = base64Images, // Store Base64
+                        imageBase64s = base64Images,
                         formFields = emptyList(),
                         extractedInfo = emptyMap(),
                         uploadDate = currentDate
@@ -138,8 +144,8 @@ fun ImageProcessingScreen(
                     // Save the form to the database
                     documentViewModel.saveForm(newForm)
 
-                    // [3. MODIFY NAVIGATION] Add the encodedUris to the navigation route.
-                    onNavigate("form_detail?formId=${newForm.id}&fromImageProcessing=true") // Removed photoUris
+                    // Navigate with just the form ID
+                    onNavigate("form_detail?formId=${newForm.id}&fromImageProcessing=true")
                 }
                 else -> onNavigate("home")
             }

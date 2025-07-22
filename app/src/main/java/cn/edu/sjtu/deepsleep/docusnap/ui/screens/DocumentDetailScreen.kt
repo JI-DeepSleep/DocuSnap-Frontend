@@ -1,5 +1,6 @@
 package cn.edu.sjtu.deepsleep.docusnap.ui.screens
 
+import android.graphics.BitmapFactory
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
@@ -34,6 +35,11 @@ import android.util.Base64
 import cn.edu.sjtu.deepsleep.docusnap.data.local.JobEntity
 import kotlinx.coroutines.flow.collectLatest
 import org.json.JSONObject
+import android.util.Log
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.Image
+
+private const val TAG = "DocumentDetailScreen"
 
 @Composable
 fun DocumentDetailScreen(
@@ -137,10 +143,18 @@ fun DocumentDetailScreen(
     val doc = document!!
     // Restore image navigation state and imagesToShow after doc is loaded
     var currentImageIndex by remember { mutableStateOf(0) }
-    // New imagesToShow using Base64
+    // In DocumentDetailScreen
     val imagesToShow = remember(doc) {
-        doc.imageBase64s.map { base64 ->
-            "data:image/jpeg;base64,$base64"
+        doc.imageBase64s.mapNotNull { base64 ->
+            try {
+                val bytes = Base64.decode(base64, Base64.DEFAULT)
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            } catch (e: Exception) {
+                Log.e(TAG, "Bitmap decoding failed", e)
+                null
+            }
+        }.also {
+            Log.e(TAG, "Decoded ${it.size} bitmaps from document ${doc.id}")
         }
     }
     var isEditing by remember { mutableStateOf(false) }
@@ -235,8 +249,8 @@ fun DocumentDetailScreen(
                         )
 
                         // Current image
-                        AsyncImage(
-                            model = imagesToShow[currentImageIndex],
+                        Image(
+                            bitmap = imagesToShow[currentImageIndex].asImageBitmap(),
                             contentDescription = "Document image ${currentImageIndex + 1}",
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
@@ -383,16 +397,10 @@ fun DocumentDetailScreen(
                             processing = true
                             jobStatus = null
                             jobError = null
-
                             coroutineScope.launch {
                                 try {
-                                    // Convert images to base64
-                                    val base64Images = imagesToShow.map { uri ->
-                                        context.contentResolver.openInputStream(android.net.Uri.parse(uri))?.use {
-                                            val bytes = it.readBytes()
-                                            Base64.encodeToString(bytes, Base64.NO_WRAP)
-                                        } ?: throw Exception("Failed to read image")
-                                    }
+                                    // Use the original Base64 strings from the document
+                                    val base64Images = doc.imageBase64s
 
                                     // Create processing job
                                     val job = jobPollingService.createJob(

@@ -146,7 +146,7 @@ fun FormDetailScreen(
     }
     val currentForm = form!!
 
-    // Images to show from Base64 strings
+    // Images to show from Base64 strings in the form
     val imagesToShow = remember(currentForm) {
         currentForm.imageBase64s.map { base64 ->
             "data:image/jpeg;base64,$base64"
