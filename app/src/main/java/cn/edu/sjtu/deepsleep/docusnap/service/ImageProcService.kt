@@ -481,10 +481,10 @@ class ImageProcService(private val context: Context) {
             // Apply Canny edge detection
             val edges = applyCannyEdgeDetection(blurred, width, height, lowThreshold, highThreshold)
             
-            // Apply dilation to thicken edges (for demonstration purposes)
-            val dilatedEdges = applyDilation(edges, width, height, iterations = 2)
+            // Apply dilation to thicken edges and connect nearby edge pixels
+            val dilatedEdges = applyDilation(edges, width, height, iterations = 1)
             
-            // Apply erosion to clean up the edges
+            // Apply erosion to clean up and thin the edges  
             val finalEdges = applyErosion(dilatedEdges, width, height, iterations = 1)
             
             // Convert final result back to bitmap for visualization
@@ -506,9 +506,9 @@ class ImageProcService(private val context: Context) {
                 isAntiAlias = true
             }
             
-            canvas.drawText("Canny + Dilation + Erosion", 20f, 50f, debugPaint)
+            canvas.drawText("Canny + Opening (Erode→Dilate)", 20f, 50f, debugPaint)
             canvas.drawText("Low: $lowThreshold, High: $highThreshold", 20f, 90f, debugPaint)
-            canvas.drawText("Morphology: Dilate(2) + Erode(1)", 20f, 130f, debugPaint)
+            canvas.drawText("Morphology: Erode(1) + Dilate(1)", 20f, 130f, debugPaint)
             
             resultBitmap
         }
@@ -626,9 +626,9 @@ class ImageProcService(private val context: Context) {
             
             // Apply Canny edge detection
             val edges = applyCannyEdgeDetection(blurred, width, height, lowThreshold, highThreshold)
-            
+
             // Apply dilation to thicken edges and connect nearby edge pixels
-            val dilatedEdges = applyDilation(edges, width, height, iterations = 2)
+            val dilatedEdges = applyDilation(edges, width, height, iterations = 1)
             
             // Apply erosion to clean up and thin the edges
             val cleanedEdges = applyErosion(dilatedEdges, width, height, iterations = 1)
@@ -722,7 +722,7 @@ class ImageProcService(private val context: Context) {
             canvas.drawText("Contour Detection Debug (Area-based)", 20f, 35f, debugPaint)
             canvas.drawText("Total contours: ${contours.size}", 20f, 65f, debugPaint)
             canvas.drawText("Sorted by area (largest first)", 20f, 95f, debugPaint)
-            canvas.drawText("Canny + Dilation + Erosion", 20f, 125f, debugPaint)
+            canvas.drawText("Canny + Opening (Erode→Dilate)", 20f, 125f, debugPaint)
             
             // Show contour details with area information
             for ((index, contour) in contours.withIndex().take(8)) {
@@ -772,13 +772,11 @@ class ImageProcService(private val context: Context) {
             // Apply Canny edge detection
             val edges = applyCannyEdgeDetection(blurred, width, height, lowThreshold, highThreshold)
             
-            // Apply dilation to thicken edges and connect nearby edge pixels
-            val dilatedEdges = applyDilation(edges, width, height, iterations = 2)
-            
-            // Apply erosion to clean up and thin the edges
-            val cleanedEdges = applyErosion(dilatedEdges, width, height, iterations = 1)
-            
-            // Find contours and get the largest one by area
+        // Apply dilation to thicken edges and connect nearby edge pixels
+        val dilatedEdges = applyDilation(edges, width, height, iterations = 1)
+        
+        // Apply erosion to clean up and thin the edges
+        val cleanedEdges = applyErosion(dilatedEdges, width, height, iterations = 1)            // Find contours and get the largest one by area
             val contours = findContoursFromBinary(cleanedEdges, width, height)
             val largestContour = contours.maxByOrNull { calculateContourArea(it) }
             
@@ -1249,6 +1247,15 @@ class ImageProcService(private val context: Context) {
         return correctedBitmap
     }
 
+    /**
+    * Public method for applying perspective correction with user-adjusted corners
+    */
+    suspend fun performPerspectiveCorrectionWithCorners(image: Bitmap, corners: Array<PointF>): Bitmap {
+        return withContext(Dispatchers.Default) {
+            performPerspectiveCorrection(image, corners)
+        }
+    }
+
     // Alternative implementation using manual perspective transformation for more control
     private fun performPerspectiveCorrectionManual(image: Bitmap, corners: Array<PointF>): Bitmap {
         val topLeft = corners[0]
@@ -1384,24 +1391,23 @@ class ImageProcService(private val context: Context) {
     suspend fun correctPerspective(image: Bitmap): Bitmap {
 
         // For debugging all contours found:
-         return debugContoursOnly(image, 30, 60)
+//         return debugContoursOnly(image, 30, 60)
         
         // For debugging corner detection on largest contour:
-//        return debugContourDetection(image, 50, 100)
+//         return debugContourDetection(image, 50, 100)
         
         // For debugging Canny edge detection:
-        // return debugCannyEdgeDetection(image, 30, 60)
+//         return debugCannyEdgeDetection(image, 50, 100)
 
-        /*
         val corners = findDocumentCorners(image)
         
         return if (corners != null) {
             // Use detected corners
             performPerspectiveCorrection(image, corners)
         } else {
+            // Fallback: return original image if no corners detected
             image
         }
-        */
     }
     
     // TODO: Color Enhancement
