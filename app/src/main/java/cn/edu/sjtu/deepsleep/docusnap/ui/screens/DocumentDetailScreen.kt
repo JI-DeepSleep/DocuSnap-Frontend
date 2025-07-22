@@ -26,6 +26,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
+import androidx.lifecycle.viewmodel.compose.viewModel
+import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
+import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModelFactory
+import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
 
 @Composable
 fun DocumentDetailScreen(
@@ -35,40 +39,61 @@ fun DocumentDetailScreen(
     photoUris: String? = null,
     fromImageProcessing: Boolean = false // This was in MainActivity, let's add it here for consistency
 ) {
-    // TODO: retrieve document data from DeviceDBService.getDocument()
-    // TODO: when exit this page, call saveDocument() or updateDocument() depending on fromImageProcessing or not
-    // Find the specific document by ID, or use the first one as fallback
-    val imagesToShow = remember(photoUris) {
-        if (photoUris != null) {
-            // If photoUris from navigation exists, decode and use it.
-            try {
-                java.net.URLDecoder.decode(photoUris, "UTF-8").split(",").filter { it.isNotEmpty() }
-            } catch (e: Exception) {
-                // In case of decoding error, fallback to an empty list.
-                emptyList()
-            }
-        } else {
-            // Otherwise, fallback to loading from MockData (or a future database).
-            val doc = if (documentId != null) {
-                MockData.mockDocuments.find { it.id == documentId }
-            } else {
-                null
-            }
-            doc?.imageUris ?: emptyList()
-        }
-    }
+    val viewModel: DocumentViewModel = viewModel(
+        factory = DocumentViewModelFactory(AppModule.provideDocumentRepository(LocalContext.current))
+    )
 
-// Find the document for other info like title, description etc.
-// 为了显示标题、描述等其他信息，我们仍然需要 document 对象
-    val document = remember(documentId) {
-        if (documentId != null) {
-            MockData.mockDocuments.find { it.id == documentId } ?: MockData.mockDocuments.first()
+    // State for loaded document
+    var document by remember { mutableStateOf<cn.edu.sjtu.deepsleep.docusnap.data.Document?>(null) }
+    var loading by remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
+
+    // Load document from DB (or fallback to MockData if not found)
+    LaunchedEffect(documentId) {
+        loading = true
+        document = if (documentId != null) {
+            viewModel.getDocument(documentId) ?: MockData.mockDocuments.find { it.id == documentId } ?: MockData.mockDocuments.first()
         } else {
             MockData.mockDocuments.first()
         }
+        loading = false
+    }
+
+    // Save/update document on exit
+    DisposableEffect(document, fromImageProcessing) {
+        onDispose {
+            document?.let { doc ->
+                if (fromImageProcessing) {
+                    scope.launch { viewModel.saveDocument(doc) }
+                } else {
+                    scope.launch { viewModel.updateDocument(doc) }
+                }
+            }
+        }
+    }
+
+    if (loading || document == null) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+    val doc = document!!
+    // Restore image navigation state and imagesToShow after doc is loaded
+    var currentImageIndex by remember { mutableStateOf(0) }
+    val imagesToShow = remember(photoUris, doc) {
+        if (photoUris != null) {
+            try {
+                java.net.URLDecoder.decode(photoUris, "UTF-8").split(",").filter { it.isNotEmpty() }
+            } catch (e: Exception) {
+                emptyList()
+            }
+        } else {
+            doc.imageUris
+        }
     }
     var isEditing by remember { mutableStateOf(false) }
-    val originalExtractedInfo = remember { document.extractedInfo.toMap() }
+    val originalExtractedInfo = remember(doc) { doc.extractedInfo.toMap() }
     var extractedInfo by remember { mutableStateOf(originalExtractedInfo) }
     val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
@@ -76,16 +101,12 @@ fun DocumentDetailScreen(
     var parsing by remember { mutableStateOf(false) }
     var parsingJob by remember { mutableStateOf<Job?>(null) }
     var previousExtractedInfo by remember { mutableStateOf(originalExtractedInfo) }
-    val scope = rememberCoroutineScope()
-
-// Image navigation state
-    var currentImageIndex by remember { mutableStateOf(0) }
-// IMPORTANT: The imageUris variable is now replaced by imagesToShow
-// 重要：旧的 imageUris 变量现在被 imagesToShow 取代
+    // IMPORTANT: The imageUris variable is now replaced by imagesToShow
+    // 重要：旧的 imageUris 变量现在被 imagesToShow 取代
     
     // Get related files using MockData helper functions
-    val relatedFiles = remember(document) {
-        MockData.getRelatedFiles(document.id)
+    val relatedFiles = remember(doc) {
+        MockData.getRelatedFiles(doc.id)
     }
     
     fun copyAllExtractedInfo() {
@@ -114,7 +135,7 @@ fun DocumentDetailScreen(
     ) {
         // Top Bar
         TopAppBar(
-            title = { Text(document.name) },
+            title = { Text(doc.name) },
             navigationIcon = {
                 IconButton(onClick = onBackClick) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back")
@@ -123,9 +144,9 @@ fun DocumentDetailScreen(
             actions = {
                 IconButton(
                     onClick = {
-                        Toast.makeText(context, "Document saved to local media", Toast.LENGTH_SHORT).show()
-                        // TODO: DeviceDBService.exportDocuments()
-                }) {
+                        viewModel.exportDocuments(listOf(doc.id))
+                        Toast.makeText(context, "Document images saved to local media", Toast.LENGTH_SHORT).show()
+                    }) {
                     Icon(Icons.Default.Download, contentDescription = "Export/Download")
                 }
             }
@@ -232,7 +253,7 @@ fun DocumentDetailScreen(
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Text(
-                                    text = document.name,
+                                    text = doc.name,
                                     fontSize = 18.sp,
                                     fontWeight = FontWeight.Medium
                                 )
@@ -251,7 +272,7 @@ fun DocumentDetailScreen(
 
             // Document Summary
             Text(
-                text = document.description,
+                text = doc.description,
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(bottom = 4.dp)
@@ -264,7 +285,7 @@ fun DocumentDetailScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                document.tags.forEach { tag ->
+                doc.tags.forEach { tag ->
                     AssistChip(
                         onClick = { },
                         label = { Text(tag) }
@@ -452,7 +473,7 @@ fun DocumentDetailScreen(
             // Upload Date at the bottom
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = "Upload Date: ${document.uploadDate}",
+                text = "Upload Date: ${doc.uploadDate}",
                 fontSize = 14.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 16.dp)
@@ -516,7 +537,9 @@ fun DocumentDetailScreen(
                     text = { Text("Are you sure you want to permanently delete this document?") },
                     confirmButton = {
                         TextButton(onClick = {
-                            // TODO: DeviceDBService.deleteDocuments()
+                            scope.launch {
+                                viewModel.deleteDocuments(listOf(doc.id))
+                            }
                             showDeleteDialog = false
                             onNavigate("document_gallery")
                         }) {

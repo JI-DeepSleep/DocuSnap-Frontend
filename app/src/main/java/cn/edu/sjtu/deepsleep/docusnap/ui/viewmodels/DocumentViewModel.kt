@@ -157,6 +157,32 @@ class DocumentViewModel(
         }
     }
     
+    fun exportDocuments(documentIds: List<String>) {
+        viewModelScope.launch {
+            try {
+                repository.exportDocuments(documentIds)
+            } catch (e: Exception) {
+                android.util.Log.e("DocumentViewModel", "Error exporting documents: ${e.message}", e)
+                // Handle error
+            }
+        }
+    }
+    
+    fun exportForms(formIds: List<String>) {
+        viewModelScope.launch {
+            try {
+                repository.exportForms(formIds)
+            } catch (e: Exception) {
+                android.util.Log.e("DocumentViewModel", "Error exporting forms: ${e.message}", e)
+                // Handle error
+            }
+        }
+    }
+    
+    suspend fun getDocument(documentId: String): Document? {
+        return repository.getDocument(documentId)
+    }
+    
     // Development helper: Add test data
     fun addTestData() {
         android.util.Log.d("DocumentViewModel", "addTestData called")

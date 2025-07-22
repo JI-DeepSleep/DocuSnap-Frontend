@@ -213,7 +213,7 @@ fun DocumentGalleryScreen(
                             "Exporting ${selectedDocuments.size} document(s) to local media...",
                             Toast.LENGTH_SHORT
                         ).show()
-                        // TODO: Implement export functionality
+                        viewModel.exportForms(selectedDocuments.toList())
                     },
                     enabled = selectedDocuments.isNotEmpty()
                 ) {
