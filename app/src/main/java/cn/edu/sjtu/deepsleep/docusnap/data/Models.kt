@@ -22,11 +22,14 @@ data class Document(
     val id: String,
     val name: String,
     val description: String,
-    val imageUris: List<String> = emptyList(), // Changed from imageUri to imageUris
+    val imageUris: List<String> = emptyList(),
     val extractedInfo: Map<String, String> = emptyMap(),
     val tags: List<String> = emptyList(),
     val uploadDate: String = "2024-01-15",
-    val relatedFileIds: List<String> = emptyList() // Combined relatedDocumentIds and relatedFormIds
+    val relatedFileIds: List<String> = emptyList(),
+    val sha256: String? = null,
+    val isProcessed: Boolean = false,
+    val jobId: Long? = null
 )
 
 @Serializable
@@ -39,7 +42,8 @@ data class Form(
     val extractedInfo: Map<String, String> = emptyMap(), // Added extractedInfo to Form
     val tags: List<String> = emptyList(), // Added tags to Form
     val uploadDate: String = "2024-01-15",
-    val relatedFileIds: List<String> = emptyList() // Combined relatedDocumentIds and relatedFormIds
+    val relatedFileIds: List<String> = emptyList(), // Combined relatedDocumentIds and relatedFormIds
+    val jobId: Long? = null
 )
 
 @Serializable
@@ -59,13 +63,13 @@ sealed class SearchEntity {
         val srcFileId: String? = null, // Changed from sourceDocument to srcFileId
         val relevanceScore: Float = 0.0f
     ) : SearchEntity()
-    
+
     @Serializable
     data class DocumentEntity(
         val document: Document,
         val relevanceScore: Float = 0.0f
     ) : SearchEntity()
-    
+
     @Serializable
     data class FormEntity(
         val form: Form,

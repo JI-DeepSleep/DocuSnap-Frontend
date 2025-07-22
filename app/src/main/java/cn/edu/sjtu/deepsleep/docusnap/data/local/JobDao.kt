@@ -28,4 +28,7 @@ interface JobDao {
     
     @Query("DELETE FROM jobs WHERE status = 'completed' AND updatedAt < :timestamp")
     suspend fun deleteOldCompletedJobs(timestamp: Long): Int
+
+    @Query("SELECT * FROM jobs WHERE id = :jobId")
+    fun getJobById(jobId: Long): Flow<JobEntity?>
 } 

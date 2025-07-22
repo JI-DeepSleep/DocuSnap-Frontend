@@ -1,7 +1,7 @@
 package cn.edu.sjtu.deepsleep.docusnap.ui.screens
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
@@ -21,8 +21,6 @@ import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
@@ -30,6 +28,12 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
 import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModelFactory
 import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
+import cn.edu.sjtu.deepsleep.docusnap.service.JobPollingService
+import cn.edu.sjtu.deepsleep.docusnap.data.local.AppDatabase
+import android.util.Base64
+import cn.edu.sjtu.deepsleep.docusnap.data.local.JobEntity
+import kotlinx.coroutines.flow.collectLatest
+import org.json.JSONObject
 
 @Composable
 fun DocumentDetailScreen(
@@ -37,26 +41,71 @@ fun DocumentDetailScreen(
     onBackClick: () -> Unit,
     documentId: String? = null,
     photoUris: String? = null,
-    fromImageProcessing: Boolean = false // This was in MainActivity, let's add it here for consistency
+    fromImageProcessing: Boolean = false
 ) {
+    val context = LocalContext.current
     val viewModel: DocumentViewModel = viewModel(
-        factory = DocumentViewModelFactory(AppModule.provideDocumentRepository(LocalContext.current))
+        factory = DocumentViewModelFactory(AppModule.provideDocumentRepository(context))
     )
+    val jobPollingService = remember { JobPollingService(context) }
+    val database = remember { AppDatabase.getInstance(context) }
+    val jobDao = remember { database.jobDao() }
+    val coroutineScope = rememberCoroutineScope()
 
     // State for loaded document
     var document by remember { mutableStateOf<cn.edu.sjtu.deepsleep.docusnap.data.Document?>(null) }
     var loading by remember { mutableStateOf(true) }
-    val scope = rememberCoroutineScope()
+    var job by remember { mutableStateOf<JobEntity?>(null) }
+    var jobStatus by remember { mutableStateOf<String?>(null) }
+    var jobError by remember { mutableStateOf<String?>(null) }
+    var processing by remember { mutableStateOf(false) }
 
-    // Helper to persist extractedInfo changes to DB
-    fun persistExtractedInfoUpdate(newExtractedInfo: Map<String, String>) {
-        document = document?.copy(extractedInfo = newExtractedInfo)
-        document?.let { updatedDoc ->
-            scope.launch { viewModel.updateDocument(updatedDoc) }
+    // Observe job status changes
+    LaunchedEffect(document?.jobId) {
+        document?.jobId?.let { jobId ->
+            jobDao.getJobById(jobId).collectLatest { jobEntity: JobEntity? ->
+                job = jobEntity
+                jobEntity?.let {
+                    jobStatus = it.status
+                    jobError = it.errorDetail
+
+                    if (it.status == "completed" && it.result != null) {
+                        try {
+                            // Decrypt result
+                            val decryptedResult = jobPollingService.decryptJobResult(it.result, it)
+                            decryptedResult?.let { resultJson ->
+                                val result = JSONObject(resultJson)
+                                val kv = result.optJSONObject("kv") ?: JSONObject()
+
+                                // Convert to map
+                                val extractedMap = mutableMapOf<String, String>()
+                                val keys = kv.keys()
+                                while (keys.hasNext()) {
+                                    val key = keys.next()
+                                    extractedMap[key] = kv.getString(key)
+                                }
+
+                                // Update document
+                                document = document?.copy(
+                                    extractedInfo = extractedMap,
+                                    isProcessed = true
+                                )
+
+                                // Save to DB
+                                document?.let { updatedDoc ->
+                                    viewModel.updateDocument(updatedDoc)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            jobError = "Result parsing failed: ${e.message}"
+                        }
+                    }
+                }
+            }
         }
     }
 
-    // Load document from DB (or fallback to MockData if not found)
+    // Load document from DB
     LaunchedEffect(documentId) {
         loading = true
         document = if (documentId != null) {
@@ -65,6 +114,19 @@ fun DocumentDetailScreen(
             MockData.mockDocuments.first()
         }
         loading = false
+    }
+
+    // Save/update document on exit
+    DisposableEffect(document, fromImageProcessing) {
+        onDispose {
+            document?.let { doc ->
+                if (fromImageProcessing) {
+                    coroutineScope.launch { viewModel.saveDocument(doc) }
+                } else {
+                    coroutineScope.launch { viewModel.updateDocument(doc) }
+                }
+            }
+        }
     }
 
     if (loading || document == null) {
@@ -88,27 +150,28 @@ fun DocumentDetailScreen(
         }
     }
     var isEditing by remember { mutableStateOf(false) }
-    val originalExtractedInfo = remember(doc) { doc.extractedInfo.toMap() }
-    var extractedInfo by remember { mutableStateOf(originalExtractedInfo) }
-    // For editing, keep a separate map to hold edits until saved
-    var editedExtractedInfo by remember { mutableStateOf(originalExtractedInfo) }
-    val context = LocalContext.current
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
-    var parsing by remember { mutableStateOf(false) }
-    var parsingJob by remember { mutableStateOf<Job?>(null) }
-    var previousExtractedInfo by remember { mutableStateOf(originalExtractedInfo) }
-    // IMPORTANT: The imageUris variable is now replaced by imagesToShow
-    // 重要：旧的 imageUris 变量现在被 imagesToShow 取代
-    
+
+    // For editing, keep a separate map to hold edits until saved
+    var editedExtractedInfo by remember { mutableStateOf(doc.extractedInfo.toMap()) }
+
+    // Helper to persist extractedInfo changes to DB
+    fun persistExtractedInfoUpdate(newExtractedInfo: Map<String, String>) {
+        document = document?.copy(extractedInfo = newExtractedInfo)
+        document?.let { updatedDoc ->
+            coroutineScope.launch { viewModel.updateDocument(updatedDoc) }
+        }
+    }
+
     // Get related files using MockData helper functions
     val relatedFiles = remember(doc) {
         MockData.getRelatedFiles(doc.id)
     }
-    
+
     fun copyAllExtractedInfo() {
         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-        val text = extractedInfo.entries.joinToString("\n") { "${it.key}: ${it.value}" }
+        val text = doc.extractedInfo.entries.joinToString("\n") { "${it.key}: ${it.value}" }
         val clip = android.content.ClipData.newPlainText("Extracted Information", text)
         clipboard.setPrimaryClip(clip)
         Toast.makeText(context, "All information copied to clipboard", Toast.LENGTH_SHORT).show()
@@ -116,15 +179,11 @@ fun DocumentDetailScreen(
 
     // Navigation functions
     fun goToPreviousImage() {
-        if (currentImageIndex > 0) {
-            currentImageIndex--
-        }
+        if (currentImageIndex > 0) currentImageIndex--
     }
 
     fun goToNextImage() {
-        if (currentImageIndex < imagesToShow.size - 1) {
-            currentImageIndex++
-        }
+        if (currentImageIndex < imagesToShow.size - 1) currentImageIndex++
     }
 
     Column(
@@ -180,7 +239,7 @@ fun DocumentDetailScreen(
                                 )
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         )
-                        
+
                         // Current image
                         AsyncImage(
                             model = imagesToShow[currentImageIndex],
@@ -188,7 +247,7 @@ fun DocumentDetailScreen(
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )
-                        
+
                         // Navigation arrows
                         if (imagesToShow.size > 1) {
                             Row(
@@ -292,6 +351,30 @@ fun DocumentDetailScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
+            // Job status display
+            jobStatus?.let { status ->
+                val statusColor = when (status) {
+                    "processing" -> MaterialTheme.colorScheme.primary
+                    "completed" -> MaterialTheme.colorScheme.secondary
+                    "error" -> MaterialTheme.colorScheme.error
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                }
+
+                Text(
+                    text = "Processing status: ${status.uppercase()}",
+                    color = statusColor,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
+            jobError?.let { error ->
+                Text(
+                    text = "Error: $error",
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+            }
+
             // Tool buttons row: Parse/Edit/Clear/Copy/Help
             Row(
                 modifier = Modifier
@@ -300,23 +383,36 @@ fun DocumentDetailScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 // Parse button
-                if (!parsing) {
+                if (!processing) {
                     IconButton(
                         onClick = {
-                            // Save current info for possible restoration
-                            previousExtractedInfo = extractedInfo
-                            parsing = true
-                            // Hide info list
-                            extractedInfo = emptyMap()
-                            // Start mock parsing job
-                            // TODO: BackendApiService.processDocument()
-                            parsingJob = scope.launch {
-                                delay(2000)
-                                // After delay, show parsed info
-                                extractedInfo = originalExtractedInfo
-                                editedExtractedInfo = originalExtractedInfo
-                                parsing = false
-                                parsingJob = null
+                            processing = true
+                            jobStatus = null
+                            jobError = null
+
+                            coroutineScope.launch {
+                                try {
+                                    // Convert images to base64
+                                    val base64Images = imagesToShow.map { uri ->
+                                        context.contentResolver.openInputStream(android.net.Uri.parse(uri))?.use {
+                                            val bytes = it.readBytes()
+                                            Base64.encodeToString(bytes, Base64.NO_WRAP)
+                                        } ?: throw Exception("Failed to read image")
+                                    }
+
+                                    // Create processing job
+                                    val job = jobPollingService.createJob(
+                                        type = "doc",
+                                        payload = base64Images
+                                    )
+
+                                    // Update document with job ID
+                                    document = doc.copy(jobId = job.id)
+                                    viewModel.updateDocument(document!!)
+                                } catch (e: Exception) {
+                                    jobError = "Job creation failed: ${e.message}"
+                                    processing = false
+                                }
                             }
                         },
                         modifier = Modifier.weight(1f)
@@ -325,34 +421,26 @@ fun DocumentDetailScreen(
                     }
                 } else {
                     IconButton(
-                        onClick = {
-                            // Stop parsing, restore previous info
-                            parsingJob?.cancel()
-                            extractedInfo = previousExtractedInfo
-                            editedExtractedInfo = previousExtractedInfo
-                            parsing = false
-                            parsingJob = null
-                        },
+                        onClick = { processing = false },
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Default.Stop, contentDescription = "Stop")
                     }
                 }
-                
+
                 // Edit button
                 IconButton(
                     onClick = {
                         if (isEditing) {
                             // Save changes to database when finishing editing
-                            extractedInfo = editedExtractedInfo
                             persistExtractedInfoUpdate(editedExtractedInfo)
                         } else {
                             // Entering edit mode, copy current extractedInfo
-                            editedExtractedInfo = extractedInfo
+                            editedExtractedInfo = doc.extractedInfo.toMap()
                         }
                         isEditing = !isEditing
                     },
-                    enabled = extractedInfo.isNotEmpty() && !parsing,
+                    enabled = doc.extractedInfo.isNotEmpty() && !processing,
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
@@ -360,24 +448,23 @@ fun DocumentDetailScreen(
                         contentDescription = if (isEditing) "Save" else "Edit"
                     )
                 }
-                
+
                 // Clear button
                 IconButton(
                     onClick = {
-                        extractedInfo = emptyMap()
                         editedExtractedInfo = emptyMap()
                         persistExtractedInfoUpdate(emptyMap())
                     },
-                    enabled = extractedInfo.isNotEmpty() && !parsing,
+                    enabled = doc.extractedInfo.isNotEmpty() && !processing,
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.Delete, contentDescription = "Clear")
                 }
-                
+
                 // Copy all button
                 IconButton(
                     onClick = { copyAllExtractedInfo() },
-                    enabled = extractedInfo.isNotEmpty() && !parsing,
+                    enabled = doc.extractedInfo.isNotEmpty() && !processing,
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.ContentCopy, contentDescription = "Copy All")
@@ -392,15 +479,15 @@ fun DocumentDetailScreen(
                 }
             }
 
-            // Show parsing message if parsing
-            if (parsing) {
+            // Show processing message if processing
+            if (processing) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(60.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Parsing document...", fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
+                    Text("Processing document...", fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
             }
@@ -412,32 +499,32 @@ fun DocumentDetailScreen(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = 8.dp)
             )
-            
+
             // Show info list or empty state
-            if ((if (isEditing) editedExtractedInfo else extractedInfo).isNotEmpty()) {
+            if (doc.extractedInfo.isNotEmpty()) {
                 Card(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier.padding(8.dp)
                     ) {
-                        (if (isEditing) editedExtractedInfo else extractedInfo).forEach { (key, value) ->
+                        (if (isEditing) editedExtractedInfo else doc.extractedInfo).forEach { (key, value) ->
                             ExtractedInfoItem(
                                 key = key,
-                                value = value,
+                                value = if (isEditing) editedExtractedInfo[key] ?: value else value,
                                 isEditing = isEditing,
                                 onValueChange = { newValue ->
                                     editedExtractedInfo = editedExtractedInfo.toMutableMap().apply { put(key, newValue) }
                                 }
                             )
-                            if (key != (if (isEditing) editedExtractedInfo else extractedInfo).keys.last()) {
+                            if (key != doc.extractedInfo.keys.last()) {
                                 Divider(modifier = Modifier.padding(vertical = 2.dp))
                             }
                         }
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-            } else if (!parsing) {
+            } else if (!processing) {
                 // Show empty state when no extracted info
                 Card(
                     modifier = Modifier.fillMaxWidth()
@@ -508,7 +595,7 @@ fun DocumentDetailScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Delete Document", color = Color.White)
             }
-            
+
             // Help dialog
             if (showHelpDialog) {
                 AlertDialog(
@@ -545,7 +632,7 @@ fun DocumentDetailScreen(
                     }
                 )
             }
-            
+
             if (showDeleteDialog) {
                 AlertDialog(
                     onDismissRequest = { showDeleteDialog = false },
@@ -553,7 +640,7 @@ fun DocumentDetailScreen(
                     text = { Text("Are you sure you want to permanently delete this document?") },
                     confirmButton = {
                         TextButton(onClick = {
-                            scope.launch {
+                            coroutineScope.launch {
                                 viewModel.deleteDocuments(listOf(doc.id))
                             }
                             showDeleteDialog = false
@@ -582,8 +669,12 @@ private fun ExtractedInfoItem(
 ) {
     var editedValue by remember { mutableStateOf(value) }
     val context = LocalContext.current
+
     // Keep editedValue in sync with value prop
-    LaunchedEffect(value) { if (!isEditing) editedValue = value }
+    LaunchedEffect(value) {
+        if (!isEditing) editedValue = value
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -598,9 +689,9 @@ private fun ExtractedInfoItem(
             fontWeight = FontWeight.Medium,
             modifier = Modifier.weight(1f)
         )
-        
+
         Spacer(modifier = Modifier.width(16.dp))
-        
+
         // Value and copy icon column
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -625,6 +716,7 @@ private fun ExtractedInfoItem(
                     modifier = Modifier.weight(1f)
                 )
             }
+
             // Copy icon for individual values
             IconButton(
                 onClick = {
@@ -680,9 +772,9 @@ private fun RelatedFileItem(
                 fontWeight = FontWeight.Light
             )
         }
-        
+
         IconButton(
-            onClick = { 
+            onClick = {
                 when (file) {
                     is cn.edu.sjtu.deepsleep.docusnap.data.Document -> onNavigate("document_detail?documentId=${file.id}&fromImageProcessing=false")
                     is cn.edu.sjtu.deepsleep.docusnap.data.Form -> onNavigate("form_detail?formId=${file.id}&fromImageProcessing=false")
@@ -732,4 +824,4 @@ private fun HelpItem(
             )
         }
     }
-} 
+}
