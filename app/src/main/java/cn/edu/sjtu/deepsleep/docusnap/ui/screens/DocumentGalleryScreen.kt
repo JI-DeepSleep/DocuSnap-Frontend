@@ -48,7 +48,8 @@ fun DocumentGalleryScreen(
     val context = LocalContext.current
 
     // Collect state from ViewModel
-    val documents by viewModel.documents.collectAsState()
+    val rev_documents by viewModel.documents.collectAsState()
+    val documents = remember(rev_documents) { rev_documents.reversed() }
     val isLoading by viewModel.isLoading.collectAsState()
 
     Column(
