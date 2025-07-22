@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,24 +75,41 @@ fun DocumentDetailScreen(
                     jobStatus = it.status
                     jobError = it.errorDetail
 
+                    // Sync processing state with actual job status
+                    processing = it.status == "pending" || it.status == "processing"
+
                     if (it.status == "completed" && it.result != null) {
                         try {
-                            // Decrypt result
                             val decryptedResult = jobPollingService.decryptJobResult(it.result, it)
                             decryptedResult?.let { resultJson ->
                                 val result = JSONObject(resultJson)
+
+                                // Extract ALL fields from the result
+                                val title = result.optString("title", document?.name ?: "")
+                                val tagsArray = result.optJSONArray("tags")
+                                val tags = if (tagsArray != null) {
+                                    mutableListOf<String>().apply {
+                                        for (i in 0 until tagsArray.length()) {
+                                            add(tagsArray.getString(i))
+                                        }
+                                    }
+                                } else {
+                                    document?.tags ?: emptyList()
+                                }
+                                val description = result.optString("description", document?.description ?: "")
                                 val kv = result.optJSONObject("kv") ?: JSONObject()
 
-                                // Convert to map
+                                // Convert kv to map
                                 val extractedMap = mutableMapOf<String, String>()
-                                val keys = kv.keys()
-                                while (keys.hasNext()) {
-                                    val key = keys.next()
+                                kv.keys().forEach { key ->
                                     extractedMap[key] = kv.getString(key)
                                 }
 
-                                // Update document
+                                // Update document with ALL fields
                                 document = document?.copy(
+                                    name = title,
+                                    tags = tags,
+                                    description = description,
                                     extractedInfo = extractedMap,
                                     isProcessed = true
                                 )
@@ -345,9 +363,10 @@ fun DocumentDetailScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Document Type and Tags
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 doc.tags.forEach { tag ->
                     AssistChip(

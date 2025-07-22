@@ -102,16 +102,16 @@ fun DocumentGalleryScreen(
             )
 
             // Test button for development (remove in production)
-            Button(
-                onClick = { 
-                    android.util.Log.d("DocumentGalleryScreen", "Add Test Data button clicked")
-                    Toast.makeText(context, "Adding test data...", Toast.LENGTH_SHORT).show()
-                    viewModel.addTestData() 
-                },
-                modifier = Modifier.padding(bottom = 8.dp)
-            ) {
-                Text("Add Test Data")
-            }
+//            Button(
+//                onClick = {
+//                    android.util.Log.d("DocumentGalleryScreen", "Add Test Data button clicked")
+//                    Toast.makeText(context, "Adding test data...", Toast.LENGTH_SHORT).show()
+//                    viewModel.addTestData()
+//                },
+//                modifier = Modifier.padding(bottom = 8.dp)
+//            ) {
+//                Text("Add Test Data")
+//            }
 
             // Loading indicator
             if (isLoading) {
