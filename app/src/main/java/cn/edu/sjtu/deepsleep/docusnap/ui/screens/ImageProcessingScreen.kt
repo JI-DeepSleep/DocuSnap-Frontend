@@ -38,6 +38,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.collectAsState
 import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.ImageProcessingViewModel
 import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.ImageProcessingViewModelFactory
+import cn.edu.sjtu.deepsleep.docusnap.ui.components.CornerAdjustmentOverlay
 
 
 @Composable
@@ -117,21 +118,39 @@ fun ImageProcessingScreen(
     Column(
         modifier = Modifier.fillMaxSize()
     ) {
-        // Top Bar with Done button
+        // Top Bar with Done/Apply button
         TopAppBar(
             title = { Text("Image Processing") },
             navigationIcon = {
-                IconButton(onClick = onBackClick) {
+                IconButton(onClick = {
+                    if (uiState.isCornerAdjustmentMode) {
+                        viewModel.cancelCornerAdjustment()
+                    } else {
+                        onBackClick()
+                    }
+                }) {
                     Icon(Icons.Default.ArrowBack, contentDescription = "Back")
                 }
             },
             actions = {
-                Button(
-                    onClick = { createAndNavigateToDetail() }
-                ) {
-                    Icon(Icons.Default.Check, contentDescription = null)
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Done")
+                if (uiState.isCornerAdjustmentMode) {
+                    // Show Apply button when in corner adjustment mode
+                    Button(
+                        onClick = { viewModel.applyCornerAdjustment() }
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = null)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Apply")
+                    }
+                } else {
+                    // Show Done button in normal mode
+                    Button(
+                        onClick = { createAndNavigateToDetail() }
+                    ) {
+                        Icon(Icons.Default.Check, contentDescription = null)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Done")
+                    }
                 }
             }
         )
@@ -208,6 +227,18 @@ fun ImageProcessingScreen(
                         }
                     }
                 }
+            }
+
+            // Corner Adjustment Overlay
+            if (uiState.isCornerAdjustmentMode && uiState.editingBitmap != null && uiState.adjustedCorners != null) {
+                CornerAdjustmentOverlay(
+                    bitmap = uiState.editingBitmap!!,
+                    corners = uiState.adjustedCorners!!,
+                    onCornerMoved = { cornerIndex, newPosition ->
+                        viewModel.updateCornerPosition(cornerIndex, newPosition)
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
             }
 
             // --- 4. CONNECT Navigation arrows to ViewModel functions ---

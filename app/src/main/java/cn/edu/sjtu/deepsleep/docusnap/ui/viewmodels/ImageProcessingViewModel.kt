@@ -3,6 +3,7 @@ package cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
+import android.graphics.PointF
 import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
@@ -33,7 +34,11 @@ data class ImageProcessingUiState(
     val editingBitmap: Bitmap? = null,
     val isFilterToolbarVisible: Boolean = false,
     val isPerspectiveToolbarVisible: Boolean = false,
-    val appliedFilters: Set<String> = emptySet()
+    val appliedFilters: Set<String> = emptySet(),
+    // Corner adjustment state
+    val isCornerAdjustmentMode: Boolean = false,
+    val detectedCorners: Array<PointF>? = null,
+    val adjustedCorners: Array<PointF>? = null
 )
 
 class ImageProcessingViewModel(
@@ -115,8 +120,97 @@ class ImageProcessingViewModel(
     }
 
     fun applyPerspectiveCorrectionFilter() {
-        applyFilter("Perspective Correction") { bitmap ->
-            imageProcService.correctPerspective(bitmap)
+        val currentBitmap = _uiState.value.editingBitmap
+        if (currentBitmap == null) return
+        
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                _uiState.update { it.copy(isLoading = true) }
+                
+                // First, try to detect corners automatically
+                val detectedCorners = imageProcService.findDocumentCorners(currentBitmap)
+                
+                if (detectedCorners != null) {
+                    // Show corner adjustment mode with detected corners
+                    _uiState.update { 
+                        it.copy(
+                            isLoading = false,
+                            isCornerAdjustmentMode = true,
+                            detectedCorners = detectedCorners,
+                            adjustedCorners = Array(4) { index -> 
+                                PointF(detectedCorners[index].x, detectedCorners[index].y) 
+                            } // Copy detected corners
+                        )
+                    }
+                } else {
+                    // No corners detected, apply filter directly as fallback
+                    val correctedBitmap = imageProcService.correctPerspective(currentBitmap)
+                    _uiState.update { 
+                        it.copy(
+                            isLoading = false,
+                            editingBitmap = correctedBitmap,
+                            appliedFilters = it.appliedFilters + "Perspective Correction"
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _uiState.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+    
+    fun updateCornerPosition(cornerIndex: Int, newPosition: PointF) {
+        val currentCorners = _uiState.value.adjustedCorners
+        if (currentCorners != null && cornerIndex in 0..3) {
+            val updatedCorners = Array(4) { index ->
+                if (index == cornerIndex) {
+                    PointF(newPosition.x, newPosition.y)
+                } else {
+                    PointF(currentCorners[index].x, currentCorners[index].y)
+                }
+            }
+            _uiState.update { it.copy(adjustedCorners = updatedCorners) }
+        }
+    }
+    
+    fun applyCornerAdjustment() {
+        val currentBitmap = _uiState.value.editingBitmap
+        val adjustedCorners = _uiState.value.adjustedCorners
+        
+        if (currentBitmap == null || adjustedCorners == null) return
+        
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                _uiState.update { it.copy(isLoading = true) }
+                
+                // Apply perspective correction with the user-adjusted corners
+                val correctedBitmap = imageProcService.performPerspectiveCorrectionWithCorners(currentBitmap, adjustedCorners)
+                
+                _uiState.update { 
+                    it.copy(
+                        isLoading = false,
+                        editingBitmap = correctedBitmap,
+                        appliedFilters = it.appliedFilters + "Perspective Correction",
+                        isCornerAdjustmentMode = false,
+                        detectedCorners = null,
+                        adjustedCorners = null
+                    )
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                _uiState.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+    
+    fun cancelCornerAdjustment() {
+        _uiState.update { 
+            it.copy(
+                isCornerAdjustmentMode = false,
+                detectedCorners = null,
+                adjustedCorners = null
+            )
         }
     }
     fun resetToOriginal() {
