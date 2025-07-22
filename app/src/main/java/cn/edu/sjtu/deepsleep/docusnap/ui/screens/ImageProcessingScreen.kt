@@ -31,6 +31,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.net.Uri
+import android.util.Log
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.Image
 import java.io.File
@@ -71,6 +72,7 @@ fun ImageProcessingScreen(
     }
 
     LaunchedEffect(key1 = photoUris) {
+        Log.d("ImageProcessingScreen","launching photoUris for display: $photoUris")
         imageProcessingViewModel.setInitialPhotosAndLoadFirst(photoUris)
     }
 
@@ -270,7 +272,9 @@ fun ImageProcessingScreen(
                     modifier = Modifier
                         .size(48.dp)
                         .background(
-                            if (uiState.currentImageIndex > 0) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f),
+                            if (uiState.currentImageIndex > 0) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(
+                                alpha = 0.5f
+                            ),
                             CircleShape
                         )
                 ) {
@@ -288,7 +292,9 @@ fun ImageProcessingScreen(
                     modifier = Modifier
                         .size(48.dp)
                         .background(
-                            if (uiState.currentImageIndex < uiState.originalImageUris.size - 1) Color.White.copy(alpha = 0.8f) else Color.Gray.copy(alpha = 0.5f),
+                            if (uiState.currentImageIndex < uiState.originalImageUris.size - 1) Color.White.copy(
+                                alpha = 0.8f
+                            ) else Color.Gray.copy(alpha = 0.5f),
                             CircleShape
                         )
                 ) {
