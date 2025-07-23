@@ -230,10 +230,33 @@ private fun DocumentSearchCard(
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "📄",
-                        fontSize = 24.sp
-                    )
+                    val imageBitmap = remember(document.imageBase64s) {
+                        if (document.imageBase64s.isNotEmpty()) {
+                            try {
+                                val imageBytes = Base64.decode(document.imageBase64s.first(), Base64.DEFAULT)
+                                val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                                bitmap?.asImageBitmap()
+                            } catch (e: Exception) {
+                                null
+                            }
+                        } else {
+                            null
+                        }
+                    }
+                    
+                    if (imageBitmap != null) {
+                        Image(
+                            bitmap = imageBitmap,
+                            contentDescription = "Document preview",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Text(
+                            text = "📄",
+                            fontSize = 24.sp
+                        )
+                    }
                 }
             }
             
@@ -334,10 +357,33 @@ private fun FormSearchCard(
                         .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "📋",
-                        fontSize = 24.sp
-                    )
+                    val imageBitmap = remember(form.imageBase64s) {
+                        if (form.imageBase64s.isNotEmpty()) {
+                            try {
+                                val imageBytes = Base64.decode(form.imageBase64s.first(), Base64.DEFAULT)
+                                val bitmap = BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
+                                bitmap?.asImageBitmap()
+                            } catch (e: Exception) {
+                                null
+                            }
+                        } else {
+                            null
+                        }
+                    }
+                    
+                    if (imageBitmap != null) {
+                        Image(
+                            bitmap = imageBitmap,
+                            contentDescription = "Form preview",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Text(
+                            text = "📋",
+                            fontSize = 24.sp
+                        )
+                    }
                 }
             }
             
