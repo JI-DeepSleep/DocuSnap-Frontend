@@ -29,7 +29,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "docusnap_database"
                 )
-                    .fallbackToDestructiveMigration(true)  // Drop all data when schema changes
+                    .fallbackToDestructiveMigration(false)  // Drop all data when schema changes
                     .build()
                 INSTANCE = instance
                 instance
