@@ -11,7 +11,7 @@ import cn.edu.sjtu.deepsleep.docusnap.data.model.Converters
 
 @Database(
     entities = [DocumentEntity::class, FormEntity::class, JobEntity::class],
-    version = 5  // Incremented version
+    version = 6  // Incremented version for usage tracking
 )
 @TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
@@ -52,6 +52,19 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // Migration from version 5 to 6 - Add usage tracking columns
+        private val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                // Add usage tracking columns to documents table
+                database.execSQL("ALTER TABLE documents ADD COLUMN usage_count INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE documents ADD COLUMN last_used TEXT NOT NULL DEFAULT '2024-01-15'")
+                
+                // Add usage tracking columns to forms table
+                database.execSQL("ALTER TABLE forms ADD COLUMN usage_count INTEGER NOT NULL DEFAULT 0")
+                database.execSQL("ALTER TABLE forms ADD COLUMN last_used TEXT NOT NULL DEFAULT '2024-01-15'")
+            }
+        }
+
         fun getInstance(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -59,7 +72,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "docusnap_database"
                 )
-                    .addMigrations(MIGRATION_3_4)
+                    .addMigrations(MIGRATION_3_4, MIGRATION_5_6)
                     .fallbackToDestructiveMigration()  // This will handle cases where migration fails
                     .build()
                 INSTANCE = instance

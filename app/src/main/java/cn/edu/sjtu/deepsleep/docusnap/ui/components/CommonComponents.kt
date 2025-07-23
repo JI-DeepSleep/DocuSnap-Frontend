@@ -70,6 +70,7 @@ fun SearchBar(
 fun SearchEntityCard(
     entity: SearchEntity,
     onClick: () -> Unit,
+    onCopyText: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     when (entity) {
@@ -79,6 +80,7 @@ fun SearchEntityCard(
                 srcFileId = entity.srcFileId,
                 srcFileType = entity.srcFileType,
                 onNavigate = onClick,
+                onCopyText = onCopyText,
                 modifier = modifier
             )
         }
@@ -105,6 +107,7 @@ private fun TextualInfoCard(
     srcFileId: String?,
     srcFileType: FileType? = null,
     onNavigate: () -> Unit,
+    onCopyText: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -184,6 +187,8 @@ private fun TextualInfoCard(
                         val clip = android.content.ClipData.newPlainText("Text Info", text)
                         clipboard.setPrimaryClip(clip)
                         Toast.makeText(context, "Text copied to clipboard", Toast.LENGTH_SHORT).show()
+                        // Call the update function if provided
+                        onCopyText?.invoke()
                     },
                     modifier = Modifier.size(24.dp)
                 ) {
@@ -313,9 +318,9 @@ private fun DocumentSearchCard(
                 Spacer(modifier = Modifier.height(8.dp))
                 
                 // Third line: info preview
-                document.extractedInfo.entries.take(2).forEach { (key, value) ->
+                document.extractedInfo.take(2).forEach { item ->
                     Text(
-                        text = "$key: $value",
+                        text = "${item.key}: ${item.value}",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(bottom = 2.dp)
@@ -504,7 +509,8 @@ fun TextualInfoItem(
 @Composable
 fun TextInfoItem(
     textInfo: cn.edu.sjtu.deepsleep.docusnap.data.TextInfo,
-    onNavigate: (String) -> Unit
+    onNavigate: (String) -> Unit,
+    onCopyText: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     
@@ -545,6 +551,8 @@ fun TextInfoItem(
                 val clip = android.content.ClipData.newPlainText("Text Info", "${textInfo.key}: ${textInfo.value}")
                 clipboard.setPrimaryClip(clip)
                 Toast.makeText(context, "Text copied to clipboard", Toast.LENGTH_SHORT).show()
+                // Call the update function if provided
+                onCopyText?.invoke()
             },
             modifier = Modifier.size(20.dp)
         ) {

@@ -110,7 +110,8 @@ fun DocuSnapApp() {
                     // 3. Pass the extracted query to the SearchScreen composable
                     query = query,
                     onNavigate = { route -> navController.navigate(route) },
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = { navController.popBackStack() },
+                    documentViewModel = documentViewModel
                 )
             }
             
@@ -187,6 +188,7 @@ fun DocuSnapApp() {
                     },
                     documentId = documentId,
                     fromImageProcessing = fromImageProcessing,
+                    documentViewModel = documentViewModel
                 )
             }
             
@@ -220,6 +222,7 @@ fun DocuSnapApp() {
                         }
                     },
                     formId = formId,
+                    documentViewModel = documentViewModel
                 )
             }
             

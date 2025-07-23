@@ -100,7 +100,8 @@ fun FormDetailScreen(
     onNavigate: (String) -> Unit,
     onBackClick: () -> Unit,
     formId: String? = null,
-    fromImageProcessing: Boolean = false
+    fromImageProcessing: Boolean = false,
+    documentViewModel: DocumentViewModel? = null
 ) {
     val context = LocalContext.current
     val viewModel: DocumentViewModel = viewModel(
@@ -151,9 +152,16 @@ fun FormDetailScreen(
                                 val description = result.optString("description", form?.description ?: "")
 
                                 val extractedInfoJson = result.optJSONObject("extractedInfo") ?: result.optJSONObject("kv")
-                                val extractedInfo = mutableMapOf<String, String>()
+                                val extractedInfo = mutableListOf<cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem>()
                                 extractedInfoJson?.keys()?.forEach { key ->
-                                    extractedInfo[key] = extractedInfoJson.getString(key)
+                                    extractedInfo.add(
+                                        cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem(
+                                            key = key,
+                                            value = extractedInfoJson.getString(key),
+                                            usageCount = 0,
+                                            lastUsed = System.currentTimeMillis().toString()
+                                        )
+                                    )
                                 }
 
                                 val formFieldsJson = result.optJSONArray("formFields") ?: result.optJSONArray("fields")
@@ -228,6 +236,13 @@ fun FormDetailScreen(
             onBackClick()
         }
         loading = false
+    }
+
+    // Update form usage when screen is opened
+    LaunchedEffect(form) {
+        form?.let { frm ->
+            documentViewModel?.updateFormUsage(frm.id)
+        }
     }
 
     // Save/update form on exit
@@ -674,9 +689,9 @@ fun FormDetailScreen(
                 IconButton(
                     onClick = {
                         editedFormFields = emptyList()
-                        editedExtractedInfo = emptyMap()
+                        editedExtractedInfo = emptyList()
                         persistFormUpdate(currentForm.copy(
-                            extractedInfo = emptyMap(),
+                            extractedInfo = emptyList(),
                             formFields = emptyList()
                         ))
                     },
@@ -690,7 +705,7 @@ fun FormDetailScreen(
                 IconButton(
                     onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        val extractedText = currentForm.extractedInfo.entries.joinToString("\n") { "${it.key}: ${it.value}" }
+                        val extractedText = currentForm.extractedInfo.joinToString("\n") { "${it.key}: ${it.value}" }
                         val formFieldsText = currentForm.formFields.joinToString("\n") { "${it.name}: ${it.value ?: ""}" }
                         val allText = if (extractedText.isNotEmpty() && formFieldsText.isNotEmpty()) {
                             "Extracted Information:\n$extractedText\n\nForm Fields:\n$formFieldsText"
@@ -759,16 +774,25 @@ fun FormDetailScreen(
                     Column(
                         modifier = Modifier.padding(8.dp)
                     ) {
-                        (if (isEditing) editedExtractedInfo else currentForm.extractedInfo).forEach { (key, value) ->
+                        (if (isEditing) editedExtractedInfo else currentForm.extractedInfo).forEach { item ->
                             ExtractedInfoItem(
-                                key = key,
-                                value = value,
+                                key = item.key,
+                                value = if (isEditing) editedExtractedInfo.find { it.key == item.key }?.value ?: item.value else item.value,
                                 isEditing = isEditing,
                                 onValueChange = { newValue ->
-                                    editedExtractedInfo = editedExtractedInfo.toMutableMap().apply { put(key, newValue) }
+                                    editedExtractedInfo = editedExtractedInfo.map { 
+                                        if (it.key == item.key) it.copy(value = newValue) else it 
+                                    }
+                                },
+                                onCopyText = {
+                                    documentViewModel?.updateExtractedInfoUsage(
+                                        fileId = currentForm.id,
+                                        fileType = cn.edu.sjtu.deepsleep.docusnap.data.FileType.FORM,
+                                        key = item.key
+                                    )
                                 }
                             )
-                            if (key != (if (isEditing) editedExtractedInfo else currentForm.extractedInfo).keys.last()) {
+                            if (item != (if (isEditing) editedExtractedInfo else currentForm.extractedInfo).last()) {
                                 Divider(modifier = Modifier.padding(vertical = 2.dp))
                             }
                         }
@@ -1136,7 +1160,8 @@ private fun ExtractedInfoItem(
     key: String,
     value: String,
     isEditing: Boolean,
-    onValueChange: ((String) -> Unit)? = null
+    onValueChange: ((String) -> Unit)? = null,
+    onCopyText: (() -> Unit)? = null
 ) {
     var editedValue by remember { mutableStateOf(value) }
     val context = LocalContext.current
@@ -1190,6 +1215,8 @@ private fun ExtractedInfoItem(
                     val clip = android.content.ClipData.newPlainText("Value", value)
                     clipboard.setPrimaryClip(clip)
                     Toast.makeText(context, "Value copied to clipboard", Toast.LENGTH_SHORT).show()
+                    // Call the update function if provided
+                    onCopyText?.invoke()
                 },
                 modifier = Modifier.size(32.dp)
             ) {

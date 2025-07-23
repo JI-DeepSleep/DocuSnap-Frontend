@@ -34,7 +34,4 @@ interface FormDao {
             "INSTR(LOWER(name), LOWER(:query)) > 0 OR " +
             "INSTR(LOWER(tags), LOWER(:query)) > 0")
     suspend fun searchByQuery(query: String): List<FormEntity>
-
-//    @Query("SELECT * FROM forms WHERE name LIKE '%' || :query || '%' OR description LIKE '%' || :query || '%' OR tags LIKE '%' || :query || '%'")
-//    suspend fun searchByQuery(query: String): List<FormEntity>
 }

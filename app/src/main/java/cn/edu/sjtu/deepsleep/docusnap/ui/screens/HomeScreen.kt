@@ -200,7 +200,14 @@ fun HomeScreen(
                     frequentTextInfo.forEach { textInfo ->
                         TextInfoItem(
                             textInfo = textInfo,
-                            onNavigate = onNavigate
+                            onNavigate = onNavigate,
+                            onCopyText = {
+                                documentViewModel.updateExtractedInfoUsage(
+                                    fileId = textInfo.srcFileId,
+                                    fileType = textInfo.srcFileType,
+                                    key = textInfo.key
+                                )
+                            }
                         )
                         if (textInfo != frequentTextInfo.last()) {
                             Spacer(modifier = Modifier.height(8.dp))

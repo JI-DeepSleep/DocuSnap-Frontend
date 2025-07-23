@@ -187,6 +187,91 @@ class DocumentViewModel(
         return repository.getForm(formId)
     }
     
+    // New methods for updating usage counts
+    fun updateDocumentUsage(documentId: String) {
+        viewModelScope.launch {
+            try {
+                val document = repository.getDocument(documentId)
+                document?.let { doc ->
+                    val updatedDoc = doc.copy(
+                        usageCount = doc.usageCount + 1,
+                        lastUsed = java.time.LocalDate.now().toString()
+                    )
+                    repository.updateDocument(updatedDoc)
+                    loadDocuments() // Refresh the list
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("DocumentViewModel", "Error updating document usage: ${e.message}", e)
+            }
+        }
+    }
+    
+    fun updateFormUsage(formId: String) {
+        viewModelScope.launch {
+            try {
+                val form = repository.getForm(formId)
+                form?.let { f ->
+                    val updatedForm = f.copy(
+                        usageCount = f.usageCount + 1,
+                        lastUsed = java.time.LocalDate.now().toString()
+                    )
+                    repository.updateForm(updatedForm)
+                    loadForms() // Refresh the list
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("DocumentViewModel", "Error updating form usage: ${e.message}", e)
+            }
+        }
+    }
+    
+    fun updateExtractedInfoUsage(fileId: String, fileType: cn.edu.sjtu.deepsleep.docusnap.data.FileType, key: String) {
+        viewModelScope.launch {
+            try {
+                when (fileType) {
+                    cn.edu.sjtu.deepsleep.docusnap.data.FileType.DOCUMENT -> {
+                        val document = repository.getDocument(fileId)
+                        document?.let { doc ->
+                            val updatedExtractedInfo = doc.extractedInfo.map { item ->
+                                if (item.key == key) {
+                                    item.copy(
+                                        usageCount = item.usageCount + 1,
+                                        lastUsed = java.time.LocalDate.now().toString()
+                                    )
+                                } else {
+                                    item
+                                }
+                            }
+                            val updatedDoc = doc.copy(extractedInfo = updatedExtractedInfo)
+                            repository.updateDocument(updatedDoc)
+                            loadDocuments() // Refresh the list
+                        }
+                    }
+                    cn.edu.sjtu.deepsleep.docusnap.data.FileType.FORM -> {
+                        val form = repository.getForm(fileId)
+                        form?.let { f ->
+                            val updatedExtractedInfo = f.extractedInfo.map { item ->
+                                if (item.key == key) {
+                                    item.copy(
+                                        usageCount = item.usageCount + 1,
+                                        lastUsed = java.time.LocalDate.now().toString()
+                                    )
+                                } else {
+                                    item
+                                }
+                            }
+                            val updatedForm = f.copy(extractedInfo = updatedExtractedInfo)
+                            repository.updateForm(updatedForm)
+                            loadForms() // Refresh the list
+                        }
+                    }
+                }
+                loadFrequentTextInfo() // Refresh frequent text info
+            } catch (e: Exception) {
+                android.util.Log.e("DocumentViewModel", "Error updating extracted info usage: ${e.message}", e)
+            }
+        }
+    }
+
     // Development helper: Add test data
     fun addTestData() {
         android.util.Log.d("DocumentViewModel", "addTestData called")

@@ -31,10 +31,12 @@ class DocumentRepository(
                         description = json.getString("description"),
                         // CHANGED: imageUris -> imageBase64s
                         imageBase64s = Json.decodeFromString(json.getString("imageBase64s")),
-                        extractedInfo = json.getJSONObject("extractedInfo").toMap(),
+                        extractedInfo = Json.decodeFromString(json.getString("extractedInfo")),
                         tags = Json.decodeFromString(json.getString("tags")),
                         uploadDate = json.getString("uploadDate"),
-                        relatedFileIds = Json.decodeFromString(json.getString("relatedFileIds"))
+                        relatedFileIds = Json.decodeFromString(json.getString("relatedFileIds")),
+                        usageCount = json.optInt("usageCount", 0),
+                        lastUsed = json.optString("lastUsed", json.getString("uploadDate"))
                     )
                 } catch (e: Exception) {
                     android.util.Log.e("DocumentRepository", "Error converting JSON to Document: ${e.message}", e)
@@ -58,10 +60,12 @@ class DocumentRepository(
                 description = json.getString("description"),
                 // CHANGED: imageUris -> imageBase64s
                 imageBase64s = Json.decodeFromString(json.getString("imageBase64s")),
-                extractedInfo = json.getJSONObject("extractedInfo").toMap(),
+                extractedInfo = Json.decodeFromString(json.getString("extractedInfo")),
                 tags = Json.decodeFromString(json.getString("tags")),
                 uploadDate = json.getString("uploadDate"),
-                relatedFileIds = Json.decodeFromString(json.getString("relatedFileIds"))
+                relatedFileIds = Json.decodeFromString(json.getString("relatedFileIds")),
+                usageCount = json.optInt("usageCount", 0),
+                lastUsed = json.optString("lastUsed", json.getString("uploadDate"))
             )
         } catch (e: Exception) {
             null
@@ -74,12 +78,14 @@ class DocumentRepository(
             put("description", document.description)
             // CHANGED: imageUris -> imageBase64s
             put("imageBase64s", Json.encodeToString(document.imageBase64s))
-            put("extractedInfo", JSONObject(document.extractedInfo))
+            put("extractedInfo", Json.encodeToString(document.extractedInfo))
             put("tags", Json.encodeToString(document.tags))
             put("uploadDate", document.uploadDate)
             put("relatedFileIds", Json.encodeToString(document.relatedFileIds))
             put("sha256",  "")
             put("isProcessed", document.extractedInfo.isNotEmpty())
+            put("usageCount", document.usageCount)
+            put("lastUsed", document.lastUsed)
         }
         deviceDBService.saveDocument(document.id, json)
     }
@@ -90,12 +96,14 @@ class DocumentRepository(
             put("description", document.description)
             // CHANGED: imageUris -> imageBase64s
             put("imageBase64s", Json.encodeToString(document.imageBase64s))
-            put("extractedInfo", JSONObject(document.extractedInfo))
+            put("extractedInfo", Json.encodeToString(document.extractedInfo))
             put("tags", Json.encodeToString(document.tags))
             put("uploadDate", document.uploadDate)
             put("relatedFileIds", Json.encodeToString(document.relatedFileIds))
             put("sha256",  "")
             put("isProcessed", document.extractedInfo.isNotEmpty())
+            put("usageCount", document.usageCount)
+            put("lastUsed", document.lastUsed)
         }
         deviceDBService.updateDocument(document.id, json)
     }
@@ -124,10 +132,12 @@ class DocumentRepository(
                     // CHANGED: imageUris -> imageBase64s
                     imageBase64s = Json.decodeFromString(json.getString("imageBase64s")),
                     formFields = Json.decodeFromString(json.getString("formFields")),
-                    extractedInfo = json.getJSONObject("extractedInfo").toMap(),
+                    extractedInfo = Json.decodeFromString(json.getString("extractedInfo")),
                     tags = Json.decodeFromString(json.getString("tags")),
                     uploadDate = json.getString("uploadDate"),
-                    relatedFileIds = Json.decodeFromString(json.getString("relatedFileIds"))
+                    relatedFileIds = Json.decodeFromString(json.getString("relatedFileIds")),
+                    usageCount = json.optInt("usageCount", 0),
+                    lastUsed = json.optString("lastUsed", json.getString("uploadDate"))
                 )
             } catch (e: Exception) {
                 null
@@ -145,10 +155,12 @@ class DocumentRepository(
                 // CHANGED: imageUris -> imageBase64s
                 imageBase64s = Json.decodeFromString(json.getString("imageBase64s")),
                 formFields = Json.decodeFromString(json.getString("formFields")),
-                extractedInfo = json.getJSONObject("extractedInfo").toMap(),
+                extractedInfo = Json.decodeFromString(json.getString("extractedInfo")),
                 tags = Json.decodeFromString(json.getString("tags")),
                 uploadDate = json.getString("uploadDate"),
-                relatedFileIds = Json.decodeFromString(json.getString("relatedFileIds"))
+                relatedFileIds = Json.decodeFromString(json.getString("relatedFileIds")),
+                usageCount = json.optInt("usageCount", 0),
+                lastUsed = json.optString("lastUsed", json.getString("uploadDate"))
             )
         } catch (e: Exception) {
             null
@@ -162,12 +174,14 @@ class DocumentRepository(
             // CHANGED: imageUris -> imageBase64s
             put("imageBase64s", Json.encodeToString(form.imageBase64s))
             put("formFields", Json.encodeToString(form.formFields))
-            put("extractedInfo", JSONObject(form.extractedInfo))
+            put("extractedInfo", Json.encodeToString(form.extractedInfo))
             put("tags", Json.encodeToString(form.tags))
             put("uploadDate", form.uploadDate)
             put("relatedFileIds", Json.encodeToString(form.relatedFileIds))
             put("sha256", "")
             put("isProcessed", form.extractedInfo.isNotEmpty())
+            put("usageCount", form.usageCount)
+            put("lastUsed", form.lastUsed)
         }
         deviceDBService.saveForm(form.id, json)
     }
@@ -179,12 +193,14 @@ class DocumentRepository(
             // CHANGED: imageUris -> imageBase64s
             put("imageBase64s", Json.encodeToString(form.imageBase64s))
             put("formFields", Json.encodeToString(form.formFields))
-            put("extractedInfo", JSONObject(form.extractedInfo))
+            put("extractedInfo", Json.encodeToString(form.extractedInfo))
             put("tags", Json.encodeToString(form.tags))
             put("uploadDate", form.uploadDate)
             put("relatedFileIds", Json.encodeToString(form.relatedFileIds))
             put("sha256", "")
             put("isProcessed", form.extractedInfo.isNotEmpty())
+            put("usageCount", form.usageCount)
+            put("lastUsed", form.lastUsed)
         }
         deviceDBService.updateForm(form.id, json)
     }
@@ -213,10 +229,12 @@ class DocumentRepository(
                             description = json.getString("description"),
                             // CHANGED: imageUris -> imageBase64s
                             imageBase64s = Json.decodeFromString(json.getString("imageBase64s")),
-                            extractedInfo = JSONObject(json.getString("extractedInfo")).toMap(),
+                            extractedInfo = Json.decodeFromString(json.getString("extractedInfo")),
                             tags = Json.decodeFromString(json.getString("tags")),
                             uploadDate = json.getString("uploadDate"),
-                            relatedFileIds = Json.decodeFromString(json.getString("relatedFileIds"))
+                            relatedFileIds = Json.decodeFromString(json.getString("relatedFileIds")),
+                            usageCount = json.optInt("usageCount", 0),
+                            lastUsed = json.optString("lastUsed", json.getString("uploadDate"))
                         )
                         SearchEntity.DocumentEntity(document, 10.0F)
                     }
@@ -228,10 +246,12 @@ class DocumentRepository(
                             // CHANGED: imageUris -> imageBase64s
                             imageBase64s = Json.decodeFromString(json.getString("imageBase64s")),
                             formFields = Json.decodeFromString(json.getString("formFields")),
-                            extractedInfo = JSONObject(json.getString("extractedInfo")).toMap(),
+                            extractedInfo = Json.decodeFromString(json.getString("extractedInfo")),
                             tags = Json.decodeFromString(json.getString("tags")),
                             uploadDate = json.getString("uploadDate"),
-                            relatedFileIds = Json.decodeFromString(json.getString("relatedFileIds"))
+                            relatedFileIds = Json.decodeFromString(json.getString("relatedFileIds")),
+                            usageCount = json.optInt("usageCount", 0),
+                            lastUsed = json.optString("lastUsed", json.getString("uploadDate"))
                         )
                         SearchEntity.FormEntity(form, 10.0F)
                     }
@@ -279,7 +299,7 @@ class DocumentRepository(
                 "title" to doc.name,
                 "tag" to doc.tags,
                 "description" to doc.description,
-                "kv" to doc.extractedInfo,
+                "kv" to doc.extractedInfo.associate { it.key to it.value },
                 "import date" to doc.uploadDate
             )
         }
@@ -289,7 +309,7 @@ class DocumentRepository(
                 "title" to form.name,
                 "tag" to form.tags,
                 "description" to form.description,
-                "kv" to form.extractedInfo,
+                "kv" to form.extractedInfo.associate { it.key to it.value },
                 "fields" to form.formFields,
                 "import date" to form.uploadDate
             )
@@ -311,11 +331,11 @@ class DocumentRepository(
                 description = "A test document for development (created at $timestamp)",
                 // CHANGED: imageUris -> imageBase64s
                 imageBase64s = emptyList(),
-                extractedInfo = mapOf(
-                    "Vendor" to "Test Company",
-                    "Date" to "2024-01-15",
-                    "Amount" to "$25.00",
-                    "Created" to timestamp.toString()
+                extractedInfo = listOf(
+                    cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem("Vendor", "Test Company"),
+                    cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem("Date", "2024-01-15"),
+                    cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem("Amount", "$25.00"),
+                    cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem("Created", timestamp.toString())
                 ),
                 tags = listOf("Test", "Development"),
                 uploadDate = "2024-01-15",
@@ -333,10 +353,10 @@ class DocumentRepository(
                     FormField("Email", "john@example.com", true),
                     FormField("Created", timestamp.toString(), true)
                 ),
-                extractedInfo = mapOf(
-                    "Form Type" to "Test Form",
-                    "Status" to "Completed",
-                    "Created" to timestamp.toString()
+                extractedInfo = listOf(
+                    cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem("Form Type", "Test Form"),
+                    cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem("Status", "Completed"),
+                    cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem("Created", timestamp.toString())
                 ),
                 tags = listOf("Test", "Form"),
                 uploadDate = "2024-01-15",

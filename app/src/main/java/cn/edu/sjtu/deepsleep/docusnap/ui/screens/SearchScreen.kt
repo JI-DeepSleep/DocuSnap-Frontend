@@ -29,7 +29,8 @@ import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
 fun SearchScreen(
     query: String?,
     onNavigate: (String) -> Unit,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    documentViewModel: cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
 ) {
     var searchQuery by remember { mutableStateOf(query ?: "") }
 
@@ -104,6 +105,25 @@ fun SearchScreen(
                                 is cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity.FormEntity -> {
                                     onNavigate("form_detail?formId=${entity.form.id}&fromImageProcessing=false")
                                 }
+                            }
+                        },
+                        onCopyText = {
+                            when (entity) {
+                                is cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity.TextEntity -> {
+                                    if (entity.srcFileId != null && entity.srcFileType != null) {
+                                        // Parse the text to extract key
+                                        val keyValue = entity.text.split(":", limit = 2)
+                                        val key = if (keyValue.size > 1) keyValue[0].trim() else ""
+                                        if (key.isNotEmpty()) {
+                                            documentViewModel.updateExtractedInfoUsage(
+                                                fileId = entity.srcFileId,
+                                                fileType = entity.srcFileType,
+                                                key = key
+                                            )
+                                        }
+                                    }
+                                }
+                                else -> { /* No action needed for other entity types */ }
                             }
                         }
                     )

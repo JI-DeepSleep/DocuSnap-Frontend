@@ -24,6 +24,9 @@ import org.json.JSONArray
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
 import androidx.navigation.Navigation.findNavController
+import cn.edu.sjtu.deepsleep.docusnap.data.SettingsManager
+import cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem
+import cn.edu.sjtu.deepsleep.docusnap.data.FileType
 
 class DeviceDBService(private val context: Context) {
     private val db: AppDatabase by lazy {
@@ -34,7 +37,7 @@ class DeviceDBService(private val context: Context) {
                 AppDatabase::class.java,
                 "docusnap.db"
             )
-                .fallbackToDestructiveMigration()
+                .fallbackToDestructiveMigration(true)
                 .build().also {
                     Log.d("DeviceDBService", "Room database initialized successfully")
                 }
@@ -50,19 +53,42 @@ class DeviceDBService(private val context: Context) {
     suspend fun saveDocument(documentId: String, data: JSONObject) {
         Log.d("DeviceDBService", "Saving document: $documentId")
         try {
+            // Convert extractedInfo to new format if it's still in old format
+            val extractedInfo = data.optJSONObject("extractedInfo")
+            val extractedInfoString = if (extractedInfo != null) {
+                try {
+                    // Try to parse as new format first
+                    Json.decodeFromString<List<ExtractedInfoItem>>(extractedInfo.toString())
+                    extractedInfo.toString()
+                } catch (e: Exception) {
+                    // Convert from old Map format to new List format
+                    val items = mutableListOf<ExtractedInfoItem>()
+                    extractedInfo.keys().forEach { key ->
+                        val value = extractedInfo.optString(key, "")
+                        if (value.isNotEmpty()) {
+                            items.add(ExtractedInfoItem(key = key, value = value))
+                        }
+                    }
+                    Json.encodeToString(items)
+                }
+            } else {
+                "[]"
+            }
+            
             val entity = DocumentEntity(
                 id = documentId,
                 name = data.optString("name"),
                 description = data.optString("description"),
-                // CHANGED: imageUris -> imageBase64s
                 imageBase64s = data.optString("imageBase64s", "[]"),
-                extractedInfo = data.optJSONObject("extractedInfo")?.toString() ?: "{}",
+                extractedInfo = extractedInfoString,
                 tags = data.optString("tags", "[]"),
                 uploadDate = data.optString("uploadDate"),
                 relatedFileIds = data.optString("relatedFileIds", "[]"),
                 sha256 = data.optString("sha256"),
                 isProcessed = data.optBoolean("isProcessed", false),
-                jobId = data.optLong("jobId").takeIf { it != 0L }
+                jobId = data.optLong("jobId").takeIf { it != 0L },
+                usageCount = data.optInt("usageCount", 0),
+                lastUsed = data.optString("lastUsed", data.optString("uploadDate"))
             )
             documentDao.insert(entity)
             Log.d("DeviceDBService", "Document saved successfully: $documentId")
@@ -78,15 +104,16 @@ class DeviceDBService(private val context: Context) {
             put("id", entity.id)
             put("name", entity.name)
             put("description", entity.description)
-            // CHANGED: imageUris -> imageBase64s
             put("imageBase64s", entity.imageBase64s)
-            put("extractedInfo", JSONObject(entity.extractedInfo))
+            put("extractedInfo", entity.extractedInfo)
             put("tags", entity.tags)
             put("uploadDate", entity.uploadDate)
             put("relatedFileIds", entity.relatedFileIds)
             put("sha256", entity.sha256)
             put("isProcessed", entity.isProcessed)
             put("jobId", entity.jobId ?: JSONObject.NULL)
+            put("usageCount", entity.usageCount)
+            put("lastUsed", entity.lastUsed)
         }
     }
 
@@ -95,7 +122,6 @@ class DeviceDBService(private val context: Context) {
         val updated = entity.copy(
             name = updates.optString("name", entity.name),
             description = updates.optString("description", entity.description),
-            // CHANGED: imageUris -> imageBase64s
             imageBase64s = updates.optString("imageBase64s", entity.imageBase64s),
             extractedInfo = updates.optString("extractedInfo", entity.extractedInfo),
             tags = updates.optString("tags", entity.tags),
@@ -103,7 +129,9 @@ class DeviceDBService(private val context: Context) {
             relatedFileIds = updates.optString("relatedFileIds", entity.relatedFileIds),
             sha256 = updates.optString("sha256", entity.sha256),
             isProcessed = updates.optBoolean("isProcessed", entity.isProcessed),
-            jobId = updates.optLong("jobId").takeIf { it != 0L } ?: entity.jobId
+            jobId = updates.optLong("jobId").takeIf { it != 0L } ?: entity.jobId,
+            usageCount = updates.optInt("usageCount", entity.usageCount),
+            lastUsed = updates.optString("lastUsed", entity.lastUsed)
         )
         documentDao.update(updated)
     }
@@ -210,12 +238,14 @@ class DeviceDBService(private val context: Context) {
                     put("description", entity.description)
                     // CHANGED: imageUris -> imageBase64s
                     put("imageBase64s", entity.imageBase64s)
-                    put("extractedInfo", JSONObject(entity.extractedInfo))
+                    put("extractedInfo", entity.extractedInfo)
                     put("tags", entity.tags)
                     put("uploadDate", entity.uploadDate)
                     put("relatedFileIds", entity.relatedFileIds)
                     put("sha256", entity.sha256)
                     put("isProcessed", entity.isProcessed)
+                    put("usageCount", entity.usageCount)
+                    put("lastUsed", entity.lastUsed)
                 }
             }
         } catch (e: Exception) {
@@ -228,19 +258,42 @@ class DeviceDBService(private val context: Context) {
     suspend fun saveForm(formId: String, data: JSONObject) {
         Log.d("DeviceDBService", "Saving form: $formId")
         try {
+            // Convert extractedInfo to new format if it's still in old format
+            val extractedInfo = data.optJSONObject("extractedInfo")
+            val extractedInfoString = if (extractedInfo != null) {
+                try {
+                    // Try to parse as new format first
+                    Json.decodeFromString<List<ExtractedInfoItem>>(extractedInfo.toString())
+                    extractedInfo.toString()
+                } catch (e: Exception) {
+                    // Convert from old Map format to new List format
+                    val items = mutableListOf<ExtractedInfoItem>()
+                    extractedInfo.keys().forEach { key ->
+                        val value = extractedInfo.optString(key, "")
+                        if (value.isNotEmpty()) {
+                            items.add(ExtractedInfoItem(key = key, value = value))
+                        }
+                    }
+                    Json.encodeToString(items)
+                }
+            } else {
+                "[]"
+            }
+            
             val entity = FormEntity(
                 id = formId,
                 name = data.optString("name"),
                 description = data.optString("description"),
-                // CHANGED: imageUris -> imageBase64s
                 imageBase64s = data.optString("imageBase64s", "[]"),
                 formFields = data.optString("formFields", "[]"),
-                extractedInfo = data.optString("extractedInfo", "{}"),
+                extractedInfo = extractedInfoString,
                 tags = data.optString("tags", "[]"),
                 uploadDate = data.optString("uploadDate"),
                 relatedFileIds = data.optString("relatedFileIds", "[]"),
                 sha256 = data.optString("sha256"),
-                isProcessed = data.optBoolean("isProcessed", false)
+                isProcessed = data.optBoolean("isProcessed", false),
+                usageCount = data.optInt("usageCount", 0),
+                lastUsed = data.optString("lastUsed", data.optString("uploadDate"))
             )
             formDao.insert(entity)
             Log.d("DeviceDBService", "Form saved successfully: $formId")
@@ -256,15 +309,16 @@ class DeviceDBService(private val context: Context) {
             put("id", entity.id)
             put("name", entity.name)
             put("description", entity.description)
-            // CHANGED: imageUris -> imageBase64s
             put("imageBase64s", entity.imageBase64s)
             put("formFields", entity.formFields)
-            put("extractedInfo", JSONObject(entity.extractedInfo))
+            put("extractedInfo", entity.extractedInfo)
             put("tags", entity.tags)
             put("uploadDate", entity.uploadDate)
             put("relatedFileIds", entity.relatedFileIds)
             put("sha256", entity.sha256)
             put("isProcessed", entity.isProcessed)
+            put("usageCount", entity.usageCount)
+            put("lastUsed", entity.lastUsed)
         }
     }
 
@@ -273,7 +327,6 @@ class DeviceDBService(private val context: Context) {
         val updated = entity.copy(
             name = updates.optString("name", entity.name),
             description = updates.optString("description", entity.description),
-            // CHANGED: imageUris -> imageBase64s
             imageBase64s = updates.optString("imageBase64s", entity.imageBase64s),
             formFields = updates.optString("formFields", entity.formFields),
             extractedInfo = updates.optString("extractedInfo", entity.extractedInfo),
@@ -281,7 +334,9 @@ class DeviceDBService(private val context: Context) {
             uploadDate = updates.optString("uploadDate", entity.uploadDate),
             relatedFileIds = updates.optString("relatedFileIds", entity.relatedFileIds),
             sha256 = updates.optString("sha256", entity.sha256),
-            isProcessed = updates.optBoolean("isProcessed", entity.isProcessed)
+            isProcessed = updates.optBoolean("isProcessed", entity.isProcessed),
+            usageCount = updates.optInt("usageCount", entity.usageCount),
+            lastUsed = updates.optString("lastUsed", entity.lastUsed)
         )
         formDao.update(updated)
     }
@@ -310,12 +365,14 @@ class DeviceDBService(private val context: Context) {
                 // CHANGED: imageUris -> imageBase64s
                 put("imageBase64s", entity.imageBase64s)
                 put("formFields", entity.formFields)
-                put("extractedInfo", JSONObject(entity.extractedInfo))
+                put("extractedInfo", entity.extractedInfo)
                 put("tags", entity.tags)
                 put("uploadDate", entity.uploadDate)
                 put("relatedFileIds", entity.relatedFileIds)
                 put("sha256", entity.sha256)
                 put("isProcessed", entity.isProcessed)
+                put("usageCount", entity.usageCount)
+                put("lastUsed", entity.lastUsed)
             }
         }
     }
@@ -345,7 +402,8 @@ class DeviceDBService(private val context: Context) {
                     put("name", doc.name)
                     put("description", doc.description)
                     put("extractedInfo", try {
-                        JSONObject(doc.extractedInfo)
+                        val extractedInfo = Json.decodeFromString<List<ExtractedInfoItem>>(doc.extractedInfo)
+                        JSONObject(extractedInfo.associate { it.key to it.value })
                     } catch (e: Exception) {
                         JSONObject()
                     })
@@ -360,7 +418,8 @@ class DeviceDBService(private val context: Context) {
                     put("name", form.name)
                     put("description", form.description)
                     put("extractedInfo", try {
-                        JSONObject(form.extractedInfo)
+                        val extractedInfo = Json.decodeFromString<List<ExtractedInfoItem>>(form.extractedInfo)
+                        JSONObject(extractedInfo.associate { it.key to it.value })
                     } catch (e: Exception) {
                         JSONObject()
                     })
@@ -395,7 +454,7 @@ class DeviceDBService(private val context: Context) {
                 put("description", entity.description)
                 // CHANGED: imageUris -> imageBase64s
                 put("imageBase64s", entity.imageBase64s)
-                put("extractedInfo", JSONObject(entity.extractedInfo))
+                put("extractedInfo", entity.extractedInfo)
                 put("tags", entity.tags)
                 put("uploadDate", entity.uploadDate)
                 put("relatedFileIds", entity.relatedFileIds)
@@ -413,7 +472,7 @@ class DeviceDBService(private val context: Context) {
                 // CHANGED: imageUris -> imageBase64s
                 put("imageBase64s", entity.imageBase64s)
                 put("formFields", entity.formFields)
-                put("extractedInfo", JSONObject(entity.extractedInfo))
+                put("extractedInfo", entity.extractedInfo)
                 put("tags", entity.tags)
                 put("uploadDate", entity.uploadDate)
                 put("relatedFileIds", entity.relatedFileIds)
@@ -428,27 +487,37 @@ class DeviceDBService(private val context: Context) {
         try {
             val documents = documentDao.getAll().first()
             val forms = formDao.getAll().first()
+            val settingsManager = SettingsManager(context)
+            val maxCount = settingsManager.getCurrentSettings().frequentTextInfoCount
             
             val textInfoList = mutableListOf<JSONObject>()
             
             // Process documents
             documents.forEach { docEntity ->
                 val extractedInfo = try {
-                    JSONObject(docEntity.extractedInfo)
+                    Json.decodeFromString<List<ExtractedInfoItem>>(docEntity.extractedInfo)
                 } catch (e: Exception) {
-                    JSONObject()
+                    emptyList<ExtractedInfoItem>()
                 }
                 
-                extractedInfo.keys().forEach { key ->
-                    val value = extractedInfo.optString(key, "")
-                    if (value.isNotEmpty()) {
+                extractedInfo.forEach { item ->
+                    if (item.value.isNotEmpty()) {
+                        // Calculate combined frequency score
+                        val combinedScore = calculateFrequencyScore(
+                            itemUsageCount = item.usageCount,
+                            fileUsageCount = docEntity.usageCount ?: 0,
+                            itemLastUsed = item.lastUsed,
+                            fileLastUsed = docEntity.lastUsed ?: docEntity.uploadDate
+                        )
+                        
                         textInfoList.add(JSONObject().apply {
-                            put("key", key)
-                            put("value", value)
+                            put("key", item.key)
+                            put("value", item.value)
                             put("srcFileId", docEntity.id)
                             put("srcFileType", "DOCUMENT")
-                            put("usageCount", 1) // Default usage count
-                            put("lastUsed", docEntity.uploadDate)
+                            put("usageCount", item.usageCount)
+                            put("lastUsed", item.lastUsed)
+                            put("combinedScore", combinedScore)
                         })
                     }
                 }
@@ -457,54 +526,76 @@ class DeviceDBService(private val context: Context) {
             // Process forms
             forms.forEach { formEntity ->
                 val extractedInfo = try {
-                    JSONObject(formEntity.extractedInfo)
+                    Json.decodeFromString<List<ExtractedInfoItem>>(formEntity.extractedInfo)
                 } catch (e: Exception) {
-                    JSONObject()
+                    emptyList<ExtractedInfoItem>()
                 }
                 
-                extractedInfo.keys().forEach { key ->
-                    val value = extractedInfo.optString(key, "")
-                    if (value.isNotEmpty()) {
+                extractedInfo.forEach { item ->
+                    if (item.value.isNotEmpty()) {
+                        // Calculate combined frequency score
+                        val combinedScore = calculateFrequencyScore(
+                            itemUsageCount = item.usageCount,
+                            fileUsageCount = formEntity.usageCount ?: 0,
+                            itemLastUsed = item.lastUsed,
+                            fileLastUsed = formEntity.lastUsed ?: formEntity.uploadDate
+                        )
+                        
                         textInfoList.add(JSONObject().apply {
-                            put("key", key)
-                            put("value", value)
+                            put("key", item.key)
+                            put("value", item.value)
                             put("srcFileId", formEntity.id)
                             put("srcFileType", "FORM")
-                            put("usageCount", 1) // Default usage count
-                            put("lastUsed", formEntity.uploadDate)
+                            put("usageCount", item.usageCount)
+                            put("lastUsed", item.lastUsed)
+                            put("combinedScore", combinedScore)
                         })
                     }
                 }
-                
-                // No form fields in frequently used info
-//                val formFields = try {
-//                    JSONArray(formEntity.formFields)
-//                } catch (e: Exception) {
-//                    JSONArray()
-//                }
-//
-//                for (i in 0 until formFields.length()) {
-//                    val field = formFields.getJSONObject(i)
-//                    val fieldName = field.optString("name", "")
-//                    val fieldValue = field.optString("value", "")
-//
-//                    if (fieldName.isNotEmpty() && fieldValue.isNotEmpty()) {
-//                        textInfoList.add(JSONObject().apply {
-//                            put("key", fieldName)
-//                            put("value", fieldValue)
-//                            put("srcFileId", formEntity.id)
-//                            put("usageCount", 1) // Default usage count
-//                            put("lastUsed", formEntity.uploadDate)
-//                        })
-//                    }
-//                }
             }
             
+            // Sort by combined frequency score and trim to maxCount
             return textInfoList
+                .sortedByDescending { it.getDouble("combinedScore") }
+                .take(maxCount)
+                
         } catch (e: Exception) {
             Log.e("DeviceDBService", "Error getting frequent text info: ${e.message}", e)
             return emptyList()
         }
+    }
+    
+    private fun calculateFrequencyScore(
+        itemUsageCount: Int,
+        fileUsageCount: Int,
+        itemLastUsed: String,
+        fileLastUsed: String
+    ): Double {
+        // Weight factors for different components
+        val itemWeight = 0.7 // Individual item usage has higher weight
+        val fileWeight = 0.3 // File usage has lower weight
+        val recencyWeight = 0.1 // Recency has small weight
+        
+        // Calculate recency score (days since last used, lower is better)
+        val currentDate = java.time.LocalDate.now()
+        val itemDays = try {
+            java.time.LocalDate.parse(itemLastUsed).until(currentDate).days
+        } catch (e: Exception) {
+            365 // Default to 1 year if parsing fails
+        }
+        val fileDays = try {
+            java.time.LocalDate.parse(fileLastUsed).until(currentDate).days
+        } catch (e: Exception) {
+            365 // Default to 1 year if parsing fails
+        }
+        
+        // Recency score (1.0 for today, decreasing over time)
+        val itemRecency = 1.0 / (1.0 + itemDays * 0.1)
+        val fileRecency = 1.0 / (1.0 + fileDays * 0.1)
+        
+        // Combined score
+        return (itemUsageCount * itemWeight + fileUsageCount * fileWeight) * 
+               (1.0 + recencyWeight * (itemRecency + fileRecency) / 2.0)
     }
 
     // NEW: Helper to save base64 image to gallery

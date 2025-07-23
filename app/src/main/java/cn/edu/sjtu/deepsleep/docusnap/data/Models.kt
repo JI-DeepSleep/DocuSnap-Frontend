@@ -17,19 +17,30 @@ enum class FileType {
     FORM
 }
 
+// New structure for extracted info with usage tracking
+@Serializable
+data class ExtractedInfoItem(
+    val key: String,
+    val value: String,
+    val usageCount: Int = 0,
+    val lastUsed: String = "2024-01-15"
+)
+
 @Serializable
 data class Document(
     val id: String,
     val name: String,
     val description: String,
     val imageBase64s: List<String> = emptyList(),
-    val extractedInfo: Map<String, String> = emptyMap(),
+    val extractedInfo: List<ExtractedInfoItem> = emptyList(),
     val tags: List<String> = emptyList(),
     val uploadDate: String = "2024-01-15",
     val relatedFileIds: List<String> = emptyList(),
     val sha256: String? = null,
     val isProcessed: Boolean = false,
-    val jobId: Long? = null
+    val jobId: Long? = null,
+    val usageCount: Int = 0,
+    val lastUsed: String = "2024-01-15"
 )
 
 @Serializable
@@ -39,13 +50,15 @@ data class Form(
     val description: String,
     val imageBase64s: List<String> = emptyList(),
     val formFields: List<FormField> = emptyList(),
-    val extractedInfo: Map<String, String> = emptyMap(), // Added extractedInfo to Form
-    val tags: List<String> = emptyList(), // Added tags to Form
+    val extractedInfo: List<ExtractedInfoItem> = emptyList(),
+    val tags: List<String> = emptyList(),
     val uploadDate: String = "2024-01-15",
-    val relatedFileIds: List<String> = emptyList(), // Combined relatedDocumentIds and relatedFormIds
+    val relatedFileIds: List<String> = emptyList(),
     val sha256: String? = null,
     val isProcessed: Boolean = false,
-    val jobId: Long? = null
+    val jobId: Long? = null,
+    val usageCount: Int = 0,
+    val lastUsed: String = "2024-01-15"
 )
 
 @Serializable
@@ -53,7 +66,7 @@ data class FormField(
     val name: String,
     val value: String? = null,
     val isRetrieved: Boolean = false,
-    val srcFileId: String? = null // Changed from srcDocId to srcFileId to support both docs and forms
+    val srcFileId: String? = null
 )
 
 // Unified search entity that can represent text, document, or form
@@ -62,8 +75,8 @@ sealed class SearchEntity {
     @Serializable
     data class TextEntity(
         val text: String,
-        val srcFileId: String? = null, // Changed from sourceDocument to srcFileId
-        val srcFileType: FileType? = null, // Added to support navigation without MockData
+        val srcFileId: String? = null,
+        val srcFileType: FileType? = null,
         val relevanceScore: Float = 0.0f
     ) : SearchEntity()
 
@@ -80,18 +93,13 @@ sealed class SearchEntity {
     ) : SearchEntity()
 }
 
-@Serializable
-data class SearchResult(
-    val entities: List<SearchEntity> = emptyList()
-)
-
 // Data class for frequently used text info extracted from documents and forms
 @Serializable
 data class TextInfo(
-    val key: String, // The key/label of the information
-    val value: String, // The actual value extracted from the document or form
-    val srcFileId: String, // Changed from sourceDocumentId to srcFileId to support both docs and forms
-    val srcFileType: FileType, // Type of the source file (document or form)
-    val usageCount: Int = 0, // How frequently this text is used/searched
-    val lastUsed: String = "2024-01-15" // Last time this text was accessed
+    val key: String,
+    val value: String,
+    val srcFileId: String,
+    val srcFileType: FileType,
+    val usageCount: Int = 0,
+    val lastUsed: String = "2024-01-15"
 )

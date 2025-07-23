@@ -20,13 +20,15 @@ k283Kg0K58mydhIQ9tYtPsAfVWlfnIHqozpN/hvIqQRms28t/MpVrjH3U5HwXffC
 0QIDAQAB
 -----END PUBLIC KEY-----
 """
+    const val DEFAULT_FREQUENT_TEXT_INFO_COUNT = 10
 }
 
 data class AppSettings(
     val pinProtectionEnabled: Boolean = false,
     val pin: String = "",
     val backendUrl: String = AppConstants.DEFAULT_BACKEND_URL,
-    val backendPublicKey: String = AppConstants.DEFAULT_BACKEND_PUBLIC_KEY
+    val backendPublicKey: String = AppConstants.DEFAULT_BACKEND_PUBLIC_KEY,
+    val frequentTextInfoCount: Int = AppConstants.DEFAULT_FREQUENT_TEXT_INFO_COUNT
 )
 
 class SettingsManager(private val context: Context) {
@@ -40,7 +42,8 @@ class SettingsManager(private val context: Context) {
             pinProtectionEnabled = sharedPreferences.getBoolean("pin_protection_enabled", false),
             pin = sharedPreferences.getString("pin", "") ?: "",
             backendUrl = sharedPreferences.getString("backend_url", AppConstants.DEFAULT_BACKEND_URL) ?: AppConstants.DEFAULT_BACKEND_URL,
-            backendPublicKey = sharedPreferences.getString("backend_public_key", AppConstants.DEFAULT_BACKEND_PUBLIC_KEY) ?: AppConstants.DEFAULT_BACKEND_PUBLIC_KEY
+            backendPublicKey = sharedPreferences.getString("backend_public_key", AppConstants.DEFAULT_BACKEND_PUBLIC_KEY) ?: AppConstants.DEFAULT_BACKEND_PUBLIC_KEY,
+            frequentTextInfoCount = sharedPreferences.getInt("frequent_text_info_count", AppConstants.DEFAULT_FREQUENT_TEXT_INFO_COUNT)
         )
     }
     
@@ -50,6 +53,7 @@ class SettingsManager(private val context: Context) {
             putString("pin", settings.pin)
             putString("backend_url", settings.backendUrl)
             putString("backend_public_key", settings.backendPublicKey)
+            putInt("frequent_text_info_count", settings.frequentTextInfoCount)
         }.apply()
         _settings.value = settings
     }
@@ -66,6 +70,12 @@ class SettingsManager(private val context: Context) {
     suspend fun updateBackendUrl(url: String) {
         val currentSettings = _settings.value
         val newSettings = currentSettings.copy(backendUrl = url)
+        updateSettings(newSettings)
+    }
+    
+    suspend fun updateFrequentTextInfoCount(count: Int) {
+        val currentSettings = _settings.value
+        val newSettings = currentSettings.copy(frequentTextInfoCount = count)
         updateSettings(newSettings)
     }
     

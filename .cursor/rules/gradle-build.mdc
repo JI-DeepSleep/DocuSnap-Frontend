@@ -1,0 +1,4 @@
+---
+alwaysApply: true
+---
+Always run `./gradlew build` to make sure the project compiles successfully after your modification.

@@ -99,7 +99,8 @@ fun DocumentDetailScreen(
     onNavigate: (String) -> Unit,
     onBackClick: () -> Unit,
     documentId: String? = null,
-    fromImageProcessing: Boolean = false
+    fromImageProcessing: Boolean = false,
+    documentViewModel: DocumentViewModel? = null
 ) {
     val context = LocalContext.current
     val viewModel: DocumentViewModel = viewModel(
@@ -152,10 +153,17 @@ fun DocumentDetailScreen(
                                 val description = result.optString("description", document?.description ?: "")
                                 val kv = result.optJSONObject("kv") ?: JSONObject()
 
-                                // Convert kv to map
-                                val extractedMap = mutableMapOf<String, String>()
+                                // Convert kv to list of ExtractedInfoItem
+                                val extractedInfoList = mutableListOf<cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem>()
                                 kv.keys().forEach { key ->
-                                    extractedMap[key] = kv.getString(key)
+                                    extractedInfoList.add(
+                                        cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem(
+                                            key = key,
+                                            value = kv.getString(key),
+                                            usageCount = 0,
+                                            lastUsed = System.currentTimeMillis().toString()
+                                        )
+                                    )
                                 }
 
                                 // Handle related files
@@ -177,7 +185,7 @@ fun DocumentDetailScreen(
                                     name = title,
                                     tags = tags,
                                     description = description,
-                                    extractedInfo = extractedMap,
+                                    extractedInfo = extractedInfoList,
                                     isProcessed = true,
                                     relatedFileIds = relatedIds // Also update the relatedFileIds
                                 )
@@ -221,6 +229,13 @@ fun DocumentDetailScreen(
         loading = false
     }
 
+    // Update document usage when screen is opened
+    LaunchedEffect(document) {
+        document?.let { doc ->
+            documentViewModel?.updateDocumentUsage(doc.id)
+        }
+    }
+
     // Save/update document on exit
     DisposableEffect(document, fromImageProcessing) {
         onDispose {
@@ -261,11 +276,11 @@ fun DocumentDetailScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
 
-    // For editing, keep a separate map to hold edits until saved
-    var editedExtractedInfo by remember { mutableStateOf(doc.extractedInfo.toMap()) }
+    // For editing, keep a separate list to hold edits until saved
+    var editedExtractedInfo by remember { mutableStateOf(doc.extractedInfo) }
 
     // Helper to persist extractedInfo changes to DB
-    fun persistExtractedInfoUpdate(newExtractedInfo: Map<String, String>) {
+    fun persistExtractedInfoUpdate(newExtractedInfo: List<cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem>) {
         document = document?.copy(extractedInfo = newExtractedInfo)
         document?.let { updatedDoc ->
             coroutineScope.launch { viewModel.updateDocument(updatedDoc) }
@@ -288,7 +303,7 @@ fun DocumentDetailScreen(
 
     fun copyAllExtractedInfo() {
         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-        val text = doc.extractedInfo.entries.joinToString("\n") { "${it.key}: ${it.value}" }
+        val text = doc.extractedInfo.joinToString("\n") { "${it.key}: ${it.value}" }
         val clip = android.content.ClipData.newPlainText("Extracted Information", text)
         clipboard.setPrimaryClip(clip)
         Toast.makeText(context, "All information copied to clipboard", Toast.LENGTH_SHORT).show()
@@ -549,7 +564,7 @@ fun DocumentDetailScreen(
                             persistExtractedInfoUpdate(editedExtractedInfo)
                         } else {
                             // Entering edit mode, copy current extractedInfo
-                            editedExtractedInfo = doc.extractedInfo.toMap()
+                            editedExtractedInfo = doc.extractedInfo
                         }
                         isEditing = !isEditing
                     },
@@ -565,8 +580,8 @@ fun DocumentDetailScreen(
                 // Clear button
                 IconButton(
                     onClick = {
-                        editedExtractedInfo = emptyMap()
-                        persistExtractedInfoUpdate(emptyMap())
+                        editedExtractedInfo = emptyList()
+                        persistExtractedInfoUpdate(emptyList())
                     },
                     enabled = doc.extractedInfo.isNotEmpty() && !processing,
                     modifier = Modifier.weight(1f)
@@ -621,16 +636,25 @@ fun DocumentDetailScreen(
                     Column(
                         modifier = Modifier.padding(8.dp)
                     ) {
-                        (if (isEditing) editedExtractedInfo else doc.extractedInfo).forEach { (key, value) ->
+                        (if (isEditing) editedExtractedInfo else doc.extractedInfo).forEach { item ->
                             ExtractedInfoItem(
-                                key = key,
-                                value = if (isEditing) editedExtractedInfo[key] ?: value else value,
+                                key = item.key,
+                                value = if (isEditing) editedExtractedInfo.find { it.key == item.key }?.value ?: item.value else item.value,
                                 isEditing = isEditing,
                                 onValueChange = { newValue ->
-                                    editedExtractedInfo = editedExtractedInfo.toMutableMap().apply { put(key, newValue) }
+                                    editedExtractedInfo = editedExtractedInfo.map { 
+                                        if (it.key == item.key) it.copy(value = newValue) else it 
+                                    }
+                                },
+                                onCopyText = {
+                                    documentViewModel?.updateExtractedInfoUsage(
+                                        fileId = doc.id,
+                                        fileType = cn.edu.sjtu.deepsleep.docusnap.data.FileType.DOCUMENT,
+                                        key = item.key
+                                    )
                                 }
                             )
-                            if (key != doc.extractedInfo.keys.last()) {
+                            if (item != (if (isEditing) editedExtractedInfo else doc.extractedInfo).last()) {
                                 Divider(modifier = Modifier.padding(vertical = 2.dp))
                             }
                         }
@@ -796,7 +820,8 @@ private fun ExtractedInfoItem(
     key: String,
     value: String,
     isEditing: Boolean,
-    onValueChange: ((String) -> Unit)? = null
+    onValueChange: ((String) -> Unit)? = null,
+    onCopyText: (() -> Unit)? = null
 ) {
     var editedValue by remember { mutableStateOf(value) }
     val context = LocalContext.current
@@ -855,6 +880,8 @@ private fun ExtractedInfoItem(
                     val clip = android.content.ClipData.newPlainText("Value", value)
                     clipboard.setPrimaryClip(clip)
                     Toast.makeText(context, "Value copied to clipboard", Toast.LENGTH_SHORT).show()
+                    // Call the update function if provided
+                    onCopyText?.invoke()
                 },
                 modifier = Modifier.size(32.dp)
             ) {

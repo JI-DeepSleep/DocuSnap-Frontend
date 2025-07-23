@@ -120,7 +120,7 @@ fun ImageProcessingScreen(
                         name = "New Document ${System.currentTimeMillis()}",
                         description = "A new document created by user",
                         imageBase64s = base64Images,
-                        extractedInfo = emptyMap(),
+                        extractedInfo = emptyList(),
                         tags = listOf("New", "Document"),
                         uploadDate = currentDate
                     )
@@ -138,7 +138,7 @@ fun ImageProcessingScreen(
                         description = "A new form uploaded by user",
                         imageBase64s = base64Images,
                         formFields = emptyList(),
-                        extractedInfo = emptyMap(),
+                        extractedInfo = emptyList(),
                         uploadDate = currentDate
                     )
                     // Save the form to the database

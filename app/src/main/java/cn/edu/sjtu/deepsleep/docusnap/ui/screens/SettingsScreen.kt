@@ -37,6 +37,7 @@ fun SettingsScreen(
     var confirmPin by remember { mutableStateOf("") }
     var backendUrl by remember { mutableStateOf(AppConstants.DEFAULT_BACKEND_URL) }
     var backendPublicKey by remember { mutableStateOf(AppConstants.DEFAULT_BACKEND_PUBLIC_KEY) }
+    var frequentTextInfoCount by remember { mutableStateOf(AppConstants.DEFAULT_FREQUENT_TEXT_INFO_COUNT.toString()) }
     var showPinDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
     var showSaveSuccess by remember { mutableStateOf(false) }
@@ -49,6 +50,7 @@ fun SettingsScreen(
             confirmPin = settings.pin
             backendUrl = settings.backendUrl
             backendPublicKey = settings.backendPublicKey
+            frequentTextInfoCount = settings.frequentTextInfoCount.toString()
         }
     }
 
@@ -212,6 +214,43 @@ fun SettingsScreen(
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // Frequent Text Info Count Section
+        Card(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp)
+            ) {
+                Text(
+                    text = "Frequent Text Info",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Text(
+                    text = "Number of frequently used text items to show on home page",
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                
+                OutlinedTextField(
+                    value = frequentTextInfoCount,
+                    onValueChange = { 
+                        // Only allow numeric input
+                        if (it.isEmpty() || it.toIntOrNull() != null) {
+                            frequentTextInfoCount = it
+                        }
+                    },
+                    label = { Text("Count (1-50)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
         // Save Button
         Button(
             onClick = { 
@@ -220,7 +259,8 @@ fun SettingsScreen(
                         pinProtectionEnabled = pinProtectionEnabled,
                         pin = if (pinProtectionEnabled) pin else "",
                         backendUrl = backendUrl,
-                        backendPublicKey = backendPublicKey
+                        backendPublicKey = backendPublicKey,
+                        frequentTextInfoCount = frequentTextInfoCount.toIntOrNull() ?: AppConstants.DEFAULT_FREQUENT_TEXT_INFO_COUNT
                     )
                     settingsManager.updateSettings(newSettings)
                     showSaveSuccess = true

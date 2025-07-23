@@ -17,7 +17,11 @@ data class DocumentEntity(
     val sha256: String? = null,
     val isProcessed: Boolean = false,
     @ColumnInfo(name = "job_id")
-    val jobId: Long? = null
+    val jobId: Long? = null,
+    @ColumnInfo(name = "usage_count")
+    val usageCount: Int = 0,
+    @ColumnInfo(name = "last_used")
+    val lastUsed: String = "2024-01-15"
 )
 
 @Entity(tableName = "forms")
@@ -34,5 +38,9 @@ data class FormEntity(
     val sha256: String? = null,
     val isProcessed: Boolean = false,
     @ColumnInfo(name = "job_id")
-    val jobId: Long? = null
+    val jobId: Long? = null,
+    @ColumnInfo(name = "usage_count")
+    val usageCount: Int = 0,
+    @ColumnInfo(name = "last_used")
+    val lastUsed: String = "2024-01-15"
 )
