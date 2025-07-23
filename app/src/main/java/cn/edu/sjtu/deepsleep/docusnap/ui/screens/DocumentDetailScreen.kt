@@ -269,7 +269,7 @@ fun DocumentDetailScreen(
                 null
             }
         }.also {
-            Log.e(TAG, "Decoded ${it.size} bitmaps from document ${doc.id}")
+            Log.d(TAG, "Decoded ${it.size} bitmaps from document ${doc.id}")
         }
     }
     var isEditing by remember { mutableStateOf(false) }
