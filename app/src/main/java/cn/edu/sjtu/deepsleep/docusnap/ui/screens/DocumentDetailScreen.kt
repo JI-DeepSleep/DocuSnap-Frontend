@@ -175,19 +175,27 @@ fun DocumentDetailScreen(
         }
     }
 
-    // Load document from DB with retry mechanism
+    // Load document from DB with retry mechanism and 3-second timeout
     LaunchedEffect(documentId) {
         loading = true
         if (documentId != null) {
-            while (true) {
+            val startTime = System.currentTimeMillis()
+            val timeout = 3000L // 3 seconds timeout
+
+            while (System.currentTimeMillis() - startTime < timeout) {
                 val loadedDoc = viewModel.getDocument(documentId)
                 if (loadedDoc != null) {
                     document = loadedDoc
                     loading = false
-                    break
+                    return@LaunchedEffect
                 }
                 delay(200) // Wait 200ms before retrying
             }
+
+            // If we get here, the timeout was reached without finding the document
+            Toast.makeText(context, "File Not Found", Toast.LENGTH_SHORT).show()
+            delay(1000) // Show the toast for 1 second
+            onBackClick() // Navigate back
         }
         loading = false
     }
