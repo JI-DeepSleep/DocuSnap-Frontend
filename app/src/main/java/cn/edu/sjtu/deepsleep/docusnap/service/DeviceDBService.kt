@@ -425,7 +425,84 @@ class DeviceDBService(private val context: Context) {
     }
 
     suspend fun getFrequentTextInfo(): List<JSONObject> {
-        return emptyList()
+        try {
+            val documents = documentDao.getAll().first()
+            val forms = formDao.getAll().first()
+            
+            val textInfoList = mutableListOf<JSONObject>()
+            
+            // Process documents
+            documents.forEach { docEntity ->
+                val extractedInfo = try {
+                    JSONObject(docEntity.extractedInfo)
+                } catch (e: Exception) {
+                    JSONObject()
+                }
+                
+                extractedInfo.keys().forEach { key ->
+                    val value = extractedInfo.optString(key, "")
+                    if (value.isNotEmpty()) {
+                        textInfoList.add(JSONObject().apply {
+                            put("key", key)
+                            put("value", value)
+                            put("srcFileId", docEntity.id)
+                            put("usageCount", 1) // Default usage count
+                            put("lastUsed", docEntity.uploadDate)
+                        })
+                    }
+                }
+            }
+            
+            // Process forms
+            forms.forEach { formEntity ->
+                val extractedInfo = try {
+                    JSONObject(formEntity.extractedInfo)
+                } catch (e: Exception) {
+                    JSONObject()
+                }
+                
+                extractedInfo.keys().forEach { key ->
+                    val value = extractedInfo.optString(key, "")
+                    if (value.isNotEmpty()) {
+                        textInfoList.add(JSONObject().apply {
+                            put("key", key)
+                            put("value", value)
+                            put("srcFileId", formEntity.id)
+                            put("usageCount", 1) // Default usage count
+                            put("lastUsed", formEntity.uploadDate)
+                        })
+                    }
+                }
+                
+                // No form fields in frequently used info
+//                val formFields = try {
+//                    JSONArray(formEntity.formFields)
+//                } catch (e: Exception) {
+//                    JSONArray()
+//                }
+//
+//                for (i in 0 until formFields.length()) {
+//                    val field = formFields.getJSONObject(i)
+//                    val fieldName = field.optString("name", "")
+//                    val fieldValue = field.optString("value", "")
+//
+//                    if (fieldName.isNotEmpty() && fieldValue.isNotEmpty()) {
+//                        textInfoList.add(JSONObject().apply {
+//                            put("key", fieldName)
+//                            put("value", fieldValue)
+//                            put("srcFileId", formEntity.id)
+//                            put("usageCount", 1) // Default usage count
+//                            put("lastUsed", formEntity.uploadDate)
+//                        })
+//                    }
+//                }
+            }
+            
+            return textInfoList
+        } catch (e: Exception) {
+            Log.e("DeviceDBService", "Error getting frequent text info: ${e.message}", e)
+            return emptyList()
+        }
     }
 
     // NEW: Helper to save base64 image to gallery

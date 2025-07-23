@@ -529,13 +529,9 @@ fun TextInfoItem(
         IconButton(
             onClick = { 
                 // Navigate to source file (document or form)
-                when {
-                    MockData.mockDocuments.any { it.id == textInfo.srcFileId } -> 
-                        onNavigate("document_detail?documentId=${textInfo.srcFileId}&fromImageProcessing=false")
-                    MockData.mockForms.any { it.id == textInfo.srcFileId } -> 
-                        onNavigate("form_detail?formId=${textInfo.srcFileId}&fromImageProcessing=false")
-                    else -> onNavigate("document_detail?fromImageProcessing=false")
-                }
+                // For now, we'll navigate to document detail as default
+                // In a real implementation, you might want to check the actual file type
+                onNavigate("document_detail?documentId=${textInfo.srcFileId}&fromImageProcessing=false")
             },
             modifier = Modifier.size(20.dp)
         ) {

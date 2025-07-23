@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
@@ -15,17 +16,18 @@ import androidx.compose.ui.unit.sp
 import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.TextInfoItem
-import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 import cn.edu.sjtu.deepsleep.docusnap.navigation.Screen
+import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
 
 @Composable
 fun HomeScreen(
-    onNavigate: (String) -> Unit
+    onNavigate: (String) -> Unit,
+    documentViewModel: DocumentViewModel
 ) {
     var searchQuery by remember { mutableStateOf("") }
     
-    // TODO: DeviceDBService.getFrequentTextInfo()
-    val textInfoByCategory = remember { MockData.getFrequentTextInfo() }
+    // Get real text info from ViewModel
+    val frequentTextInfo by documentViewModel.frequentTextInfo.collectAsState()
 
     Column(
         modifier = Modifier
@@ -181,14 +183,32 @@ fun HomeScreen(
 
         // Frequently Used Text Info Section
         Text(
-            text = "Frequently Used Text Info",
+            text = "Extracted Text Info",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 12.dp)
         )
         
-        // Dynamically display text info grouped by category
-        textInfoByCategory.forEach { (category, textInfoList) ->
+        // Display all text info as a simple list
+        if (frequentTextInfo.isNotEmpty()) {
+            Card(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    frequentTextInfo.forEach { textInfo ->
+                        TextInfoItem(
+                            textInfo = textInfo,
+                            onNavigate = onNavigate
+                        )
+                        if (textInfo != frequentTextInfo.last()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                    }
+                }
+            }
+        } else {
             Card(
                 modifier = Modifier.fillMaxWidth()
             ) {
@@ -196,20 +216,12 @@ fun HomeScreen(
                     modifier = Modifier.padding(16.dp)
                 ) {
                     Text(
-                        text = category,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
+                        text = "No extracted text info available yet. Upload documents or forms to see extracted information here.",
+                        fontSize = 14.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    textInfoList.forEach { textInfo ->
-                        TextInfoItem(
-                            textInfo = textInfo,
-                            onNavigate = onNavigate
-                        )
-                    }
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
         }
     }
 } 

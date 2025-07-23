@@ -89,7 +89,6 @@ data class SearchResult(
 data class TextInfo(
     val key: String, // The key/label of the information
     val value: String, // The actual value extracted from the document or form
-    val category: String, // e.g., "Recent Expenses", "Important Contacts", "Travel Information"
     val srcFileId: String, // Changed from sourceDocumentId to srcFileId to support both docs and forms
     val usageCount: Int = 0, // How frequently this text is used/searched
     val lastUsed: String = "2024-01-15" // Last time this text was accessed

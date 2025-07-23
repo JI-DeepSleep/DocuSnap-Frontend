@@ -251,7 +251,6 @@ class DocumentRepository(
                 TextInfo(
                     key = json.getString("key"),
                     value = json.getString("value"),
-                    category = json.getString("category"),
                     srcFileId = json.getString("srcFileId"),
                     usageCount = json.getInt("usageCount"),
                     lastUsed = json.getString("lastUsed")

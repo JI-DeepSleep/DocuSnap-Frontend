@@ -21,11 +21,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import cn.edu.sjtu.deepsleep.docusnap.data.SettingsManager
+import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
 import cn.edu.sjtu.deepsleep.docusnap.navigation.Screen
 import cn.edu.sjtu.deepsleep.docusnap.service.JobPollingService
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.BottomNavigation
 import cn.edu.sjtu.deepsleep.docusnap.ui.screens.*
 import cn.edu.sjtu.deepsleep.docusnap.ui.theme.DocuSnapTheme
+import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,6 +47,10 @@ fun DocuSnapApp() {
     val context = LocalContext.current
     val settingsManager = remember { SettingsManager(context) }
     val jobPollingService = remember { JobPollingService(context) }
+    
+    // Create DocumentViewModel
+    val documentRepository = remember { AppModule.provideDocumentRepository(context) }
+    val documentViewModel = remember { DocumentViewModel(documentRepository) }
     
     var pinProtectionEnabled by remember { mutableStateOf(false) }
     var isPinVerified by remember { mutableStateOf(false) }
@@ -83,7 +89,8 @@ fun DocuSnapApp() {
         ) {
             composable(Screen.Home.route) {
                 HomeScreen(
-                    onNavigate = { route -> navController.navigate(route) }
+                    onNavigate = { route -> navController.navigate(route) },
+                    documentViewModel = documentViewModel
                 )
             }
 
