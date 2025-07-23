@@ -2,6 +2,7 @@ package cn.edu.sjtu.deepsleep.docusnap.ui.components
 
 import android.graphics.Bitmap
 import android.graphics.PointF
+import android.util.Log
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -40,6 +41,16 @@ fun CornerAdjustmentOverlay(
 ) {
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     val density = LocalDensity.current
+    
+    // Local state for immediate visual updates
+    var displayCorners by remember(corners) { 
+        mutableStateOf(corners.map { PointF(it.x, it.y) }.toTypedArray()) 
+    }
+    
+    // Sync display corners with prop changes
+    LaunchedEffect(corners) {
+        displayCorners = corners.map { PointF(it.x, it.y) }.toTypedArray()
+    }
     
     // Calculate scaling factor to fit bitmap in canvas
     val scale = remember(bitmap, canvasSize) {
@@ -87,43 +98,69 @@ fun CornerAdjustmentOverlay(
                 .onGloballyPositioned { coordinates ->
                     canvasSize = coordinates.size
                 }
-                .pointerInput(corners, scale, offset) {
+                .pointerInput(Unit) {
                     var draggedCornerIndex = -1
                     
                     detectDragGestures(
                         onDragStart = { startOffset ->
-                            // Find the closest corner to the touch point
+                            Log.d("CornerAdjustment", "Touch detected at: ${startOffset.x}, ${startOffset.y}")
+                            Log.d("CornerAdjustment", "Scale: $scale, Offset: ${offset.x}, ${offset.y}")
+                            
+                            // Find the closest corner to the touch point using display corners
                             var closestCornerIndex = -1
                             var minDistance = Float.MAX_VALUE
                             
-                            corners.forEachIndexed { index, corner ->
-                                val cornerOffset = imageToCanvas(corner)
+                            displayCorners.forEachIndexed { index, corner ->
+                                val cornerCanvasX = offset.x + corner.x * scale
+                                val cornerCanvasY = offset.y + corner.y * scale
                                 val distance = sqrt(
-                                    (startOffset.x - cornerOffset.x) * (startOffset.x - cornerOffset.x) +
-                                    (startOffset.y - cornerOffset.y) * (startOffset.y - cornerOffset.y)
+                                    (startOffset.x - cornerCanvasX) * (startOffset.x - cornerCanvasX) +
+                                    (startOffset.y - cornerCanvasY) * (startOffset.y - cornerCanvasY)
                                 )
-                                if (distance < minDistance && distance < 80f) { // Increased touch radius
+                                Log.d("CornerAdjustment", "Corner $index: image(${corner.x}, ${corner.y}) -> canvas($cornerCanvasX, $cornerCanvasY), distance: $distance")
+                                
+                                if (distance < minDistance && distance < 100f) { // Larger touch radius
                                     minDistance = distance
                                     closestCornerIndex = index
                                 }
                             }
+                            
                             draggedCornerIndex = closestCornerIndex
+                            Log.d("CornerAdjustment", "Selected corner: $draggedCornerIndex (min distance: $minDistance)")
                         },
                         onDrag = { change, _ ->
                             if (draggedCornerIndex != -1) {
-                                // Use the absolute position instead of change
-                                val newImagePosition = canvasToImage(change.position)
+                                Log.d("CornerAdjustment", "Dragging corner $draggedCornerIndex to: ${change.position.x}, ${change.position.y}")
+                                
+                                // Convert canvas position to image coordinates
+                                val imageX = (change.position.x - offset.x) / scale
+                                val imageY = (change.position.y - offset.y) / scale
+                                
                                 // Clamp to image bounds
-                                val clampedPosition = PointF(
-                                    newImagePosition.x.coerceIn(0f, bitmap.width.toFloat()),
-                                    newImagePosition.y.coerceIn(0f, bitmap.height.toFloat())
-                                )
-                                onCornerMoved(draggedCornerIndex, clampedPosition)
+                                val clampedX = imageX.coerceIn(0f, bitmap.width.toFloat())
+                                val clampedY = imageY.coerceIn(0f, bitmap.height.toFloat())
+                                
+                                Log.d("CornerAdjustment", "New image coordinates: ($clampedX, $clampedY)")
+                                
+                                // Update display corners immediately for smooth visual feedback
+                                // Create new array to trigger recomposition
+                                displayCorners = displayCorners.mapIndexed { index, corner ->
+                                    if (index == draggedCornerIndex) {
+                                        PointF(clampedX, clampedY)
+                                    } else {
+                                        PointF(corner.x, corner.y)
+                                    }
+                                }.toTypedArray()
+                                
+                                // Also update the ViewModel
+                                onCornerMoved(draggedCornerIndex, PointF(clampedX, clampedY))
+                                
                                 // Consume the change to prevent scrolling
                                 change.consume()
                             }
                         },
                         onDragEnd = {
+                            Log.d("CornerAdjustment", "Drag ended for corner: $draggedCornerIndex")
                             draggedCornerIndex = -1
                         }
                     )
@@ -142,11 +179,11 @@ fun CornerAdjustmentOverlay(
                     )
                 )
                 
-                // Draw quadrilateral overlay
-                drawQuadrilateral(corners, scale, offset)
+                // Draw quadrilateral overlay using display corners
+                drawQuadrilateral(displayCorners, scale, offset)
                 
-                // Draw corner handles
-                drawCornerHandles(corners, scale, offset)
+                // Draw corner handles using display corners
+                drawCornerHandles(displayCorners, scale, offset)
             }
         }
     }

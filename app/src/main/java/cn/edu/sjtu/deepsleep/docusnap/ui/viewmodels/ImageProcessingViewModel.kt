@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import kotlin.math.abs
 import java.io.FileOutputStream
 import android.util.Log
 import kotlinx.coroutines.Job
@@ -159,17 +160,14 @@ class ImageProcessingViewModel(
         }
     }
     
-    fun updateCornerPosition(cornerIndex: Int, newPosition: PointF) {
-        val currentCorners = _uiState.value.adjustedCorners
-        if (currentCorners != null && cornerIndex in 0..3) {
-            val updatedCorners = Array(4) { index ->
-                if (index == cornerIndex) {
-                    PointF(newPosition.x, newPosition.y)
-                } else {
-                    PointF(currentCorners[index].x, currentCorners[index].y)
-                }
-            }
-            _uiState.update { it.copy(adjustedCorners = updatedCorners) }
+        fun updateCornerPosition(cornerIndex: Int, newPosition: PointF) {
+        val currentCorners = _uiState.value.adjustedCorners ?: return
+        
+        // Reuse existing PointF objects where possible
+        currentCorners[cornerIndex].set(newPosition.x, newPosition.y)
+        
+        _uiState.update { 
+            it.copy(adjustedCorners = currentCorners) 
         }
     }
     
