@@ -40,8 +40,54 @@ import org.json.JSONObject
 import android.util.Log
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.gestures.*
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntSize
+import kotlin.math.max
+import kotlin.math.min
 
 private const val TAG = "DocumentDetailScreen"
+
+@Composable
+fun ZoomableImage(
+    bitmap: android.graphics.Bitmap,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Fit
+) {
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    var size by remember { mutableStateOf(IntSize.Zero) }
+    
+    val state = rememberTransformableState { zoomChange, offsetChange, _ ->
+        scale = (scale * zoomChange).coerceIn(0.5f..3f)
+        offset += offsetChange
+    }
+    
+    Box(
+        modifier = modifier
+            .onSizeChanged { size = it }
+            .transformable(state = state)
+    ) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = contentDescription,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer(
+                    scaleX = scale,
+                    scaleY = scale,
+                    translationX = offset.x,
+                    translationY = offset.y
+                ),
+            contentScale = contentScale
+        )
+    }
+}
 
 @Composable
 fun DocumentDetailScreen(
@@ -273,12 +319,12 @@ fun DocumentDetailScreen(
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         )
 
-                        // Current image
-                        Image(
-                            bitmap = imagesToShow[currentImageIndex].asImageBitmap(),
+                        // Current image with zoom functionality
+                        ZoomableImage(
+                            bitmap = imagesToShow[currentImageIndex],
                             contentDescription = "Document image ${currentImageIndex + 1}",
                             modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
+                            contentScale = ContentScale.Fit
                         )
 
                         // Navigation arrows

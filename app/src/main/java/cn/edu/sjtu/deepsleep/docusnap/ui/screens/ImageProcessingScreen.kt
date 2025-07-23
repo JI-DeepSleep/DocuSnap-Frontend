@@ -356,7 +356,7 @@ fun ImageProcessingScreen(
 //                                text = "Rotate 90°",
 //                                icon = Icons.Default.RotateRight,
 //                                onClick = {
-//                                    viewModel.applyRotation(90)
+//                                    imageProcessingViewModel.applyRotation(90)
 //                                },
 //                                isSelected = false,
 //                                enabled = true
@@ -451,8 +451,7 @@ fun ImageProcessingScreen(
                             onClick = {
                                 imageProcessingViewModel.applyAutoFilter()
                             },
-                            isSelected = uiState.appliedFilter == "Auto",
-                            enabled = uiState.appliedFilter != "Auto"
+                            isSelected = uiState.appliedFilter == "Auto"
                         )
                     }
                     item {
