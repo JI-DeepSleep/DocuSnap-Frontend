@@ -121,6 +121,7 @@ fun JobStatusScreen(
                             val testImages = listOf(testBase64Image)
                             val job = jobPollingService.createJob(
                                 type = "doc",
+                                id="0",
                                 payload = testImages
                             )
                             println("Created test job with ID: ${job.id}")
@@ -145,6 +146,7 @@ fun JobStatusScreen(
                             )
                             val job = jobPollingService.createJob(
                                 type = "invalid_type",
+                                id="0",
                                 payload = invalidPayload
                             )
                             println("Created invalid test job with ID: ${job.id}")

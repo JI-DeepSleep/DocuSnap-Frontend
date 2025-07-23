@@ -1,5 +1,6 @@
 package cn.edu.sjtu.deepsleep.docusnap.ui.screens
 
+import android.content.Context
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
@@ -33,6 +34,7 @@ import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModelFactory
 import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
 import cn.edu.sjtu.deepsleep.docusnap.service.JobPollingService
 import cn.edu.sjtu.deepsleep.docusnap.data.local.AppDatabase
+import cn.edu.sjtu.deepsleep.docusnap.util.FileUtils
 import android.util.Base64
 import cn.edu.sjtu.deepsleep.docusnap.data.local.JobEntity
 import kotlinx.coroutines.flow.collectLatest
@@ -47,8 +49,12 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
+import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlin.math.max
 import kotlin.math.min
+import kotlinx.coroutines.launch
 
 private const val TAG = "DocumentDetailScreen"
 
@@ -62,12 +68,12 @@ fun ZoomableImage(
     var scale by remember { mutableStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
     var size by remember { mutableStateOf(IntSize.Zero) }
-    
+
     val state = rememberTransformableState { zoomChange, offsetChange, _ ->
         scale = (scale * zoomChange).coerceIn(0.5f..3f)
         offset += offsetChange
     }
-    
+
     Box(
         modifier = modifier
             .onSizeChanged { size = it }
@@ -102,6 +108,7 @@ fun DocumentDetailScreen(
     )
     val jobPollingService = remember { JobPollingService(context) }
     val database = remember { AppDatabase.getInstance(context) }
+    val deviceDBService = remember { DeviceDBService(context) }
     val jobDao = remember { database.jobDao() }
     val coroutineScope = rememberCoroutineScope()
 
@@ -152,13 +159,28 @@ fun DocumentDetailScreen(
                                     extractedMap[key] = kv.getString(key)
                                 }
 
+                                // Handle related files
+                                val relatedArray = result.optJSONArray("related")
+                                val relatedIds = mutableListOf<String>()
+                                if (relatedArray != null) {
+                                    for (i in 0 until relatedArray.length()) {
+                                        val relatedObj = relatedArray.getJSONObject(i)
+                                        val resourceId = relatedObj.getString("resource_id")
+                                        relatedIds.add(resourceId)
+                                        // Add to both sides of relationship
+                                        withContext(Dispatchers.IO) {
+                                            deviceDBService.addRelatedFile(document?.id ?: "", resourceId)
+                                        }
+                                    }
+                                }
                                 // Update document with ALL fields
                                 document = document?.copy(
                                     name = title,
                                     tags = tags,
                                     description = description,
                                     extractedInfo = extractedMap,
-                                    isProcessed = true
+                                    isProcessed = true,
+                                    relatedFileIds = relatedIds // Also update the relatedFileIds
                                 )
 
                                 // Save to DB
@@ -251,10 +273,19 @@ fun DocumentDetailScreen(
         }
     }
 
-    // Get related files using MockData helper functions
-    val relatedFiles = remember(doc) {
-        MockData.getRelatedFiles(doc.id)
+    // Related Files Section
+    var relatedFiles by remember { mutableStateOf<List<Pair<String, String?>>>(emptyList()) }
+    LaunchedEffect(doc.relatedFileIds) {
+        val files = mutableListOf<Pair<String, String?>>()
+        doc.relatedFileIds.forEach { id ->
+            val name = withContext(Dispatchers.IO) {
+                FileUtils.getFileNameById(context, id) // Now FileUtils is available
+            }
+            files.add(Pair(id, name))
+        }
+        relatedFiles = files
     }
+
 
     fun copyAllExtractedInfo() {
         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
@@ -485,6 +516,7 @@ fun DocumentDetailScreen(
                                     // Create processing job
                                     val job = jobPollingService.createJob(
                                         type = "doc",
+                                        id=doc.id,
                                         payload = base64Images
                                     )
 
@@ -562,17 +594,17 @@ fun DocumentDetailScreen(
             }
 
             // Show processing message if processing
-            if (processing) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Processing document...", fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
+//            if (processing) {
+//                Box(
+//                    modifier = Modifier
+//                        .fillMaxWidth()
+//                        .height(60.dp),
+//                    contentAlignment = Alignment.Center
+//                ) {
+//                    Text("Processing document...", fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
+//                }
+//                Spacer(modifier = Modifier.height(8.dp))
+//            }
 
             // Extracted Information Section
             Text(
@@ -643,13 +675,31 @@ fun DocumentDetailScreen(
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    relatedFiles.forEach { relatedFile ->
-                        RelatedFileItem(
-                            file = relatedFile,
-                            onNavigate = onNavigate
+                    // In the Related Files Section of DocumentDetailScreen
+                    if (relatedFiles.isEmpty()) {
+                        Text(
+                            "No related files found",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        if (relatedFile != relatedFiles.last()) {
-                            Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    } else {
+                        relatedFiles.forEachIndexed { index, (id, name) ->
+                            if (name != null) { // Only show files with known names
+                                RelatedFileItem(
+                                    id = id,
+                                    name = name,
+                                    onNavigate = { fileId ->
+                                        FileUtils.navigateToFileDetail(context, onNavigate, fileId)
+                                    }
+                                )
+                                // Only add divider if:
+                                // 1. Not the last item AND
+                                // 2. The next item is not null
+                                if (index < relatedFiles.lastIndex &&
+                                    relatedFiles[index + 1].second != null) {
+                                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                                }
+                            }
                         }
                     }
                 }
@@ -822,9 +872,20 @@ private fun ExtractedInfoItem(
 
 @Composable
 private fun RelatedFileItem(
-    file: Any,
-    onNavigate: (String) -> Unit
+    id: String,
+    name: String?,
+    onNavigate: suspend (String) -> Unit
 ) {
+    if (name == null) return // Skip rendering if name is null
+
+    val context = LocalContext.current
+    var uploadTime by remember { mutableStateOf("Loading...") }
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(id) {
+        uploadTime = FileUtils.getFormattedTimeForFile(context, id)
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -836,33 +897,21 @@ private fun RelatedFileItem(
             modifier = Modifier.weight(1f)
         ) {
             Text(
-                text = when (file) {
-                    is cn.edu.sjtu.deepsleep.docusnap.data.Document -> file.name
-                    is cn.edu.sjtu.deepsleep.docusnap.data.Form -> file.name
-                    else -> "Unknown file"
-                },
+                text = name,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
             Text(
-                text = when (file) {
-                    is cn.edu.sjtu.deepsleep.docusnap.data.Document -> file.uploadDate
-                    is cn.edu.sjtu.deepsleep.docusnap.data.Form -> file.uploadDate
-                    else -> ""
-                },
+                text = "Uploaded: $uploadTime",
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Light
             )
         }
-
-        IconButton(
-            onClick = {
-                when (file) {
-                    is cn.edu.sjtu.deepsleep.docusnap.data.Document -> onNavigate("document_detail?documentId=${file.id}&fromImageProcessing=false")
-                    is cn.edu.sjtu.deepsleep.docusnap.data.Form -> onNavigate("form_detail?formId=${file.id}&fromImageProcessing=false")
-                }
+        IconButton(onClick = {
+            coroutineScope.launch {
+                onNavigate(id)
             }
-        ) {
+        }) {
             Icon(
                 Icons.Default.Link,
                 contentDescription = "Open file",

@@ -19,8 +19,11 @@ import android.provider.MediaStore
 import android.content.ContentValues
 import android.util.Base64
 import android.util.Log
+import android.widget.Toast
+import org.json.JSONArray
 import java.io.ByteArrayOutputStream
 import java.io.OutputStream
+import androidx.navigation.Navigation.findNavController
 
 class DeviceDBService(private val context: Context) {
     private val db: AppDatabase by lazy {
@@ -113,6 +116,81 @@ class DeviceDBService(private val context: Context) {
             base64Images.forEach { base64 ->
                 saveBase64ToGallery(base64)
             }
+        }
+    }
+
+    // Add to DeviceDBService.kt
+    suspend fun getFileNameById(id: String): String? {
+        return documentDao.getById(id)?.name ?: formDao.getById(id)?.name
+    }
+
+    suspend fun getFileUploadTimeById(id: String): String? {
+        return try {
+            // First try to get from documents
+            documentDao.getById(id)?.uploadDate ?:
+            // If not found in documents, try forms
+            formDao.getById(id)?.uploadDate
+        } catch (e: Exception) {
+            Log.e("DeviceDBService", "Error getting upload date for file $id", e)
+            null
+        }
+    }
+
+    suspend fun getFileTypeById(id: String): String? {
+        return when {
+            documentDao.getById(id) != null -> "doc"
+            formDao.getById(id) != null -> "form"
+            else -> null
+        }
+    }
+
+    suspend fun addRelatedFile(sourceId: String, targetId: String) {
+        try {
+            // Add to source document
+            documentDao.getById(sourceId)?.let { docEntity ->
+                val relatedIds = Json.decodeFromString<List<String>>(docEntity.relatedFileIds)
+                if (!relatedIds.contains(targetId)) {
+                    val updatedIds = relatedIds + targetId
+                    documentDao.update(docEntity.copy(
+                        relatedFileIds = Json.encodeToString(updatedIds)
+                    ))
+                }
+            }
+
+            // Add to source form
+            formDao.getById(sourceId)?.let { formEntity ->
+                val relatedIds = Json.decodeFromString<List<String>>(formEntity.relatedFileIds)
+                if (!relatedIds.contains(targetId)) {
+                    val updatedIds = relatedIds + targetId
+                    formDao.update(formEntity.copy(
+                        relatedFileIds = Json.encodeToString(updatedIds)
+                    ))
+                }
+            }
+
+            // Add to target document
+            documentDao.getById(targetId)?.let { docEntity ->
+                val relatedIds = Json.decodeFromString<List<String>>(docEntity.relatedFileIds)
+                if (!relatedIds.contains(sourceId)) {
+                    val updatedIds = relatedIds + sourceId
+                    documentDao.update(docEntity.copy(
+                        relatedFileIds = Json.encodeToString(updatedIds)
+                    ))
+                }
+            }
+
+            // Add to target form
+            formDao.getById(targetId)?.let { formEntity ->
+                val relatedIds = Json.decodeFromString<List<String>>(formEntity.relatedFileIds)
+                if (!relatedIds.contains(sourceId)) {
+                    val updatedIds = relatedIds + sourceId
+                    formDao.update(formEntity.copy(
+                        relatedFileIds = Json.encodeToString(updatedIds)
+                    ))
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("DeviceDBService", "Error adding related file", e)
         }
     }
 
@@ -239,6 +317,68 @@ class DeviceDBService(private val context: Context) {
                 put("sha256", entity.sha256)
                 put("isProcessed", entity.isProcessed)
             }
+        }
+    }
+
+
+    suspend fun exportDatabaseToJson(excludeType: String, excludeId: String): String {
+        Log.d("DeviceDBService", "Exporting database to JSON. Exclude type: $excludeType, exclude id: $excludeId")
+        try {
+            val allDocuments = documentDao.getAll().first()
+            val allForms = formDao.getAll().first()
+
+            val filteredDocuments = if (excludeType == "doc" && excludeId.isNotEmpty()) {
+                allDocuments.filter { it.id != excludeId }
+            } else {
+                allDocuments
+            }
+
+            val filteredForms = if (excludeType == "form" && excludeId.isNotEmpty()) {
+                allForms.filter { it.id != excludeId }
+            } else {
+                allForms
+            }
+
+            val docList = filteredDocuments.map { doc ->
+                JSONObject().apply {
+                    put("id", doc.id)
+                    put("name", doc.name)
+                    put("description", doc.description)
+                    put("extractedInfo", try {
+                        JSONObject(doc.extractedInfo)
+                    } catch (e: Exception) {
+                        JSONObject()
+                    })
+                    put("tags", doc.tags)
+                    put("uploadDate", doc.uploadDate)
+                }
+            }
+
+            val formList = filteredForms.map { form ->
+                JSONObject().apply {
+                    put("id", form.id)
+                    put("name", form.name)
+                    put("description", form.description)
+                    put("extractedInfo", try {
+                        JSONObject(form.extractedInfo)
+                    } catch (e: Exception) {
+                        JSONObject()
+                    })
+                    put("formFields", form.formFields)
+                    put("tags", form.tags)
+                    put("uploadDate", form.uploadDate)
+                }
+            }
+
+            val result = JSONObject().apply {
+                put("doc", JSONArray(docList))
+                put("form", JSONArray(formList))
+            }
+
+            return result.toString()
+        } catch (e: Exception) {
+            Log.e("DeviceDBService", "Error exporting database to JSON: ${e.message}", e)
+            throw e
         }
     }
 

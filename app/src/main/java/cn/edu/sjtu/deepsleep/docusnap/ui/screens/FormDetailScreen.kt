@@ -416,6 +416,8 @@ fun FormDetailScreen(
                                     // Create processing job
                                     val job = jobPollingService.createJob(
                                         type = "form",
+                                        //TODO: ERROR! this should be changed to real form id!!!!!
+                                        id="0",
                                         payload = base64Images
                                     )
 

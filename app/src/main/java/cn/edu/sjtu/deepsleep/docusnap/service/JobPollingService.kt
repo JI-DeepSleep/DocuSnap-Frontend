@@ -12,6 +12,7 @@ import cn.edu.sjtu.deepsleep.docusnap.data.SettingsManager
 import cn.edu.sjtu.deepsleep.docusnap.util.CryptoUtil
 import kotlinx.coroutines.flow.first
 import android.util.Base64
+import org.json.JSONArray
 import javax.crypto.KeyGenerator
 
 class JobPollingService(private val context: Context) {
@@ -291,37 +292,50 @@ class JobPollingService(private val context: Context) {
 
     suspend fun createJob(
         type: String,
+        id: String,
         payload: Any,
         hasContent: Boolean = true
     ): JobEntity {
         try {
-            // Create the inner payload structure
+            // Create inner payload structure
             val innerPayload = mutableMapOf<String, Any>(
                 "to_process" to payload
             )
-            // Always include file_lib, default to empty arrays
-            innerPayload["file_lib"] = mapOf(
-                "docs" to emptyList<Any>(),
-                "forms" to emptyList<Any>()
+
+            // Get file_lib data (all documents/forms except specified exclusion)
+            val deviceDBService = DeviceDBService(context)
+            val dbJsonString = deviceDBService.exportDatabaseToJson(
+                excludeType = type,
+                excludeId = id
             )
-            val innerJson = org.json.JSONObject(innerPayload as Map<*, *>?).toString()
+            val dbJson = JSONObject(dbJsonString)
+
+            // Convert to required format: "docs" and "forms" arrays
+            val fileLib = JSONObject().apply {
+                put("docs", dbJson.optJSONArray("doc") ?: JSONArray())
+                put("forms", dbJson.optJSONArray("form") ?: JSONArray())
+            }
+            innerPayload["file_lib"] = fileLib
+
+            // Convert to JSON string for encryption
+            val innerJson = JSONObject(innerPayload as Map<*, *>).toString()
 
             // Generate encryption keys
             val keyGenerator = KeyGenerator.getInstance("AES")
-            keyGenerator.init(256) // 256-bit AES key
+            keyGenerator.init(256)
             val secretKey = keyGenerator.generateKey()
             val aesKeyBytes = secretKey.encoded
-
             val encryptedContent = CryptoUtil.aesEncrypt(innerJson.toByteArray(), aesKeyBytes)
             val sha256 = CryptoUtil.computeSHA256(encryptedContent)
 
-            // Use the default public key from settings
+            // Encrypt AES key with backend public key
             val settingsManager = SettingsManager(context)
             val publicKeyPem = settingsManager.settings.first().backendPublicKey
             val publicKey = CryptoUtil.getPublicKey(publicKeyPem)
             val encryptedAesKey = CryptoUtil.rsaEncrypt(aesKeyBytes, publicKey)
             val encryptedAesKeyBase64 = Base64.encodeToString(encryptedAesKey, Base64.NO_WRAP)
 
+            // Create job entity
             val job = JobEntity(
                 clientId = clientId,
                 type = type,
@@ -331,6 +345,8 @@ class JobPollingService(private val context: Context) {
                 aesKey = encryptedAesKeyBase64,
                 plainAesKey = Base64.encodeToString(aesKeyBytes, Base64.NO_WRAP)
             )
+
+            // Insert job into database
             val jobId = jobDao.insertJob(job)
             Log.d(TAG, "Created job with ID: $jobId, SHA256: $sha256")
             return job.copy(id = jobId)
