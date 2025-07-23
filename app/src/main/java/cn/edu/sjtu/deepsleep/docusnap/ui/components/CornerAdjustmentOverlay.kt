@@ -52,17 +52,31 @@ fun CornerAdjustmentOverlay(
         displayCorners = corners.map { PointF(it.x, it.y) }.toTypedArray()
     }
     
-    // Calculate scaling factor to fit bitmap in canvas
+    // Calculate scaling factor to fit bitmap in canvas with padding
+    // NOTE: This is DISPLAY-ONLY scaling - the original bitmap is never modified
+    // Recalculates whenever canvasSize changes (e.g., when toolbars appear/disappear)
     val scale = remember(bitmap, canvasSize) {
         if (canvasSize.width > 0 && canvasSize.height > 0) {
-            minOf(
-                canvasSize.width.toFloat() / bitmap.width,
-                canvasSize.height.toFloat() / bitmap.height
-            )
+            // Add some padding (e.g., 20dp on each side)
+            val paddingPx = with(density) { 20.dp.toPx() }
+            val availableWidth = canvasSize.width - (paddingPx * 2)
+            val availableHeight = canvasSize.height - (paddingPx * 2)
+            
+            // Calculate scale to fit within available space (for display only)
+            val calculatedScale = minOf(
+                availableWidth / bitmap.width,
+                availableHeight / bitmap.height
+            ).coerceAtMost(1f) // Never scale up, only scale down for display
+            
+            Log.d("CornerAdjustment", "Window size changed - Canvas: ${canvasSize.width}x${canvasSize.height}, Bitmap: ${bitmap.width}x${bitmap.height}")
+            Log.d("CornerAdjustment", "Available: ${availableWidth}x${availableHeight}, New Scale: $calculatedScale")
+            Log.d("CornerAdjustment", "Scaled size: ${bitmap.width * calculatedScale}x${bitmap.height * calculatedScale}")
+            
+            calculatedScale
         } else 1f
     }
     
-    // Calculate offset to center the scaled bitmap
+    // Calculate offset to center the scaled bitmap (display positioning only)
     val offset = remember(bitmap, canvasSize, scale) {
         if (canvasSize.width > 0 && canvasSize.height > 0) {
             val scaledWidth = bitmap.width * scale
@@ -74,7 +88,7 @@ fun CornerAdjustmentOverlay(
         } else Offset.Zero
     }
     
-    // Convert image coordinates to canvas coordinates
+    // Convert image coordinates to canvas coordinates (for display positioning)
     fun imageToCanvas(point: PointF): Offset {
         return Offset(
             x = offset.x + point.x * scale,
@@ -82,7 +96,7 @@ fun CornerAdjustmentOverlay(
         )
     }
     
-    // Convert canvas coordinates to image coordinates
+    // Convert canvas coordinates to image coordinates (preserves original image coordinates)
     fun canvasToImage(canvasOffset: Offset): PointF {
         return PointF(
             (canvasOffset.x - offset.x) / scale,
@@ -166,17 +180,19 @@ fun CornerAdjustmentOverlay(
                     )
                 }
         ) {
-            // Draw the bitmap
+            // Draw the bitmap (display-only scaling - original bitmap unchanged)
             if (canvasSize.width > 0 && canvasSize.height > 0) {
+                val scaledWidth = (bitmap.width * scale).toInt()
+                val scaledHeight = (bitmap.height * scale).toInt()
+                
+                // Render bitmap scaled to fit within preview window
+                // The original bitmap data remains unmodified
                 drawImage(
                     image = bitmap.asImageBitmap(),
                     srcOffset = IntOffset.Zero,
-                    srcSize = IntSize(bitmap.width, bitmap.height),
+                    srcSize = IntSize(bitmap.width, bitmap.height), // Original size
                     dstOffset = IntOffset(offset.x.toInt(), offset.y.toInt()),
-                    dstSize = IntSize(
-                        (bitmap.width * scale).toInt(),
-                        (bitmap.height * scale).toInt()
-                    )
+                    dstSize = IntSize(scaledWidth, scaledHeight) // Scaled for display only
                 )
                 
                 // Draw quadrilateral overlay using display corners

@@ -243,17 +243,31 @@ fun ImageProcessingScreen(
                         )
                     }
                     // Priority 2: If we have a live preview Bitmap, display it.
-                    else if (uiState.editingBitmap != null) {
+                    // Hide regular image when corner adjustment is active to prevent overlap
+                    else if (uiState.editingBitmap != null && !uiState.isCornerAdjustmentMode) {
                         uiState.editingBitmap?.let { bitmapToShow ->
-                            Image(
-                                bitmap = bitmapToShow.asImageBitmap(),
-                                contentDescription = "Editing Image",
+                            // Use Box to ensure proper sizing and prevent overflow
+                            Box(
                                 modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Fit // Changed from Crop to Fit to show entire image
-                            )
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Image(
+                                    bitmap = bitmapToShow.asImageBitmap(),
+                                    contentDescription = "Editing Image",
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .padding(20.dp), // Add padding to prevent edge overflow
+                                    contentScale = ContentScale.Fit // Ensures image fits within bounds
+                                )
+                            }
                         }
                     }
-                    // Priority 3: If there is no image at all, show a placeholder.
+                    // Priority 3: If in corner adjustment mode, show placeholder since regular image is hidden
+                    else if (uiState.isCornerAdjustmentMode && uiState.editingBitmap != null) {
+                        // Just show empty space - CornerAdjustmentOverlay will handle the image display
+                        Box(modifier = Modifier.fillMaxSize())
+                    }
+                    // Priority 4: If there is no image at all, show a placeholder.
                     else {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally
