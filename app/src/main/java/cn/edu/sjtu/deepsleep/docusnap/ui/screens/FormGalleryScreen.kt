@@ -26,7 +26,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
 import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
 import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModelFactory
-import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.DocumentCard
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.FormCard
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar

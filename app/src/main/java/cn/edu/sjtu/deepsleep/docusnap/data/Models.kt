@@ -63,6 +63,7 @@ sealed class SearchEntity {
     data class TextEntity(
         val text: String,
         val srcFileId: String? = null, // Changed from sourceDocument to srcFileId
+        val srcFileType: FileType? = null, // Added to support navigation without MockData
         val relevanceScore: Float = 0.0f
     ) : SearchEntity()
 

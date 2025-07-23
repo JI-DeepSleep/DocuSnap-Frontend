@@ -12,7 +12,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
-import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchEntityCard
 import androidx.compose.runtime.LaunchedEffect
@@ -21,6 +20,7 @@ import androidx.compose.runtime.LaunchedEffect
  import androidx.compose.ui.platform.LocalContext
 import androidx.room.Room
 import cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity
+import cn.edu.sjtu.deepsleep.docusnap.data.FileType
 import cn.edu.sjtu.deepsleep.docusnap.data.local.AppDatabase
 import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
 
@@ -33,7 +33,6 @@ fun SearchScreen(
 ) {
     var searchQuery by remember { mutableStateOf(query ?: "") }
 
-    // MINIMAL CHANGE 1: Replace MockData with a real, mutable state list.
     var searchResults by remember { mutableStateOf<List<SearchEntity>>(emptyList()) }
     val context = LocalContext.current
     val documentRepository = remember { AppModule.provideDocumentRepository(context) }
@@ -90,17 +89,10 @@ fun SearchScreen(
                         onClick = {
                             when (entity) {
                                 is cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity.TextEntity -> {
-                                    // This part is unchanged.
-                                    // NOTE: It still depends on MockData and may not work as expected.
-                                    // This can be addressed in a future task.
-                                    if (entity.srcFileId != null) {
-                                        val sourceDoc = MockData.mockDocuments.find { it.id == entity.srcFileId }
-                                        val sourceForm = MockData.mockForms.find { it.id == entity.srcFileId }
-
-                                        when {
-                                            sourceDoc != null -> onNavigate("document_detail?documentId=${sourceDoc.id}&fromImageProcessing=false")
-                                            sourceForm != null -> onNavigate("form_detail?formId=${sourceForm.id}&fromImageProcessing=false")
-                                            else -> onNavigate("document_detail?fromImageProcessing=false")
+                                    if (entity.srcFileId != null && entity.srcFileType != null) {
+                                        when (entity.srcFileType) {
+                                            FileType.DOCUMENT -> onNavigate("document_detail?documentId=${entity.srcFileId}&fromImageProcessing=false")
+                                            FileType.FORM -> onNavigate("form_detail?formId=${entity.srcFileId}&fromImageProcessing=false")
                                         }
                                     } else {
                                         onNavigate("document_detail?fromImageProcessing=false")

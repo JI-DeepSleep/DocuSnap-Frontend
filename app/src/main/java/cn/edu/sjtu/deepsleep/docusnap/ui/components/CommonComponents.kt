@@ -24,7 +24,6 @@ import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import cn.edu.sjtu.deepsleep.docusnap.data.Document
-import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 
 @Composable
 fun SearchBar(
@@ -78,6 +77,7 @@ fun SearchEntityCard(
             TextualInfoCard(
                 text = entity.text,
                 srcFileId = entity.srcFileId,
+                srcFileType = entity.srcFileType,
                 onNavigate = onClick,
                 modifier = modifier
             )
@@ -103,6 +103,7 @@ fun SearchEntityCard(
 private fun TextualInfoCard(
     text: String,
     srcFileId: String?,
+    srcFileType: FileType? = null,
     onNavigate: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -113,10 +114,12 @@ private fun TextualInfoCard(
     val key = if (keyValue.size > 1) keyValue[0].trim() else ""
     val value = if (keyValue.size > 1) keyValue[1].trim() else text
     
-    // Get source file info
-    val sourceDoc = if (srcFileId != null) MockData.mockDocuments.find { it.id == srcFileId } else null
-    val sourceForm = if (srcFileId != null) MockData.mockForms.find { it.id == srcFileId } else null
-    val sourceName = sourceDoc?.name ?: sourceForm?.name
+    // Get source file info - simplified since we don't have MockData
+    val sourceName = when (srcFileType) {
+        FileType.DOCUMENT -> "Document"
+        FileType.FORM -> "Form"
+        null -> null
+    }
     
     Card(
         modifier = modifier.fillMaxWidth(),

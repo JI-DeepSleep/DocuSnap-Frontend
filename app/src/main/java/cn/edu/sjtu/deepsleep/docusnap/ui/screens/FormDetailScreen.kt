@@ -36,7 +36,6 @@ import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.viewmodel.compose.viewModel
 import cn.edu.sjtu.deepsleep.docusnap.data.Form
 import cn.edu.sjtu.deepsleep.docusnap.data.FormField
-import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 import cn.edu.sjtu.deepsleep.docusnap.data.local.AppDatabase
 import cn.edu.sjtu.deepsleep.docusnap.data.local.JobEntity
 import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
