@@ -1,11 +1,20 @@
 package cn.edu.sjtu.deepsleep.docusnap.ui.screens
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.util.Base64
+import android.util.Log
+import android.widget.Toast
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -13,31 +22,79 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cn.edu.sjtu.deepsleep.docusnap.data.MockData
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
-import android.widget.Toast
-import coil.compose.AsyncImage
-import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.viewmodel.compose.viewModel
+import cn.edu.sjtu.deepsleep.docusnap.data.Form
+import cn.edu.sjtu.deepsleep.docusnap.data.FormField
+import cn.edu.sjtu.deepsleep.docusnap.data.MockData
+import cn.edu.sjtu.deepsleep.docusnap.data.local.AppDatabase
+import cn.edu.sjtu.deepsleep.docusnap.data.local.JobEntity
+import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
+import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
+import cn.edu.sjtu.deepsleep.docusnap.service.JobPollingService
 import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
 import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModelFactory
-import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
-import cn.edu.sjtu.deepsleep.docusnap.service.JobPollingService
-import cn.edu.sjtu.deepsleep.docusnap.data.local.AppDatabase
-import android.util.Base64
-import cn.edu.sjtu.deepsleep.docusnap.data.local.JobEntity
+import cn.edu.sjtu.deepsleep.docusnap.util.FileUtils
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
-import org.json.JSONObject
-import android.util.Log
-import cn.edu.sjtu.deepsleep.docusnap.data.FormField
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import org.json.JSONObject
+import java.util.*
+import kotlin.math.max
+import kotlin.math.min
+
+private const val TAG = "FormDetailScreen"
+
+@Composable
+private fun ZoomableImage(
+    bitmap: Bitmap,
+    contentDescription: String?,
+    modifier: Modifier = Modifier,
+    contentScale: ContentScale = ContentScale.Fit
+) {
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(Offset.Zero) }
+    var size by remember { mutableStateOf(IntSize.Zero) }
+    val state = rememberTransformableState { zoomChange, offsetChange, _ ->
+        scale = (scale * zoomChange).coerceIn(0.5f..3f)
+        offset += offsetChange
+    }
+
+    Box(
+        modifier = modifier
+            .onSizeChanged { size = it }
+            .transformable(state = state)
+    ) {
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = contentDescription,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer(
+                    scaleX = scale,
+                    scaleY = scale,
+                    translationX = offset.x,
+                    translationY = offset.y
+                ),
+            contentScale = contentScale
+        )
+    }
+}
 
 @Composable
 fun FormDetailScreen(
@@ -51,16 +108,18 @@ fun FormDetailScreen(
         factory = DocumentViewModelFactory(AppModule.provideDocumentRepository(context))
     )
     val jobPollingService = remember { JobPollingService(context) }
+    val deviceDBService = remember { DeviceDBService(context) }
     val database = remember { AppDatabase.getInstance(context) }
     val jobDao = remember { database.jobDao() }
     val coroutineScope = rememberCoroutineScope()
 
     // State for loaded form
-    var form by remember { mutableStateOf<cn.edu.sjtu.deepsleep.docusnap.data.Form?>(null) }
+    var form by remember { mutableStateOf<Form?>(null) }
     var loading by remember { mutableStateOf(true) }
     var job by remember { mutableStateOf<JobEntity?>(null) }
     var jobStatus by remember { mutableStateOf<String?>(null) }
     var jobError by remember { mutableStateOf<String?>(null) }
+    var processing by remember { mutableStateOf(false) }
 
     // Observe job status changes
     LaunchedEffect(form?.jobId) {
@@ -70,34 +129,69 @@ fun FormDetailScreen(
                 jobEntity?.let {
                     jobStatus = it.status
                     jobError = it.errorDetail
+                    processing = it.status == "pending" || it.status == "processing"
 
                     if (it.status == "completed" && it.result != null) {
                         try {
-                            // Decrypt result
                             val decryptedResult = jobPollingService.decryptJobResult(it.result, it)
                             decryptedResult?.let { resultJson ->
                                 val result = JSONObject(resultJson)
-                                val formFieldsJson = result.optJSONArray("formFields") ?: result.optJSONArray("fields")
-                                val extractedInfoJson = result.optJSONObject("extractedInfo") ?: result.optJSONObject("kv")
 
-                                // Convert form fields
-                                val formFields = if (formFieldsJson != null) {
-                                    Json.decodeFromString<List<FormField>>(formFieldsJson.toString())
+                                // Extract ALL fields from the result
+                                val title = result.optString("title", form?.name ?: "")
+                                val tagsArray = result.optJSONArray("tags")
+                                val tags = if (tagsArray != null) {
+                                    mutableListOf<String>().apply {
+                                        for (i in 0 until tagsArray.length()) {
+                                            add(tagsArray.getString(i))
+                                        }
+                                    }
                                 } else {
-                                    emptyList()
+                                    form?.tags ?: emptyList()
                                 }
+                                val description = result.optString("description", form?.description ?: "")
 
-                                // Convert extracted info
+                                val extractedInfoJson = result.optJSONObject("extractedInfo") ?: result.optJSONObject("kv")
                                 val extractedInfo = mutableMapOf<String, String>()
                                 extractedInfoJson?.keys()?.forEach { key ->
                                     extractedInfo[key] = extractedInfoJson.getString(key)
                                 }
 
-                                // Update form
+                                val formFieldsJson = result.optJSONArray("formFields") ?: result.optJSONArray("fields")
+                                val formFields = if (formFieldsJson != null) {
+                                    val fieldNames = mutableListOf<String>()
+                                    for (i in 0 until formFieldsJson.length()) {
+                                        fieldNames.add(formFieldsJson.getString(i))
+                                    }
+                                    fieldNames.map { name -> FormField(name, null, false) }
+                                } else {
+                                    emptyList()
+                                }
+
+                                // Handle related files
+                                val relatedArray = result.optJSONArray("related")
+                                val relatedIds = mutableListOf<String>()
+                                if (relatedArray != null) {
+                                    for (i in 0 until relatedArray.length()) {
+                                        val relatedObj = relatedArray.getJSONObject(i)
+                                        val resourceId = relatedObj.getString("resource_id")
+                                        relatedIds.add(resourceId)
+                                        // Add to both sides of relationship
+                                        withContext(Dispatchers.IO) {
+                                            deviceDBService.addRelatedFile(form?.id ?: "", resourceId)
+                                        }
+                                    }
+                                }
+
+                                // Update form with ALL fields
                                 form = form?.copy(
+                                    name = title,
+                                    tags = tags,
+                                    description = description,
                                     formFields = formFields,
                                     extractedInfo = extractedInfo,
-                                    isProcessed = true
+                                    isProcessed = true,
+                                    relatedFileIds = relatedIds
                                 )
 
                                 // Save to DB
@@ -114,13 +208,25 @@ fun FormDetailScreen(
         }
     }
 
-    // Load form from DB
+    // Load form from DB with retry mechanism
     LaunchedEffect(formId) {
         loading = true
-        form = if (formId != null) {
-            viewModel.getForm(formId) ?: MockData.mockForms.find { it.id == formId } ?: MockData.mockForms.first()
-        } else {
-            MockData.mockForms.first()
+        if (formId != null) {
+            val startTime = System.currentTimeMillis()
+            val timeout = 3000L // 3 seconds timeout
+            while (System.currentTimeMillis() - startTime < timeout) {
+                val loadedForm = viewModel.getForm(formId)
+                if (loadedForm != null) {
+                    form = loadedForm
+                    loading = false
+                    return@LaunchedEffect
+                }
+                delay(200) // Wait 200ms before retrying
+            }
+            // Timeout reached without finding form
+            Toast.makeText(context, "Form Not Found", Toast.LENGTH_SHORT).show()
+            delay(1000)
+            onBackClick()
         }
         loading = false
     }
@@ -144,56 +250,57 @@ fun FormDetailScreen(
         }
         return
     }
+
     val currentForm = form!!
 
-    // Images to show from Base64 strings in the form
+    // Convert base64 images to bitmaps
     val imagesToShow = remember(currentForm) {
-        currentForm.imageBase64s.map { base64 ->
-            "data:image/jpeg;base64,$base64"
+        currentForm.imageBase64s.mapNotNull { base64 ->
+            try {
+                val bytes = Base64.decode(base64, Base64.DEFAULT)
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            } catch (e: Exception) {
+                Log.e(TAG, "Bitmap decoding failed", e)
+                null
+            }
         }
     }
 
     var isEditing by remember { mutableStateOf(false) }
-    var parsing by remember { mutableStateOf(false) }
-    var parsingJob by remember { mutableStateOf<Job?>(null) }
     var autoFilling by remember { mutableStateOf(false) }
     var autoFillingJob by remember { mutableStateOf<Job?>(null) }
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showHelpDialog by remember { mutableStateOf(false) }
-
     var currentImageIndex by remember { mutableStateOf(0) }
 
-    // Store original form fields for restoration during parsing
-    val originalFormFields = remember { currentForm.formFields }
-
-    // Create mutable state for form fields
-    var formFields by remember { mutableStateOf(currentForm.formFields) }
-    var extractedInfo by remember { mutableStateOf(currentForm.extractedInfo) }
-
-    // For editing, keep separate maps to hold edits until saved
+    // For editing, keep separate state
     var editedFormFields by remember { mutableStateOf(currentForm.formFields) }
     var editedExtractedInfo by remember { mutableStateOf(currentForm.extractedInfo) }
 
-    // Get related files using MockData helper functions
-    val relatedFiles = remember(currentForm) {
-        MockData.getRelatedFiles(currentForm.id)
+    // Related files
+    var relatedFiles by remember { mutableStateOf<List<Pair<String, String?>>>(emptyList()) }
+    LaunchedEffect(currentForm.relatedFileIds) {
+        val files = mutableListOf<Pair<String, String?>>()
+        currentForm.relatedFileIds.forEach { id ->
+            val name = withContext(Dispatchers.IO) {
+                deviceDBService.getFileNameById(id)
+            }
+            files.add(Pair(id, name))
+        }
+        relatedFiles = files
     }
 
     // Navigation functions
     fun goToPreviousImage() {
-        if (currentImageIndex > 0) {
-            currentImageIndex--
-        }
+        if (currentImageIndex > 0) currentImageIndex--
     }
 
     fun goToNextImage() {
-        if (currentImageIndex < imagesToShow.size - 1) {
-            currentImageIndex++
-        }
+        if (currentImageIndex < imagesToShow.size - 1) currentImageIndex++
     }
 
-    // Helper to persist form changes to DB
-    fun persistFormUpdate(updatedForm: cn.edu.sjtu.deepsleep.docusnap.data.Form) {
+    // Helper to persist form changes
+    fun persistFormUpdate(updatedForm: Form) {
         form = updatedForm
         coroutineScope.launch { viewModel.updateForm(updatedForm) }
     }
@@ -231,12 +338,11 @@ fun FormDetailScreen(
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(200.dp)
+                    .height(250.dp)
             ) {
                 Box(
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    // Main image display
                     if (imagesToShow.isNotEmpty()) {
                         // Image index display
                         Text(
@@ -253,12 +359,12 @@ fun FormDetailScreen(
                                 .padding(horizontal = 8.dp, vertical = 4.dp)
                         )
 
-                        // Current image
-                        AsyncImage(
-                            model = imagesToShow[currentImageIndex],
+                        // Current image with zoom
+                        ZoomableImage(
+                            bitmap = imagesToShow[currentImageIndex],
                             contentDescription = "Form image ${currentImageIndex + 1}",
                             modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop
+                            contentScale = ContentScale.Fit
                         )
 
                         // Navigation arrows
@@ -350,9 +456,10 @@ fun FormDetailScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Form Tags
-            Row(
+            FlowRow(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 currentForm.tags.forEach { tag ->
                     AssistChip(
@@ -372,7 +479,6 @@ fun FormDetailScreen(
                     "error" -> MaterialTheme.colorScheme.error
                     else -> MaterialTheme.colorScheme.onSurfaceVariant
                 }
-
                 Text(
                     text = "Processing status: ${status.uppercase()}",
                     color = statusColor,
@@ -382,104 +488,132 @@ fun FormDetailScreen(
 
             jobError?.let { error ->
                 Text(
-                    text = "Error: $error",
+                    text= "Error: $error",
                     color = MaterialTheme.colorScheme.error,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
             }
 
-            // Tool buttons row: Parse/Autofill/Edit/Clear Form/Clear All/Copy/Help
+            // Tool buttons row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Parse button (parse both extracted info and form fields)
-                if (!parsing) {
+                // Parse button
+                if (!processing) {
                     IconButton(
                         onClick = {
-                            parsing = true
-                            // Clear both extracted info and form fields
-                            extractedInfo = emptyMap()
-                            formFields = emptyList()
-                            editedExtractedInfo = emptyMap()
-                            editedFormFields = emptyList()
-
-                            parsingJob = coroutineScope.launch {
+                            processing = true
+                            jobStatus = null
+                            jobError = null
+                            coroutineScope.launch {
                                 try {
-                                    // Convert images to base64
-                                    val base64Images = imagesToShow.map { uri ->
-                                        uri.substringAfter("base64,")
-                                    }
-
-                                    // Create processing job
+                                    val base64Images = currentForm.imageBase64s
                                     val job = jobPollingService.createJob(
                                         type = "form",
-                                        //TODO: ERROR! this should be changed to real form id!!!!!
-                                        id="0",
+                                        id = currentForm.id,
                                         payload = base64Images
                                     )
-
-                                    // Update form with job ID
                                     form = currentForm.copy(jobId = job.id)
                                     viewModel.updateForm(form!!)
                                 } catch (e: Exception) {
                                     jobError = "Job creation failed: ${e.message}"
-                                    parsing = false
+                                    processing = false
                                 }
                             }
                         },
-                        enabled = !autoFilling,
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Default.DocumentScanner, contentDescription = "Parse")
                     }
                 } else {
                     IconButton(
-                        onClick = {
-                            parsingJob?.cancel()
-                            parsing = false
-                            parsingJob = null
-                        },
+                        onClick = { processing = false },
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Default.Stop, contentDescription = "Stop")
                     }
                 }
 
-                // Autofill button (auto fill form fields)
+                // Autofill button
                 if (!autoFilling) {
                     IconButton(
                         onClick = {
                             autoFilling = true
                             autoFillingJob = coroutineScope.launch {
-                                // TODO: BackendApiService.fillForm()
-                                delay(2000) // Simulate auto-filling process
-                                // After auto-filling, update form fields with realistic values
-                                val updatedFormFields = formFields.map { field ->
-                                    when (field.name.lowercase()) {
-                                        "employee name" -> field.copy(value = "John Doe", isRetrieved = true)
-                                        "department" -> field.copy(value = "Engineering", isRetrieved = true)
-                                        "date" -> field.copy(value = "2024-01-15", isRetrieved = true)
-                                        "amount" -> field.copy(value = "$12.50", isRetrieved = true)
-                                        "full name" -> field.copy(value = "John Doe", isRetrieved = true)
-                                        "date of birth" -> field.copy(value = "1990-05-15", isRetrieved = true)
-                                        "passport number" -> field.copy(value = "A12345678", isRetrieved = true)
-                                        "destination" -> field.copy(value = "Japan", isRetrieved = true)
-                                        "duration" -> field.copy(value = "2 weeks", isRetrieved = true)
-                                        else -> field.copy(value = null, isRetrieved = false) // Keep unavailable fields as null
+                                try {
+                                    // Create autofill payload according to backend spec
+                                    val autofillPayload = mapOf(
+                                        "id" to currentForm.id,
+                                        "fields" to currentForm.formFields.map { it.name }
+                                    )
+
+                                    // Create autofill job
+                                    val job = jobPollingService.createJob(
+                                        type = "fill",
+                                        id = currentForm.id,
+                                        payload = autofillPayload
+                                    )
+
+                                    // Store job ID to monitor its status
+                                    val jobId = job.id
+
+                                    // Observe job status changes
+                                    jobDao.getJobById(jobId).collect { jobEntity: JobEntity? ->
+                                        jobEntity?.let {
+                                            when (it.status) {
+                                                "completed" -> {
+                                                    if (it.result != null) {
+                                                        try {
+                                                            // Decrypt and process result
+                                                            val decryptedResult = jobPollingService.decryptJobResult(it.result, it)
+                                                            decryptedResult?.let { resultJson ->
+                                                                val result = JSONObject(resultJson)
+
+                                                                // Update form fields with autofilled values
+                                                                val updatedFormFields = currentForm.formFields.map { field ->
+                                                                    if (result.has(field.name)) {
+                                                                        val fieldData = result.getJSONObject(field.name)
+                                                                        field.copy(
+                                                                            value = fieldData.getString("value"),
+                                                                            isRetrieved = true,
+                                                                            srcFileId = fieldData.getJSONObject("source").getString("resource_id")
+                                                                        )
+                                                                    } else {
+                                                                        field
+                                                                    }
+                                                                }
+
+                                                                // Update form
+                                                                editedFormFields = updatedFormFields
+                                                                persistFormUpdate(currentForm.copy(formFields = updatedFormFields))
+                                                            }
+                                                        } catch (e: Exception) {
+                                                            Toast.makeText(context, "Autofill result parsing failed", Toast.LENGTH_SHORT).show()
+                                                        }
+                                                    }
+                                                    autoFilling = false
+                                                    autoFillingJob = null
+                                                }
+                                                "error" -> {
+                                                    jobError = it.errorDetail ?: "Autofill failed"
+                                                    autoFilling = false
+                                                    autoFillingJob = null
+                                                }
+                                                // Continue processing for other statuses
+                                            }
+                                        }
                                     }
+                                } catch (e: Exception) {
+                                    jobError = "Autofill job creation failed: ${e.message}"
+                                    autoFilling = false
+                                    autoFillingJob = null
                                 }
-                                formFields = updatedFormFields
-                                editedFormFields = updatedFormFields
-                                // Persist the auto-filled results
-                                persistFormUpdate(currentForm.copy(formFields = updatedFormFields))
-                                autoFilling = false
-                                autoFillingJob = null
                             }
                         },
-                        enabled = formFields.isNotEmpty() && !parsing,
+                        enabled = currentForm.formFields.isNotEmpty() && !processing,
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Default.AutoAwesome, contentDescription = "Autofill")
@@ -497,25 +631,23 @@ fun FormDetailScreen(
                     }
                 }
 
-                // Edit button (edit both extracted info and form fields)
+                // Edit button
                 IconButton(
                     onClick = {
                         if (isEditing) {
-                            // Save changes to database when finishing editing
-                            extractedInfo = editedExtractedInfo
-                            formFields = editedFormFields
+                            // Save changes
                             persistFormUpdate(currentForm.copy(
                                 extractedInfo = editedExtractedInfo,
                                 formFields = editedFormFields
                             ))
                         } else {
-                            // Entering edit mode, copy current data
-                            editedExtractedInfo = extractedInfo
-                            editedFormFields = formFields
+                            // Enter edit mode
+                            editedExtractedInfo = currentForm.extractedInfo
+                            editedFormFields = currentForm.formFields
                         }
                         isEditing = !isEditing
                     },
-                    enabled = (extractedInfo.isNotEmpty() || formFields.isNotEmpty()) && !parsing && !autoFilling,
+                    enabled = (currentForm.extractedInfo.isNotEmpty() || currentForm.formFields.isNotEmpty()) && !processing && !autoFilling,
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(
@@ -524,27 +656,24 @@ fun FormDetailScreen(
                     )
                 }
 
-                // Clear Form button (clear form fields only)
+                // Clear Form button
                 IconButton(
                     onClick = {
-                        val clearedFormFields = formFields.map { field ->
+                        val clearedFormFields = currentForm.formFields.map { field ->
                             field.copy(value = null, isRetrieved = false)
                         }
-                        formFields = clearedFormFields
                         editedFormFields = clearedFormFields
                         persistFormUpdate(currentForm.copy(formFields = clearedFormFields))
                     },
-                    enabled = formFields.isNotEmpty() && !parsing && !autoFilling,
+                    enabled = currentForm.formFields.isNotEmpty() && !processing && !autoFilling,
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.ClearAll, contentDescription = "Clear Form")
                 }
 
-                // Clear All button (clear both extracted info and form fields)
+                // Clear All button
                 IconButton(
                     onClick = {
-                        formFields = emptyList()
-                        extractedInfo = emptyMap()
                         editedFormFields = emptyList()
                         editedExtractedInfo = emptyMap()
                         persistFormUpdate(currentForm.copy(
@@ -552,18 +681,18 @@ fun FormDetailScreen(
                             formFields = emptyList()
                         ))
                     },
-                    enabled = (extractedInfo.isNotEmpty() || formFields.isNotEmpty()) && !parsing && !autoFilling,
+                    enabled = (currentForm.extractedInfo.isNotEmpty() || currentForm.formFields.isNotEmpty()) && !processing && !autoFilling,
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.Delete, contentDescription = "Clear All")
                 }
 
-                // Copy button (copy everything)
+                // Copy button
                 IconButton(
                     onClick = {
-                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                        val extractedText = extractedInfo.entries.joinToString("\n") { "${it.key}: ${it.value}" }
-                        val formFieldsText = formFields.joinToString("\n") { "${it.name}: ${it.value ?: ""}" }
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        val extractedText = currentForm.extractedInfo.entries.joinToString("\n") { "${it.key}: ${it.value}" }
+                        val formFieldsText = currentForm.formFields.joinToString("\n") { "${it.name}: ${it.value ?: ""}" }
                         val allText = if (extractedText.isNotEmpty() && formFieldsText.isNotEmpty()) {
                             "Extracted Information:\n$extractedText\n\nForm Fields:\n$formFieldsText"
                         } else if (extractedText.isNotEmpty()) {
@@ -577,7 +706,7 @@ fun FormDetailScreen(
                         clipboard.setPrimaryClip(clip)
                         Toast.makeText(context, "All information copied to clipboard", Toast.LENGTH_SHORT).show()
                     },
-                    enabled = (extractedInfo.isNotEmpty() || formFields.isNotEmpty()) && !parsing && !autoFilling,
+                    enabled = (currentForm.extractedInfo.isNotEmpty() || currentForm.formFields.isNotEmpty()) && !processing && !autoFilling,
                     modifier = Modifier.weight(1f)
                 ) {
                     Icon(Icons.Default.ContentCopy, contentDescription = "Copy All")
@@ -592,20 +721,19 @@ fun FormDetailScreen(
                 }
             }
 
-            // Show parsing message if parsing
-            if (parsing) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Parsing form...", fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
+            // Show processing indicators
+//            if (processing) {
+//                Box(
+//                    modifier = Modifier
+//                        .fillMaxWidth()
+//                        .height(60.dp),
+//                    contentAlignment = Alignment.Center
+//                ) {
+//                    Text("Processing form...", fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
+//                }
+//                Spacer(modifier = Modifier.height(8.dp))
+//            }
 
-            // Show auto-filling message if auto-filling
             if (autoFilling) {
                 Box(
                     modifier = Modifier
@@ -619,21 +747,20 @@ fun FormDetailScreen(
             }
 
             // Extracted Information Section
-            if ((if (isEditing) editedExtractedInfo else extractedInfo).isNotEmpty()) {
+            if ((if (isEditing) editedExtractedInfo else currentForm.extractedInfo).isNotEmpty()) {
                 Text(
                     text = "Extracted Information",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
-
                 Card(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier.padding(8.dp)
                     ) {
-                        (if (isEditing) editedExtractedInfo else extractedInfo).forEach { (key, value) ->
+                        (if (isEditing) editedExtractedInfo else currentForm.extractedInfo).forEach { (key, value) ->
                             ExtractedInfoItem(
                                 key = key,
                                 value = value,
@@ -642,7 +769,7 @@ fun FormDetailScreen(
                                     editedExtractedInfo = editedExtractedInfo.toMutableMap().apply { put(key, newValue) }
                                 }
                             )
-                            if (key != (if (isEditing) editedExtractedInfo else extractedInfo).keys.last()) {
+                            if (key != (if (isEditing) editedExtractedInfo else currentForm.extractedInfo).keys.last()) {
                                 Divider(modifier = Modifier.padding(vertical = 2.dp))
                             }
                         }
@@ -652,22 +779,20 @@ fun FormDetailScreen(
             }
 
             // Form Fields Section
-            if ((if (isEditing) editedFormFields else formFields).isNotEmpty() && !autoFilling) {
-                Log.d("FormDetailScreen", "Showing form fields section. Count: ${(if (isEditing) editedFormFields else formFields).size}")
+            if ((if (isEditing) editedFormFields else currentForm.formFields).isNotEmpty() && !autoFilling) {
                 Text(
                     text = "Form Fields",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
-
                 Card(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Column(
                         modifier = Modifier.padding(16.dp)
                     ) {
-                        (if (isEditing) editedFormFields else formFields).forEach { field ->
+                        (if (isEditing) editedFormFields else currentForm.formFields).forEach { field ->
                             FormFieldDisplayItem(
                                 field = field,
                                 isEditing = isEditing,
@@ -678,15 +803,14 @@ fun FormDetailScreen(
                                     }
                                 }
                             )
-                            if (field != (if (isEditing) editedFormFields else formFields).last()) {
+                            if (field != (if (isEditing) editedFormFields else currentForm.formFields).last()) {
                                 HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                             }
                         }
                     }
                 }
-            } else if (!parsing && !autoFilling && extractedInfo.isEmpty() && formFields.isEmpty()) {
-                // Show prompt message when both extracted info and form fields are empty
-                Log.d("FormDetailScreen", "Showing no information available section. formFields.isEmpty: ${formFields.isEmpty()}, extractedInfo.isEmpty: ${extractedInfo.isEmpty()}")
+            } else if (!processing && !autoFilling && currentForm.extractedInfo.isEmpty() && currentForm.formFields.isEmpty()) {
+                // Empty state
                 Card(
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -733,19 +857,32 @@ fun FormDetailScreen(
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    relatedFiles.forEach { relatedFile ->
-                        RelatedFileItem(
-                            file = relatedFile,
-                            onNavigate = onNavigate
+                    if (relatedFiles.isEmpty()) {
+                        Text(
+                            "No related files found",
+                            fontSize = 14.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        if (relatedFile != relatedFiles.last()) {
-                            Divider(modifier = Modifier.padding(vertical = 4.dp))
+                    } else {
+                        relatedFiles.forEachIndexed { index, (id, name) ->
+                            if (name != null) {
+                                RelatedFileItem(
+                                    id = id,
+                                    name = name,
+                                    onNavigate = { fileId ->
+                                        FileUtils.navigateToFileDetail(context, onNavigate, fileId)
+                                    }
+                                )
+                                if (index < relatedFiles.lastIndex && relatedFiles[index + 1].second != null) {
+                                    Divider(modifier = Modifier.padding(vertical = 4.dp))
+                                }
+                            }
                         }
                     }
                 }
             }
 
-            // Upload Date at the bottom
+            // Upload Date
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "Upload Date: ${currentForm.uploadDate}",
@@ -754,7 +891,7 @@ fun FormDetailScreen(
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
 
-            // Delete button at the bottom
+            // Delete button
             Spacer(modifier = Modifier.height(8.dp))
             Button(
                 onClick = { showDeleteDialog = true },
@@ -829,7 +966,6 @@ fun FormDetailScreen(
                         coroutineScope.launch {
                             viewModel.deleteForms(listOf(currentForm.id))
                         }
-                        // Always go back to gallery when deleting, regardless of source
                         onNavigate("form_gallery")
                         showDeleteDialog = false
                     }
@@ -844,19 +980,18 @@ fun FormDetailScreen(
             }
         )
     }
-
-
 }
 
 @Composable
 private fun FormFieldDisplayItem(
-    field: cn.edu.sjtu.deepsleep.docusnap.data.FormField,
+    field: FormField,
     isEditing: Boolean,
     onNavigate: (String) -> Unit,
     onValueChange: ((String) -> Unit)? = null
 ) {
     var value by remember { mutableStateOf(field.value ?: "") }
     val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
 
     // Keep value in sync with field.value prop
     LaunchedEffect(field.value) { if (!isEditing) value = field.value ?: "" }
@@ -879,10 +1014,15 @@ private fun FormFieldDisplayItem(
                     fontWeight = FontWeight.Medium,
                     color = if (field.value == null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface
                 )
+
                 // Show link to source file if srcFileId is present
                 if (field.srcFileId != null) {
                     IconButton(
-                        onClick = { onNavigate("document_detail?documentId=${field.srcFileId}&fromImageProcessing=false") },
+                        onClick = {
+                            coroutineScope.launch {
+                                FileUtils.navigateToFileDetail(context, onNavigate, field.srcFileId)
+                            }
+                        },
                         modifier = Modifier.size(20.dp)
                     ) {
                         Icon(
@@ -893,11 +1033,12 @@ private fun FormFieldDisplayItem(
                         )
                     }
                 }
+
                 // Copy icon for retrieved fields
                 if (field.isRetrieved && field.value != null) {
                     IconButton(
                         onClick = {
-                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                             val clip = android.content.ClipData.newPlainText("Field Value", field.value)
                             clipboard.setPrimaryClip(clip)
                             Toast.makeText(context, "Value copied to clipboard", Toast.LENGTH_SHORT).show()
@@ -943,9 +1084,19 @@ private fun FormFieldDisplayItem(
 
 @Composable
 private fun RelatedFileItem(
-    file: Any,
-    onNavigate: (String) -> Unit
+    id: String,
+    name: String?,
+    onNavigate: suspend (String) -> Unit
 ) {
+    if (name == null) return
+    val context = LocalContext.current
+    var uploadTime by remember { mutableStateOf("Loading...") }
+    val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(id) {
+        uploadTime = FileUtils.getFormattedTimeForFile(context, id) ?: "Unknown"
+    }
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -957,33 +1108,21 @@ private fun RelatedFileItem(
             modifier = Modifier.weight(1f)
         ) {
             Text(
-                text = when (file) {
-                    is cn.edu.sjtu.deepsleep.docusnap.data.Document -> file.name
-                    is cn.edu.sjtu.deepsleep.docusnap.data.Form -> file.name
-                    else -> "Unknown file"
-                },
+                text = name,
                 fontSize = 14.sp,
                 fontWeight = FontWeight.Medium
             )
             Text(
-                text = when (file) {
-                    is cn.edu.sjtu.deepsleep.docusnap.data.Document -> file.uploadDate
-                    is cn.edu.sjtu.deepsleep.docusnap.data.Form -> file.uploadDate
-                    else -> ""
-                },
+                text = "Uploaded: $uploadTime",
                 fontSize = 10.sp,
                 fontWeight = FontWeight.Light
             )
         }
-
-        IconButton(
-            onClick = {
-                when (file) {
-                    is cn.edu.sjtu.deepsleep.docusnap.data.Document -> onNavigate("document_detail?documentId=${file.id}&fromImageProcessing=false")
-                    is cn.edu.sjtu.deepsleep.docusnap.data.Form -> onNavigate("form_detail?formId=${file.id}&fromImageProcessing=false")
-                }
+        IconButton(onClick = {
+            coroutineScope.launch {
+                onNavigate(id)
             }
-        ) {
+        }) {
             Icon(
                 Icons.Default.Link,
                 contentDescription = "Open file",
@@ -1020,9 +1159,7 @@ private fun ExtractedInfoItem(
             fontWeight = FontWeight.Medium,
             modifier = Modifier.weight(1f)
         )
-
         Spacer(modifier = Modifier.width(16.dp))
-
         // Value and copy icon column
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -1047,11 +1184,10 @@ private fun ExtractedInfoItem(
                     modifier = Modifier.weight(1f)
                 )
             }
-
             // Copy icon for individual values
             IconButton(
                 onClick = {
-                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                     val clip = android.content.ClipData.newPlainText("Value", value)
                     clipboard.setPrimaryClip(clip)
                     Toast.makeText(context, "Value copied to clipboard", Toast.LENGTH_SHORT).show()
@@ -1103,4 +1239,4 @@ private fun HelpItem(
             )
         }
     }
-} 
+}

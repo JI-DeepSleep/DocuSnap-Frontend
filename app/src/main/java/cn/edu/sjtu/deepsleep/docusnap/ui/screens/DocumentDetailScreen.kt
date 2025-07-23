@@ -59,7 +59,7 @@ import kotlinx.coroutines.launch
 private const val TAG = "DocumentDetailScreen"
 
 @Composable
-fun ZoomableImage(
+private fun ZoomableImage(
     bitmap: android.graphics.Bitmap,
     contentDescription: String?,
     modifier: Modifier = Modifier,

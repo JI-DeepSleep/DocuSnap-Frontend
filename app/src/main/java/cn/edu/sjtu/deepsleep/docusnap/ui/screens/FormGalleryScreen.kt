@@ -44,11 +44,14 @@ fun FormGalleryScreen(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     var isSelectionMode by remember { mutableStateOf(false) }
-    var selectedForms by remember { mutableStateOf(mutableSetOf<String>()) } // Use form IDs
+    var selectedForms by remember { mutableStateOf(mutableSetOf<String>()) }
     var showDeleteConfirmation by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    val forms by viewModel.forms.collectAsState()
+    // Collect forms and reverse the order
+    val rev_forms by viewModel.forms.collectAsState()
+    val forms = remember(rev_forms) { rev_forms.reversed() }
+
     val isLoading by viewModel.isLoading.collectAsState()
 
     Column(
@@ -63,14 +66,11 @@ fun FormGalleryScreen(
             ) },
             actions = {
                 if (isSelectionMode) {
-                    // Select All text button
                     TextButton(
                         onClick = {
                             if (selectedForms.size == forms.size) {
-                                // Deselect all
                                 selectedForms = mutableSetOf()
                             } else {
-                                // Select all
                                 selectedForms = forms.map { it.id }.toMutableSet()
                             }
                         }
@@ -118,11 +118,9 @@ fun FormGalleryScreen(
                 ) {
                     itemsIndexed(forms) { index, form ->
                         val isSelected = selectedForms.contains(form.id)
-
                         val cardModifier = Modifier.combinedClickable(
                             onClick = {
                                 if (isSelectionMode) {
-                                    // Toggle selection
                                     val newSelected = selectedForms.toMutableSet()
                                     if (isSelected) {
                                         newSelected.remove(form.id)
@@ -136,7 +134,6 @@ fun FormGalleryScreen(
                             },
                             onLongClick = {
                                 if (!isSelectionMode) {
-                                    // Enter selection mode and select this card
                                     isSelectionMode = true
                                     selectedForms = mutableSetOf(form.id)
                                 }
@@ -188,7 +185,6 @@ fun FormGalleryScreen(
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium
                     )
-
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
@@ -200,16 +196,14 @@ fun FormGalleryScreen(
                         ) {
                             Text("Cancel")
                         }
-
                         OutlinedButton(
                             onClick = {
-                                // Export selected forms to local media
                                 Toast.makeText(
                                     context,
                                     "Exporting ${selectedForms.size} form(s) to local media...",
                                     Toast.LENGTH_SHORT
                                 ).show()
-                                 viewModel.exportForms(selectedForms.toList())
+                                viewModel.exportForms(selectedForms.toList())
                             },
                             enabled = selectedForms.isNotEmpty()
                         ) {
@@ -219,7 +213,6 @@ fun FormGalleryScreen(
                                 modifier = Modifier.size(16.dp)
                             )
                         }
-
                         Button(
                             onClick = {
                                 showDeleteConfirmation = true
@@ -271,4 +264,4 @@ fun FormGalleryScreen(
             }
         )
     }
-} 
+}

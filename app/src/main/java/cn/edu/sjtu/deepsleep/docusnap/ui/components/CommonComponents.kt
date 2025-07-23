@@ -647,6 +647,20 @@ fun FormCard(
     onSelectionChanged: ((Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
+    // Decode the first image if available
+    val imageBitmap = remember(form.imageBase64s) {
+        if (form.imageBase64s.isNotEmpty()) {
+            try {
+                val bytes = Base64.decode(form.imageBase64s[0], Base64.DEFAULT)
+                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.asImageBitmap()
+            } catch (e: Exception) {
+                null
+            }
+        } else {
+            null
+        }
+    }
+
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -664,11 +678,20 @@ fun FormCard(
                     .background(Color.Gray.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    text = "📋",
-                    fontSize = 32.sp
-                )
-                
+                if (imageBitmap != null) {
+                    Image(
+                        bitmap = imageBitmap,
+                        contentDescription = "Form preview",
+                        contentScale = ContentScale.Fit,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Text(
+                        text = "📋",
+                        fontSize = 32.sp
+                    )
+                }
+
                 // Selection checkbox (bottom right corner of image only)
                 if (isSelectionMode) {
                     Checkbox(
@@ -681,7 +704,7 @@ fun FormCard(
                     )
                 }
             }
-            
+
             // Bottom section with name, date, and status
             Column(
                 modifier = Modifier
@@ -695,7 +718,7 @@ fun FormCard(
                     fontWeight = FontWeight.Medium,
                     maxLines = 1
                 )
-                
+
                 // Date and status icon row
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -707,13 +730,13 @@ fun FormCard(
                         fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    
+
                     // Fill status icon
                     val filledFields = form.formFields.count { it.value != null && it.value.isNotEmpty() }
                     val totalFields = form.formFields.size
                     val isFilled = filledFields > 0 || totalFields == 0
 
-                    Row(){
+                    Row {
                         // Parse status icon
                         Icon(
                             imageVector = if (form.extractedInfo.isNotEmpty()) {
@@ -733,9 +756,7 @@ fun FormCard(
                                 MaterialTheme.colorScheme.onSurfaceVariant
                             }
                         )
-
                         Spacer(modifier = Modifier.width(5.dp))
-
                         Icon(
                             imageVector = if (isFilled) {
                                 Icons.Default.AutoAwesome
