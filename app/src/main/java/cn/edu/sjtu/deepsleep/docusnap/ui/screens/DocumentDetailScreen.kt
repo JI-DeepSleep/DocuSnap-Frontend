@@ -7,6 +7,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import kotlinx.coroutines.delay
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -128,13 +129,19 @@ fun DocumentDetailScreen(
         }
     }
 
-    // Load document from DB
+    // Load document from DB with retry mechanism
     LaunchedEffect(documentId) {
         loading = true
-        document = if (documentId != null) {
-            viewModel.getDocument(documentId) ?: MockData.mockDocuments.find { it.id == documentId } ?: MockData.mockDocuments.first()
-        } else {
-            MockData.mockDocuments.first()
+        if (documentId != null) {
+            while (true) {
+                val loadedDoc = viewModel.getDocument(documentId)
+                if (loadedDoc != null) {
+                    document = loadedDoc
+                    loading = false
+                    break
+                }
+                delay(200) // Wait 200ms before retrying
+            }
         }
         loading = false
     }
