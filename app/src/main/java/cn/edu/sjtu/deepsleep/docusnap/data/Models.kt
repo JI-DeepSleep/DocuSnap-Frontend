@@ -90,6 +90,7 @@ data class TextInfo(
     val key: String, // The key/label of the information
     val value: String, // The actual value extracted from the document or form
     val srcFileId: String, // Changed from sourceDocumentId to srcFileId to support both docs and forms
+    val srcFileType: FileType, // Type of the source file (document or form)
     val usageCount: Int = 0, // How frequently this text is used/searched
     val lastUsed: String = "2024-01-15" // Last time this text was accessed
 )

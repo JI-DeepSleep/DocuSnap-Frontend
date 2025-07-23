@@ -183,7 +183,7 @@ fun HomeScreen(
 
         // Frequently Used Text Info Section
         Text(
-            text = "Extracted Text Info",
+            text = "Frequently Used Info",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(bottom = 12.dp)

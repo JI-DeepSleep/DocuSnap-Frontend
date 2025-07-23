@@ -252,6 +252,7 @@ class DocumentRepository(
                     key = json.getString("key"),
                     value = json.getString("value"),
                     srcFileId = json.getString("srcFileId"),
+                    srcFileType = FileType.valueOf(json.getString("srcFileType")),
                     usageCount = json.getInt("usageCount"),
                     lastUsed = json.getString("lastUsed")
                 )

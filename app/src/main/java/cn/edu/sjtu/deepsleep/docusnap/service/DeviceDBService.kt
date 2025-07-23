@@ -446,6 +446,7 @@ class DeviceDBService(private val context: Context) {
                             put("key", key)
                             put("value", value)
                             put("srcFileId", docEntity.id)
+                            put("srcFileType", "DOCUMENT")
                             put("usageCount", 1) // Default usage count
                             put("lastUsed", docEntity.uploadDate)
                         })
@@ -468,6 +469,7 @@ class DeviceDBService(private val context: Context) {
                             put("key", key)
                             put("value", value)
                             put("srcFileId", formEntity.id)
+                            put("srcFileType", "FORM")
                             put("usageCount", 1) // Default usage count
                             put("lastUsed", formEntity.uploadDate)
                         })

@@ -16,22 +16,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
 import cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity
+import cn.edu.sjtu.deepsleep.docusnap.data.FileType
 import android.widget.Toast
-import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 import android.graphics.BitmapFactory
 import android.util.Base64
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import cn.edu.sjtu.deepsleep.docusnap.data.Document
+import cn.edu.sjtu.deepsleep.docusnap.data.MockData
 
 @Composable
 fun SearchBar(
@@ -528,10 +521,11 @@ fun TextInfoItem(
         }
         IconButton(
             onClick = { 
-                // Navigate to source file (document or form)
-                // For now, we'll navigate to document detail as default
-                // In a real implementation, you might want to check the actual file type
-                onNavigate("document_detail?documentId=${textInfo.srcFileId}&fromImageProcessing=false")
+                // Navigate to source file (document or form) based on srcFileType
+                when (textInfo.srcFileType) {
+                    FileType.DOCUMENT -> onNavigate("document_detail?documentId=${textInfo.srcFileId}&fromImageProcessing=false")
+                    FileType.FORM -> onNavigate("form_detail?formId=${textInfo.srcFileId}&fromImageProcessing=false")
+                }
             },
             modifier = Modifier.size(20.dp)
         ) {
