@@ -37,7 +37,7 @@ class DeviceDBService(private val context: Context) {
                 AppDatabase::class.java,
                 "docusnap.db"
             )
-                .fallbackToDestructiveMigration(true)
+                .fallbackToDestructiveMigration()
                 .build().also {
                     Log.d("DeviceDBService", "Room database initialized successfully")
                 }
@@ -118,6 +118,7 @@ class DeviceDBService(private val context: Context) {
     }
 
     suspend fun updateDocument(documentId: String, updates: JSONObject) {
+        Log.d("DeviceDBService.updateDocument", "Incoming updates JSON: ${updates.toString(2)}")
         val entity = documentDao.getById(documentId) ?: return
         val updated = entity.copy(
             name = updates.optString("name", entity.name),
