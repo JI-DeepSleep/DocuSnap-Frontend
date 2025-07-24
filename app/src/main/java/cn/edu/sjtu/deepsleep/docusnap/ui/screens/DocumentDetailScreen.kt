@@ -192,7 +192,7 @@ fun DocumentDetailScreen(
 
                                 // Save to DB
                                 document?.let { updatedDoc ->
-                                    viewModel.updateDocument(updatedDoc)
+                                    coroutineScope.launch { viewModel.updateDocument(updatedDoc) }
                                 }
                             }
                         } catch (e: Exception) {
