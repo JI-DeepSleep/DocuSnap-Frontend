@@ -229,15 +229,16 @@ fun DocumentDetailScreen(
         loading = false
     }
 
-    // Update document usage when screen is opened
+    // In DocumentDetailScreen's LaunchedEffect
     LaunchedEffect(document) {
         document?.let { doc ->
-            documentViewModel?.updateDocumentUsage(doc.id)
+            // Only update usage if not already updated
+                documentViewModel?.updateDocumentUsage(doc.id)
         }
     }
 
     // Save/update document on exit
-    DisposableEffect(document, fromImageProcessing) {
+    DisposableEffect(fromImageProcessing) {
         onDispose {
             document?.let { doc ->
                 if (fromImageProcessing) {

@@ -108,6 +108,10 @@ class DocumentRepository(
         deviceDBService.updateDocument(document.id, json)
     }
 
+    suspend fun incrementDocumentUsage(documentId: String, lastUsed: String) {
+        deviceDBService.incrementDocumentUsage(documentId, lastUsed)
+    }
+
     suspend fun deleteDocuments(documentIds: List<String>) {
         deviceDBService.deleteDocuments(documentIds)
     }
@@ -203,6 +207,10 @@ class DocumentRepository(
             put("lastUsed", form.lastUsed)
         }
         deviceDBService.updateForm(form.id, json)
+    }
+
+    suspend fun incrementFormUsage(formId: String, lastUsed: String) {
+        deviceDBService.incrementFormUsage(formId, lastUsed)
     }
 
     suspend fun deleteForms(formIds: List<String>) {

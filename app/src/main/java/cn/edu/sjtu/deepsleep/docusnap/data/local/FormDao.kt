@@ -34,4 +34,7 @@ interface FormDao {
             "INSTR(LOWER(name), LOWER(:query)) > 0 OR " +
             "INSTR(LOWER(tags), LOWER(:query)) > 0")
     suspend fun searchByQuery(query: String): List<FormEntity>
+
+    @Query("UPDATE forms SET usage_count = usage_count + 1, last_used = :lastUsed WHERE id = :formId")
+    suspend fun incrementUsage(formId: String, lastUsed: String)
 }

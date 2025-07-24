@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import  android.util.Log
+
+private const val TAG = "DocumentViewModel"
 
 class DocumentViewModel(
     private val repository: DocumentRepository
@@ -186,38 +189,25 @@ class DocumentViewModel(
     suspend fun getForm(formId: String): Form? {
         return repository.getForm(formId)
     }
-    
-    // New methods for updating usage counts
+
+    // Remove the full document update
     fun updateDocumentUsage(documentId: String) {
         viewModelScope.launch {
             try {
-                val document = repository.getDocument(documentId)
-                document?.let { doc ->
-                    val updatedDoc = doc.copy(
-                        usageCount = doc.usageCount + 1,
-                        lastUsed = java.time.LocalDate.now().toString()
-                    )
-                    repository.updateDocument(updatedDoc)
-                    loadDocuments() // Refresh the list
-                }
+                val currentDate = java.time.LocalDate.now().toString()
+                repository.incrementDocumentUsage(documentId, currentDate)
+                // Remove loadDocuments() call here
             } catch (e: Exception) {
-                android.util.Log.e("DocumentViewModel", "Error updating document usage: ${e.message}", e)
+                Log.e(TAG, "Error updating usage", e)
             }
         }
     }
-    
+
     fun updateFormUsage(formId: String) {
         viewModelScope.launch {
             try {
-                val form = repository.getForm(formId)
-                form?.let { f ->
-                    val updatedForm = f.copy(
-                        usageCount = f.usageCount + 1,
-                        lastUsed = java.time.LocalDate.now().toString()
-                    )
-                    repository.updateForm(updatedForm)
-                    loadForms() // Refresh the list
-                }
+                val currentDate = java.time.LocalDate.now().toString()
+                repository.incrementFormUsage(formId, currentDate)
             } catch (e: Exception) {
                 android.util.Log.e("DocumentViewModel", "Error updating form usage: ${e.message}", e)
             }

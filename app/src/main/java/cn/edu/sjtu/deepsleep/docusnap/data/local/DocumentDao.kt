@@ -37,4 +37,7 @@ interface DocumentDao {
 
     @Query("SELECT * FROM documents WHERE job_id = :jobId")
     suspend fun getByJobId(jobId: Long): DocumentEntity?
+
+    @Query("UPDATE documents SET usage_count = usage_count + 1, last_used = :lastUsed WHERE id = :documentId")
+    suspend fun incrementUsage(documentId: String, lastUsed: String)
 }

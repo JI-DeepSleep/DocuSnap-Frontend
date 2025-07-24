@@ -117,6 +117,15 @@ class DeviceDBService(private val context: Context) {
         }
     }
 
+    suspend fun incrementDocumentUsage(documentId: String, lastUsed: String) {
+        Log.d("DeviceDBService","document ${documentId} usage updated")
+        documentDao.incrementUsage(documentId, lastUsed)
+    }
+
+    suspend fun incrementFormUsage(formId: String, lastUsed: String) {
+        formDao.incrementUsage(formId, lastUsed)
+    }
+
     suspend fun updateDocument(documentId: String, updates: JSONObject) {
         Log.d("DeviceDBService.updateDocument", "Incoming updates JSON: ${updates.toString(2)}")
         val entity = documentDao.getById(documentId) ?: return
