@@ -39,11 +39,11 @@ class JobPollingService(private val context: Context) {
                     Log.d(TAG, "Starting polling cycle...")
                     pollPendingJobs()
                     pollProcessingJobs()
-                    Log.d(TAG, "Polling cycle completed, waiting 5 seconds...")
-                    delay(5000) // Poll every 5 seconds
+                    Log.d(TAG, "Polling cycle completed, waiting 1 seconds...")
+                    delay(500)
                 } catch (e: Exception) {
                     Log.e(TAG, "Error in polling loop", e)
-                    delay(60000) // Wait longer on error
+                    delay(5000) // Wait longer on error
                 }
             }
             Log.d(TAG, "Polling loop ended")
