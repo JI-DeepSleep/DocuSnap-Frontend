@@ -1,12 +1,8 @@
 package cn.edu.sjtu.deepsleep.docusnap.data.model
 
 import androidx.room.TypeConverter
-import cn.edu.sjtu.deepsleep.docusnap.data.Document
-import cn.edu.sjtu.deepsleep.docusnap.data.Form
 import cn.edu.sjtu.deepsleep.docusnap.data.local.DocumentEntity
-import cn.edu.sjtu.deepsleep.docusnap.data.FormField
 import cn.edu.sjtu.deepsleep.docusnap.data.local.FormEntity
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 

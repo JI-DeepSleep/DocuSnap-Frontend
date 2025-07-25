@@ -1,4 +1,4 @@
-package cn.edu.sjtu.deepsleep.docusnap.data
+package cn.edu.sjtu.deepsleep.docusnap.data.model
 
 import kotlinx.serialization.Serializable
 

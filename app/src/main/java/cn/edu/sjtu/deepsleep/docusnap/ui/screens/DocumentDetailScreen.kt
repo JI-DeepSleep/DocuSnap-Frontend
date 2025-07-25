@@ -1,6 +1,5 @@
 package cn.edu.sjtu.deepsleep.docusnap.ui.screens
 
-import android.content.Context
 import android.graphics.BitmapFactory
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.background
@@ -25,12 +24,11 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
 import kotlinx.coroutines.launch
-import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
 import androidx.lifecycle.viewmodel.compose.viewModel
-import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
-import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModelFactory
-import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
+import cn.edu.sjtu.deepsleep.docusnap.viewmodels.DocumentViewModel
+import cn.edu.sjtu.deepsleep.docusnap.viewmodels.DocumentViewModelFactory
+import cn.edu.sjtu.deepsleep.docusnap.AppModule
 import cn.edu.sjtu.deepsleep.docusnap.service.JobPollingService
 import cn.edu.sjtu.deepsleep.docusnap.data.local.AppDatabase
 import cn.edu.sjtu.deepsleep.docusnap.util.FileUtils
@@ -44,16 +42,14 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.*
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntSize
+import cn.edu.sjtu.deepsleep.docusnap.data.model.Document
+import cn.edu.sjtu.deepsleep.docusnap.data.model.ExtractedInfoItem
+import cn.edu.sjtu.deepsleep.docusnap.data.model.FileType
 import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlin.math.max
-import kotlin.math.min
-import kotlinx.coroutines.launch
 
 private const val TAG = "DocumentDetailScreen"
 
@@ -113,7 +109,7 @@ fun DocumentDetailScreen(
     val coroutineScope = rememberCoroutineScope()
 
     // State for loaded document
-    var document by remember { mutableStateOf<cn.edu.sjtu.deepsleep.docusnap.data.Document?>(null) }
+    var document by remember { mutableStateOf<Document?>(null) }
     var loading by remember { mutableStateOf(true) }
     var job by remember { mutableStateOf<JobEntity?>(null) }
     var jobStatus by remember { mutableStateOf<String?>(null) }
@@ -154,10 +150,10 @@ fun DocumentDetailScreen(
                                 val kv = result.optJSONObject("kv") ?: JSONObject()
 
                                 // Convert kv to list of ExtractedInfoItem
-                                val extractedInfoList = mutableListOf<cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem>()
+                                val extractedInfoList = mutableListOf<ExtractedInfoItem>()
                                 kv.keys().forEach { key ->
                                     extractedInfoList.add(
-                                        cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem(
+                                        ExtractedInfoItem(
                                             key = key,
                                             value = kv.getString(key),
                                             usageCount = 0,
@@ -281,7 +277,7 @@ fun DocumentDetailScreen(
     var editedExtractedInfo by remember { mutableStateOf(doc.extractedInfo) }
 
     // Helper to persist extractedInfo changes to DB
-    fun persistExtractedInfoUpdate(newExtractedInfo: List<cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem>) {
+    fun persistExtractedInfoUpdate(newExtractedInfo: List<ExtractedInfoItem>) {
         document = document?.copy(extractedInfo = newExtractedInfo)
         document?.let { updatedDoc ->
             coroutineScope.launch { viewModel.updateDocument(updatedDoc) }
@@ -650,7 +646,7 @@ fun DocumentDetailScreen(
                                 onCopyText = {
                                     documentViewModel?.updateExtractedInfoUsage(
                                         fileId = doc.id,
-                                        fileType = cn.edu.sjtu.deepsleep.docusnap.data.FileType.DOCUMENT,
+                                        fileType = FileType.DOCUMENT,
                                         key = item.key
                                     )
                                 }

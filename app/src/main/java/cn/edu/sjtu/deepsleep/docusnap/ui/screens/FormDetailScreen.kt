@@ -34,15 +34,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.IntSize
 import androidx.lifecycle.viewmodel.compose.viewModel
-import cn.edu.sjtu.deepsleep.docusnap.data.Form
-import cn.edu.sjtu.deepsleep.docusnap.data.FormField
+import cn.edu.sjtu.deepsleep.docusnap.data.model.Form
+import cn.edu.sjtu.deepsleep.docusnap.data.model.FormField
 import cn.edu.sjtu.deepsleep.docusnap.data.local.AppDatabase
 import cn.edu.sjtu.deepsleep.docusnap.data.local.JobEntity
-import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
+import cn.edu.sjtu.deepsleep.docusnap.data.model.ExtractedInfoItem
+import cn.edu.sjtu.deepsleep.docusnap.data.model.FileType
+import cn.edu.sjtu.deepsleep.docusnap.AppModule
 import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
 import cn.edu.sjtu.deepsleep.docusnap.service.JobPollingService
-import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
-import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModelFactory
+import cn.edu.sjtu.deepsleep.docusnap.viewmodels.DocumentViewModel
+import cn.edu.sjtu.deepsleep.docusnap.viewmodels.DocumentViewModelFactory
 import cn.edu.sjtu.deepsleep.docusnap.util.FileUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -50,12 +52,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
 import org.json.JSONObject
-import java.util.*
-import kotlin.math.max
-import kotlin.math.min
 
 private const val TAG = "FormDetailScreen"
 
@@ -152,10 +149,10 @@ fun FormDetailScreen(
                                 val description = result.optString("description", form?.description ?: "")
 
                                 val extractedInfoJson = result.optJSONObject("extractedInfo") ?: result.optJSONObject("kv")
-                                val extractedInfo = mutableListOf<cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem>()
+                                val extractedInfo = mutableListOf<ExtractedInfoItem>()
                                 extractedInfoJson?.keys()?.forEach { key ->
                                     extractedInfo.add(
-                                        cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem(
+                                        ExtractedInfoItem(
                                             key = key,
                                             value = extractedInfoJson.getString(key),
                                             usageCount = 0,
@@ -787,7 +784,7 @@ fun FormDetailScreen(
                                 onCopyText = {
                                     documentViewModel?.updateExtractedInfoUsage(
                                         fileId = currentForm.id,
-                                        fileType = cn.edu.sjtu.deepsleep.docusnap.data.FileType.FORM,
+                                        fileType = FileType.FORM,
                                         key = item.key
                                     )
                                 }

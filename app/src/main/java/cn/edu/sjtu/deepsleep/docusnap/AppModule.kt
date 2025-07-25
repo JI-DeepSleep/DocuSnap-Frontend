@@ -1,4 +1,4 @@
-package cn.edu.sjtu.deepsleep.docusnap.di
+package cn.edu.sjtu.deepsleep.docusnap
 
 import android.content.Context
 import cn.edu.sjtu.deepsleep.docusnap.data.repository.DocumentRepository
@@ -6,7 +6,7 @@ import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
 import cn.edu.sjtu.deepsleep.docusnap.service.ImageProcService
 
 object AppModule {
-    
+
     private var deviceDBService: DeviceDBService? = null
     private var documentRepository: DocumentRepository? = null
     private var imageProcService: ImageProcService? = null
@@ -24,7 +24,7 @@ object AppModule {
         }
         return deviceDBService!!
     }
-    
+
     fun provideDocumentRepository(context: Context): DocumentRepository {
         if (documentRepository == null) {
             val dbService = provideDeviceDBService(context)
@@ -32,10 +32,10 @@ object AppModule {
         }
         return documentRepository!!
     }
-    
+
     fun clear() {
         deviceDBService = null
         documentRepository = null
         imageProcService = null
     }
-} 
+}

@@ -15,15 +15,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.graphics.Color
-import cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity
-import cn.edu.sjtu.deepsleep.docusnap.data.FileType
+import cn.edu.sjtu.deepsleep.docusnap.data.model.SearchEntity
+import cn.edu.sjtu.deepsleep.docusnap.data.model.FileType
 import android.widget.Toast
 import android.graphics.BitmapFactory
 import android.util.Base64
 import androidx.compose.foundation.Image
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
-import cn.edu.sjtu.deepsleep.docusnap.data.Document
+import cn.edu.sjtu.deepsleep.docusnap.data.model.Document
+import cn.edu.sjtu.deepsleep.docusnap.data.model.Form
+import cn.edu.sjtu.deepsleep.docusnap.data.model.TextInfo
 
 @Composable
 fun SearchBar(
@@ -206,7 +208,7 @@ private fun TextualInfoCard(
 
 @Composable
 private fun DocumentSearchCard(
-    document: cn.edu.sjtu.deepsleep.docusnap.data.Document,
+    document: Document,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -333,7 +335,7 @@ private fun DocumentSearchCard(
 
 @Composable
 private fun FormSearchCard(
-    form: cn.edu.sjtu.deepsleep.docusnap.data.Form,
+    form: Form,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -508,7 +510,7 @@ fun TextualInfoItem(
 // Component for text info that works with the data structure
 @Composable
 fun TextInfoItem(
-    textInfo: cn.edu.sjtu.deepsleep.docusnap.data.TextInfo,
+    textInfo: TextInfo,
     onNavigate: (String) -> Unit,
     onCopyText: (() -> Unit)? = null
 ) {
@@ -688,7 +690,7 @@ fun DocumentCard(
 
 @Composable
 fun FormCard(
-    form: cn.edu.sjtu.deepsleep.docusnap.data.Form,
+    form: Form,
     isSelectionMode: Boolean = false,
     isSelected: Boolean = false,
     onSelectionChanged: ((Boolean) -> Unit)? = null,

@@ -13,11 +13,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.TextInfoItem
 import cn.edu.sjtu.deepsleep.docusnap.navigation.Screen
-import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
+import cn.edu.sjtu.deepsleep.docusnap.viewmodels.DocumentViewModel
 
 @Composable
 fun HomeScreen(
