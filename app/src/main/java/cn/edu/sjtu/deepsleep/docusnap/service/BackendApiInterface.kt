@@ -1,5 +1,7 @@
 package cn.edu.sjtu.deepsleep.docusnap.service
 
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
 import retrofit2.http.*
 
 data class ProcessRequest(
@@ -31,12 +33,13 @@ interface BackendApiInterface {
 
 class BackendApiClient {
     companion object {
-        private const val BASE_URL = "https://docusnap.zjyang.dev/api/v1/"
-        
-        fun create(): BackendApiInterface {
-            return retrofit2.Retrofit.Builder()
-                .baseUrl(BASE_URL)
-                .addConverterFactory(retrofit2.converter.gson.GsonConverterFactory.create())
+        fun create(baseUrl: String): BackendApiInterface {
+            // Ensure URL ends with trailing slash for Retrofit compatibility
+            val adjustedUrl = if (baseUrl.endsWith('/')) baseUrl else "$baseUrl/"
+
+            return Retrofit.Builder()
+                .baseUrl(adjustedUrl)
+                .addConverterFactory(GsonConverterFactory.create())
                 .build()
                 .create(BackendApiInterface::class.java)
         }

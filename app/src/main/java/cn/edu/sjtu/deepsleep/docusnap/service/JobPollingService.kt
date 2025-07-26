@@ -19,7 +19,7 @@ class JobPollingService(private val context: Context) {
     private val TAG = "JobPollingService"
     private val database by lazy { AppDatabase.getInstance(context) }
     private val jobDao by lazy { database.jobDao() }
-    private val backendApi by lazy { BackendApiClient.create() }
+    private val settingsManager by lazy { SettingsManager(context) }
     private val pollingScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private var pollingJob: Job? = null
 
@@ -82,7 +82,10 @@ class JobPollingService(private val context: Context) {
                     )
 
                     try {
-                        val response = backendApi.processDocument(request)
+                        val settingsManager = SettingsManager(context)
+                        val currentUrl = settingsManager.getCurrentSettings().backendUrl
+                        val api = BackendApiClient.create(currentUrl)
+                        val response = api.processDocument(request)
                         Log.d(TAG, "Backend response for job ${job.id}: status=${response.status}")
 
                         when (response.status) {
@@ -175,7 +178,10 @@ class JobPollingService(private val context: Context) {
                     )
 
                     try {
-                        val response = backendApi.processDocument(request)
+                        val settingsManager = SettingsManager(context)
+                        val currentUrl = settingsManager.getCurrentSettings().backendUrl
+                        val api = BackendApiClient.create(currentUrl)
+                        val response = api.processDocument(request)
                         Log.d(TAG, "Backend response for processing job ${job.id}: status=${response.status}")
 
                         when (response.status) {
