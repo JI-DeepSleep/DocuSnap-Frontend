@@ -1,4 +1,4 @@
-package cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels
+package cn.edu.sjtu.deepsleep.docusnap.viewmodels
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -9,7 +9,7 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
+import cn.edu.sjtu.deepsleep.docusnap.AppModule
 import cn.edu.sjtu.deepsleep.docusnap.service.ImageProcService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +18,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import kotlin.math.abs
 import java.io.FileOutputStream
 import android.util.Log
 import kotlinx.coroutines.Job

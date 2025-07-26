@@ -1,18 +1,12 @@
 package cn.edu.sjtu.deepsleep.docusnap.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckBox
-import androidx.compose.material.icons.filled.CheckBoxOutlineBlank
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material3.*
@@ -25,11 +19,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.DocumentCard
-import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
+import cn.edu.sjtu.deepsleep.docusnap.viewmodels.DocumentViewModel
 import android.widget.Toast
 import androidx.lifecycle.viewmodel.compose.viewModel
-import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
-import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModelFactory
+import cn.edu.sjtu.deepsleep.docusnap.AppModule
+import cn.edu.sjtu.deepsleep.docusnap.viewmodels.DocumentViewModelFactory
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable

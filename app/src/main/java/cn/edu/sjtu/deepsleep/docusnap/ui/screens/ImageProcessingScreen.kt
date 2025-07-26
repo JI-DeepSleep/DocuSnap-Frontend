@@ -22,32 +22,26 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import androidx.compose.ui.layout.ContentScale
-import cn.edu.sjtu.deepsleep.docusnap.data.Document
-import cn.edu.sjtu.deepsleep.docusnap.data.Form
+import cn.edu.sjtu.deepsleep.docusnap.data.model.Document
+import cn.edu.sjtu.deepsleep.docusnap.data.model.Form
 import java.util.UUID
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
-import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.ImageDecoder
 import android.net.Uri
 import android.util.Log
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.foundation.Image
-import java.io.File
-import java.io.FileOutputStream
-import androidx.core.content.FileProvider
 import android.widget.Toast
 import androidx.compose.material.icons.outlined.PhotoFilter
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.runtime.collectAsState
-import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.ImageProcessingViewModel
-import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.ImageProcessingViewModelFactory
+import cn.edu.sjtu.deepsleep.docusnap.viewmodels.ImageProcessingViewModel
+import cn.edu.sjtu.deepsleep.docusnap.viewmodels.ImageProcessingViewModelFactory
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.CornerAdjustmentOverlay
-import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
-import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModelFactory
-import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
+import cn.edu.sjtu.deepsleep.docusnap.viewmodels.DocumentViewModel
+import cn.edu.sjtu.deepsleep.docusnap.viewmodels.DocumentViewModelFactory
+import cn.edu.sjtu.deepsleep.docusnap.AppModule
 
 private const val TAG = "ImageProcessingScreen"
 

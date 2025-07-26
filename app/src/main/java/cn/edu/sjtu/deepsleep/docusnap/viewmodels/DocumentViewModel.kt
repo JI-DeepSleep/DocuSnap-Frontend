@@ -1,18 +1,20 @@
-package cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels
+package cn.edu.sjtu.deepsleep.docusnap.viewmodels
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import cn.edu.sjtu.deepsleep.docusnap.data.Document
-import cn.edu.sjtu.deepsleep.docusnap.data.Form
-import cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity
-import cn.edu.sjtu.deepsleep.docusnap.data.TextInfo
+import cn.edu.sjtu.deepsleep.docusnap.data.model.Document
+import cn.edu.sjtu.deepsleep.docusnap.data.model.Form
+import cn.edu.sjtu.deepsleep.docusnap.data.model.SearchEntity
+import cn.edu.sjtu.deepsleep.docusnap.data.model.TextInfo
 import cn.edu.sjtu.deepsleep.docusnap.data.repository.DocumentRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import  android.util.Log
+import cn.edu.sjtu.deepsleep.docusnap.data.model.FileType
+import java.time.LocalDate
 
 private const val TAG = "DocumentViewModel"
 
@@ -42,15 +44,15 @@ class DocumentViewModel(
     }
     
     fun loadDocuments() {
-        android.util.Log.d("DocumentViewModel", "Loading documents...")
+        Log.d("DocumentViewModel", "Loading documents...")
         viewModelScope.launch {
             _isLoading.value = true
             try {
                 val docs = repository.getAllDocuments()
-                android.util.Log.d("DocumentViewModel", "Loaded ${docs.size} documents from repository")
+                Log.d("DocumentViewModel", "Loaded ${docs.size} documents from repository")
                 _documents.value = docs
             } catch (e: Exception) {
-                android.util.Log.e("DocumentViewModel", "Error loading documents: ${e.message}", e)
+                Log.e("DocumentViewModel", "Error loading documents: ${e.message}", e)
                 // Handle error - could emit error state
             } finally {
                 _isLoading.value = false
@@ -165,7 +167,7 @@ class DocumentViewModel(
             try {
                 repository.exportDocuments(documentIds)
             } catch (e: Exception) {
-                android.util.Log.e("DocumentViewModel", "Error exporting documents: ${e.message}", e)
+                Log.e("DocumentViewModel", "Error exporting documents: ${e.message}", e)
                 // Handle error
             }
         }
@@ -176,7 +178,7 @@ class DocumentViewModel(
             try {
                 repository.exportForms(formIds)
             } catch (e: Exception) {
-                android.util.Log.e("DocumentViewModel", "Error exporting forms: ${e.message}", e)
+                Log.e("DocumentViewModel", "Error exporting forms: ${e.message}", e)
                 // Handle error
             }
         }
@@ -194,7 +196,7 @@ class DocumentViewModel(
     fun updateDocumentUsage(documentId: String) {
         viewModelScope.launch {
             try {
-                val currentDate = java.time.LocalDate.now().toString()
+                val currentDate = LocalDate.now().toString()
                 repository.incrementDocumentUsage(documentId, currentDate)
                 // Remove loadDocuments() call here
             } catch (e: Exception) {
@@ -206,26 +208,26 @@ class DocumentViewModel(
     fun updateFormUsage(formId: String) {
         viewModelScope.launch {
             try {
-                val currentDate = java.time.LocalDate.now().toString()
+                val currentDate = LocalDate.now().toString()
                 repository.incrementFormUsage(formId, currentDate)
             } catch (e: Exception) {
-                android.util.Log.e("DocumentViewModel", "Error updating form usage: ${e.message}", e)
+                Log.e("DocumentViewModel", "Error updating form usage: ${e.message}", e)
             }
         }
     }
     
-    fun updateExtractedInfoUsage(fileId: String, fileType: cn.edu.sjtu.deepsleep.docusnap.data.FileType, key: String) {
+    fun updateExtractedInfoUsage(fileId: String, fileType: FileType, key: String) {
         viewModelScope.launch {
             try {
                 when (fileType) {
-                    cn.edu.sjtu.deepsleep.docusnap.data.FileType.DOCUMENT -> {
+                    FileType.DOCUMENT -> {
                         val document = repository.getDocument(fileId)
                         document?.let { doc ->
                             val updatedExtractedInfo = doc.extractedInfo.map { item ->
                                 if (item.key == key) {
                                     item.copy(
                                         usageCount = item.usageCount + 1,
-                                        lastUsed = java.time.LocalDate.now().toString()
+                                        lastUsed = LocalDate.now().toString()
                                     )
                                 } else {
                                     item
@@ -236,14 +238,14 @@ class DocumentViewModel(
                             loadDocuments() // Refresh the list
                         }
                     }
-                    cn.edu.sjtu.deepsleep.docusnap.data.FileType.FORM -> {
+                    FileType.FORM -> {
                         val form = repository.getForm(fileId)
                         form?.let { f ->
                             val updatedExtractedInfo = f.extractedInfo.map { item ->
                                 if (item.key == key) {
                                     item.copy(
                                         usageCount = item.usageCount + 1,
-                                        lastUsed = java.time.LocalDate.now().toString()
+                                        lastUsed = LocalDate.now().toString()
                                     )
                                 } else {
                                     item
@@ -257,24 +259,24 @@ class DocumentViewModel(
                 }
                 loadFrequentTextInfo() // Refresh frequent text info
             } catch (e: Exception) {
-                android.util.Log.e("DocumentViewModel", "Error updating extracted info usage: ${e.message}", e)
+                Log.e("DocumentViewModel", "Error updating extracted info usage: ${e.message}", e)
             }
         }
     }
 
     // Development helper: Add test data
     fun addTestData() {
-        android.util.Log.d("DocumentViewModel", "addTestData called")
+        Log.d("DocumentViewModel", "addTestData called")
         viewModelScope.launch {
             try {
-                android.util.Log.d("DocumentViewModel", "Calling repository.addTestData()")
+                Log.d("DocumentViewModel", "Calling repository.addTestData()")
                 repository.addTestData()
-                android.util.Log.d("DocumentViewModel", "Test data added, refreshing lists")
+                Log.d("DocumentViewModel", "Test data added, refreshing lists")
                 loadDocuments() // Refresh the list
                 loadForms() // Refresh the list
-                android.util.Log.d("DocumentViewModel", "Lists refreshed")
+                Log.d("DocumentViewModel", "Lists refreshed")
             } catch (e: Exception) {
-                android.util.Log.e("DocumentViewModel", "Error adding test data: ${e.message}", e)
+                Log.e("DocumentViewModel", "Error adding test data: ${e.message}", e)
                 // Handle error
             }
         }

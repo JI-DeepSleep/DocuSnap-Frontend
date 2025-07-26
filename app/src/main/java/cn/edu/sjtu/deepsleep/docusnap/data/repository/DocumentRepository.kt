@@ -1,16 +1,14 @@
 package cn.edu.sjtu.deepsleep.docusnap.data.repository
 
-import cn.edu.sjtu.deepsleep.docusnap.data.Document
-import cn.edu.sjtu.deepsleep.docusnap.data.FileType
-import cn.edu.sjtu.deepsleep.docusnap.data.Form
-import cn.edu.sjtu.deepsleep.docusnap.data.FormField
-import cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity
-import cn.edu.sjtu.deepsleep.docusnap.data.TextInfo
+import cn.edu.sjtu.deepsleep.docusnap.data.model.Document
+import cn.edu.sjtu.deepsleep.docusnap.data.model.ExtractedInfoItem
+import cn.edu.sjtu.deepsleep.docusnap.data.model.FileType
+import cn.edu.sjtu.deepsleep.docusnap.data.model.Form
+import cn.edu.sjtu.deepsleep.docusnap.data.model.FormField
+import cn.edu.sjtu.deepsleep.docusnap.data.model.SearchEntity
+import cn.edu.sjtu.deepsleep.docusnap.data.model.TextInfo
 import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import org.json.JSONObject
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -340,10 +338,10 @@ class DocumentRepository(
                 // CHANGED: imageUris -> imageBase64s
                 imageBase64s = emptyList(),
                 extractedInfo = listOf(
-                    cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem("Vendor", "Test Company"),
-                    cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem("Date", "2024-01-15"),
-                    cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem("Amount", "$25.00"),
-                    cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem("Created", timestamp.toString())
+                    ExtractedInfoItem("Vendor", "Test Company"),
+                    ExtractedInfoItem("Date", "2024-01-15"),
+                    ExtractedInfoItem("Amount", "$25.00"),
+                    ExtractedInfoItem("Created", timestamp.toString())
                 ),
                 tags = listOf("Test", "Development"),
                 uploadDate = "2024-01-15",
@@ -362,9 +360,9 @@ class DocumentRepository(
                     FormField("Created", timestamp.toString(), true)
                 ),
                 extractedInfo = listOf(
-                    cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem("Form Type", "Test Form"),
-                    cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem("Status", "Completed"),
-                    cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem("Created", timestamp.toString())
+                    ExtractedInfoItem("Form Type", "Test Form"),
+                    ExtractedInfoItem("Status", "Completed"),
+                    ExtractedInfoItem("Created", timestamp.toString())
                 ),
                 tags = listOf("Test", "Form"),
                 uploadDate = "2024-01-15",

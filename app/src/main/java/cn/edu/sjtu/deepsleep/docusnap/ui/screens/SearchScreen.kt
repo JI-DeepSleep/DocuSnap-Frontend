@@ -11,18 +11,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import cn.edu.sjtu.deepsleep.docusnap.service.DeviceDBService
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchBar
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.SearchEntityCard
 import androidx.compose.runtime.LaunchedEffect
  import androidx.compose.runtime.getValue
  import androidx.compose.runtime.setValue
  import androidx.compose.ui.platform.LocalContext
-import androidx.room.Room
-import cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity
-import cn.edu.sjtu.deepsleep.docusnap.data.FileType
-import cn.edu.sjtu.deepsleep.docusnap.data.local.AppDatabase
-import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
+import cn.edu.sjtu.deepsleep.docusnap.data.model.SearchEntity
+import cn.edu.sjtu.deepsleep.docusnap.data.model.FileType
+import cn.edu.sjtu.deepsleep.docusnap.AppModule
+import cn.edu.sjtu.deepsleep.docusnap.viewmodels.DocumentViewModel
 
 
 @Composable
@@ -30,7 +28,7 @@ fun SearchScreen(
     query: String?,
     onNavigate: (String) -> Unit,
     onBackClick: () -> Unit,
-    documentViewModel: cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
+    documentViewModel: DocumentViewModel
 ) {
     var searchQuery by remember { mutableStateOf(query ?: "") }
 
@@ -89,7 +87,7 @@ fun SearchScreen(
                         entity = entity,
                         onClick = {
                             when (entity) {
-                                is cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity.TextEntity -> {
+                                is SearchEntity.TextEntity -> {
                                     if (entity.srcFileId != null && entity.srcFileType != null) {
                                         when (entity.srcFileType) {
                                             FileType.DOCUMENT -> onNavigate("document_detail?documentId=${entity.srcFileId}&fromImageProcessing=false")
@@ -99,17 +97,17 @@ fun SearchScreen(
                                         onNavigate("document_detail?fromImageProcessing=false")
                                     }
                                 }
-                                is cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity.DocumentEntity -> {
+                                is SearchEntity.DocumentEntity -> {
                                     onNavigate("document_detail?documentId=${entity.document.id}&fromImageProcessing=false")
                                 }
-                                is cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity.FormEntity -> {
+                                is SearchEntity.FormEntity -> {
                                     onNavigate("form_detail?formId=${entity.form.id}&fromImageProcessing=false")
                                 }
                             }
                         },
                         onCopyText = {
                             when (entity) {
-                                is cn.edu.sjtu.deepsleep.docusnap.data.SearchEntity.TextEntity -> {
+                                is SearchEntity.TextEntity -> {
                                     if (entity.srcFileId != null && entity.srcFileType != null) {
                                         // Parse the text to extract key
                                         val keyValue = entity.text.split(":", limit = 2)

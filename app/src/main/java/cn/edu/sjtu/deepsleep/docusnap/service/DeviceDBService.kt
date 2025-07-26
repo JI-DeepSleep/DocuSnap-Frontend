@@ -5,28 +5,20 @@ import androidx.room.Room
 import cn.edu.sjtu.deepsleep.docusnap.data.local.AppDatabase
 import cn.edu.sjtu.deepsleep.docusnap.data.local.DocumentEntity
 import cn.edu.sjtu.deepsleep.docusnap.data.local.FormEntity
-import cn.edu.sjtu.deepsleep.docusnap.data.FormField
 import kotlinx.coroutines.flow.first
 import org.json.JSONObject
-import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.content.ContentValues
 import android.util.Base64
 import android.util.Log
-import android.widget.Toast
 import org.json.JSONArray
-import java.io.ByteArrayOutputStream
-import java.io.OutputStream
-import androidx.navigation.Navigation.findNavController
 import cn.edu.sjtu.deepsleep.docusnap.data.SettingsManager
-import cn.edu.sjtu.deepsleep.docusnap.data.ExtractedInfoItem
-import cn.edu.sjtu.deepsleep.docusnap.data.FileType
+import cn.edu.sjtu.deepsleep.docusnap.data.model.ExtractedInfoItem
 
 class DeviceDBService(private val context: Context) {
     private val db: AppDatabase by lazy {

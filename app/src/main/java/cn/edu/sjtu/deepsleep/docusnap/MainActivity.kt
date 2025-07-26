@@ -21,13 +21,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import cn.edu.sjtu.deepsleep.docusnap.data.SettingsManager
-import cn.edu.sjtu.deepsleep.docusnap.di.AppModule
 import cn.edu.sjtu.deepsleep.docusnap.navigation.Screen
 import cn.edu.sjtu.deepsleep.docusnap.service.JobPollingService
 import cn.edu.sjtu.deepsleep.docusnap.ui.components.BottomNavigation
 import cn.edu.sjtu.deepsleep.docusnap.ui.screens.*
 import cn.edu.sjtu.deepsleep.docusnap.ui.theme.DocuSnapTheme
-import cn.edu.sjtu.deepsleep.docusnap.ui.viewmodels.DocumentViewModel
+import cn.edu.sjtu.deepsleep.docusnap.viewmodels.DocumentViewModel
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
