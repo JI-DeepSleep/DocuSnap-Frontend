@@ -2,7 +2,96 @@
 
 Document scanning and processing is one of the core functionalities of DocuSnap-Frontend. This process involves multiple modules and components working together. The following diagram illustrates the complete flow from image capture to document storage:
 
-![Data Flow Diagram](../images/data_flow_diagram.png)
+
+```mermaid
+graph TD
+    %% Style definitions
+    classDef uiLayer fill:#B3E5FC,stroke:#0277BD,color:black
+    classDef viewModelLayer fill:#FFE0B2,stroke:#F57C00,color:black
+    classDef repoLayer fill:#E1BEE7,stroke:#7B1FA2,color:black
+    classDef serviceLayer fill:#B2EBF2,stroke:#0097A7,color:black
+    classDef externalLayer fill:#FFE0B2,stroke:#FF8F00,color:black
+    
+    %% Document Scanning Process
+    subgraph DocScan["文档扫描流程"]
+        CameraCapture["相机捕获<br/>CameraCaptureScreen"]
+        ImageProcessing["图像处理<br/>ImageProcessingScreen"]
+        DocumentDetail["文档详情<br/>DocumentDetailScreen"]
+        
+        CameraCapture -->|"图像数据"| ImageProcessing
+        ImageProcessing -->|"处理后图像"| DocumentDetail
+    end
+    
+    %% Form Processing
+    subgraph FormProc["表单处理流程"]
+        FormCapture["表单捕获<br/>CameraCaptureScreen"]
+        FormProcessing["表单处理<br/>ImageProcessingScreen"]
+        FormDetail["表单详情<br/>FormDetailScreen"]
+        
+        FormCapture -->|"图像数据"| FormProcessing
+        FormProcessing -->|"处理后表单"| FormDetail
+    end
+    
+    %% ViewModel Layer
+    subgraph ViewModels["ViewModel 层"]
+        DocVM["DocumentViewModel"]
+        ImgVM["ImageProcessingViewModel"]
+    end
+    
+    %% Repository Layer
+    subgraph Repos["Repository 层"]
+        DocRepo["DocumentRepository"]
+    end
+    
+    %% Service Layer
+    subgraph Services["Service 层"]
+        ImgService["ImageProcService"]
+        DBService["DeviceDBService"]
+        ApiService["BackendApiService"]
+        JobService["JobPollingService"]
+    end
+    
+    %% External Systems
+    subgraph External["外部系统"]
+        LocalDB[("本地数据库<br/>Room DB")]
+        BackendAPI["后端API服务"]
+    end
+    
+    %% Document Scanning Data Flow
+    ImageProcessing -->|"调用"| ImgVM
+    ImgVM -->|"处理"| ImgService
+    DocumentDetail -->|"保存"| DocVM
+    DocVM -->|"存储"| DocRepo
+    DocRepo -->|"写入"| DBService
+    DBService -->|"CRUD"| LocalDB
+    DocRepo -->|"请求"| ApiService
+    ApiService -->|"API"| BackendAPI
+    
+    %% Form Processing Data Flow
+    FormProcessing -->|"调用"| ImgVM
+    FormDetail -->|"保存"| DocVM
+    
+    %% Job Polling Flow
+    JobService -->|"轮询状态"| BackendAPI
+    JobService -->|"更新状态"| LocalDB
+    JobService -->|"更新数据"| DocRepo
+    
+    %% Response Flow (using red color)
+    BackendAPI -->|"返回"| JobService
+    JobService -->|"更新"| DocRepo
+    DocRepo -->|"写入"| DBService
+    DBService -->|"保存"| LocalDB
+    DocRepo -->|"通知"| DocVM
+    DocVM -->|"更新"| DocumentDetail
+    DocVM -->|"更新"| FormDetail
+    
+    %% Apply styles
+    class CameraCapture,ImageProcessing,DocumentDetail,FormCapture,FormProcessing,FormDetail uiLayer
+    class DocVM,ImgVM viewModelLayer
+    class DocRepo repoLayer
+    class ImgService,DBService,ApiService,JobService serviceLayer
+    class LocalDB,BackendAPI externalLayer
+```
 
 ## Detailed Document Scanning Process
 
